@@ -194,34 +194,32 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         updateUnfoldedCanvas();
     }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas]);
 
-    // Handle mouse events for the folded canvas
-    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Helper function to get canvas coordinates from mouse/touch event
+    const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
+        const foldedCanvas = foldedCanvasRef.current;
+        if (!foldedCanvas) return null;
+
+        const rect = foldedCanvas.getBoundingClientRect();
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }, []);
+
+    // Helper function to store original canvas states
+    const storeCanvasStates = useCallback(() => {
         const foldedCanvas = foldedCanvasRef.current;
         const unfoldedCanvas = unfoldedCanvasRef.current;
         if (!foldedCanvas || !unfoldedCanvas) return;
 
-        const rect = foldedCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
+        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
 
-        if (state.currentTool === DrawingTool.Circle) {
-            dispatch({ type: 'SET_IS_DRAWING', payload: true });
-            drawCircleOnFoldedCanvas(x, y);
-        } else if (state.currentTool === DrawingTool.Line) {
-            // Set start point on mouse down and indicate we're drawing
-            dispatch({ type: 'SET_LINE_START_POINT', payload: { x, y } });
-            dispatch({ type: 'SET_IS_DRAWING', payload: true });
-
-            // Store the original canvas states for preview restoration
-            const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-            const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-
-            if (foldedCtx && unfoldedCtx) {
-                originalFoldedCanvasState.current = foldedCtx.getImageData(0, 0, foldedCanvas.width, foldedCanvas.height);
-                originalUnfoldedCanvasState.current = unfoldedCtx.getImageData(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
-            }
+        if (foldedCtx && unfoldedCtx) {
+            originalFoldedCanvasState.current = foldedCtx.getImageData(0, 0, foldedCanvas.width, foldedCanvas.height);
+            originalUnfoldedCanvasState.current = unfoldedCtx.getImageData(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
         }
-    }, [state.currentTool, dispatch, drawCircleOnFoldedCanvas]);
+    }, []);
 
     // Helper function to draw preview line on both canvases
     const drawPreviewLineOnBothCanvases = useCallback((startX: number, startY: number, endX: number, endY: number) => {
@@ -303,18 +301,23 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         unfoldedCtx.globalAlpha = 1.0;
     }, [state.config.lineColor, state.lineThickness, state.folds.vertical, state.folds.horizontal]);
 
-    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        const foldedCanvas = foldedCanvasRef.current;
-        if (!foldedCanvas) return;
+    // Common start drawing function
+    const startDrawing = useCallback((x: number, y: number) => {
+        if (state.currentTool === DrawingTool.Circle) {
+            dispatch({ type: 'SET_IS_DRAWING', payload: true });
+            drawCircleOnFoldedCanvas(x, y);
+        } else if (state.currentTool === DrawingTool.Line) {
+            dispatch({ type: 'SET_LINE_START_POINT', payload: { x, y } });
+            dispatch({ type: 'SET_IS_DRAWING', payload: true });
+            storeCanvasStates();
+        }
+    }, [state.currentTool, dispatch, drawCircleOnFoldedCanvas, storeCanvasStates]);
 
-        const rect = foldedCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
+    // Common continue drawing function
+    const continueDrawing = useCallback((x: number, y: number) => {
         if (state.currentTool === DrawingTool.Circle && state.isDrawing) {
             drawCircleOnFoldedCanvas(x, y);
         } else if (state.currentTool === DrawingTool.Line && state.isDrawing && state.lineStartPoint !== null) {
-            // Draw the preview line on both canvases
             drawPreviewLineOnBothCanvases(
                 state.lineStartPoint.x,
                 state.lineStartPoint.y,
@@ -324,27 +327,131 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         }
     }, [state.currentTool, state.isDrawing, state.lineStartPoint, drawCircleOnFoldedCanvas, drawPreviewLineOnBothCanvases]);
 
-    const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Common end drawing function
+    const endDrawing = useCallback((x: number, y: number) => {
         if (state.currentTool === DrawingTool.Circle) {
             dispatch({ type: 'SET_IS_DRAWING', payload: false });
         } else if (state.currentTool === DrawingTool.Line && state.isDrawing && state.lineStartPoint !== null) {
-            const foldedCanvas = foldedCanvasRef.current;
-            if (!foldedCanvas) return;
-
-            const rect = foldedCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            // Draw the line from start point to where mouse was released
             drawLineOnFoldedCanvas(state.lineStartPoint.x, state.lineStartPoint.y, x, y);
-
-            // Reset drawing state
             dispatch({ type: 'SET_IS_DRAWING', payload: false });
             dispatch({ type: 'SET_LINE_START_POINT', payload: null });
             originalFoldedCanvasState.current = null;
             originalUnfoldedCanvasState.current = null;
         }
     }, [state.currentTool, state.isDrawing, state.lineStartPoint, dispatch, drawLineOnFoldedCanvas]);
+
+    // Handle mouse events for the folded canvas
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        if (!coords) return;
+
+        startDrawing(coords.x, coords.y);
+    }, [getCanvasCoordinates, startDrawing]);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        if (!coords) return;
+
+        continueDrawing(coords.x, coords.y);
+    }, [getCanvasCoordinates, continueDrawing]);
+
+    const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        if (!coords) return;
+
+        endDrawing(coords.x, coords.y);
+    }, [getCanvasCoordinates, endDrawing]);
+
+    // Handle touch events for mobile devices
+    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault(); // Prevent scrolling
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            if (!coords) return;
+
+            startDrawing(coords.x, coords.y);
+        }
+    }, [getCanvasCoordinates, startDrawing]);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault(); // Prevent scrolling
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            if (!coords) return;
+
+            continueDrawing(coords.x, coords.y);
+        }
+    }, [getCanvasCoordinates, continueDrawing]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault(); // Prevent scrolling
+        if (state.isDrawing) {
+            // For touch end, we need to use the last known position since there are no coordinates in the touchend event
+            if (state.currentTool === DrawingTool.Circle) {
+                dispatch({ type: 'SET_IS_DRAWING', payload: false });
+            } else if (state.currentTool === DrawingTool.Line && state.lineStartPoint !== null) {
+                // For lines, check if we have a last touch position
+                // If not, just cancel the drawing
+                const foldedCanvas = foldedCanvasRef.current;
+                if (!foldedCanvas) {
+                    dispatch({ type: 'SET_IS_DRAWING', payload: false });
+                    dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                    originalFoldedCanvasState.current = null;
+                    originalUnfoldedCanvasState.current = null;
+                    return;
+                }
+
+                // Use the last position from changedTouches if available
+                if (e.changedTouches && e.changedTouches.length > 0) {
+                    const touch = e.changedTouches[0];
+                    const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+                    if (coords) {
+                        endDrawing(coords.x, coords.y);
+                    } else {
+                        // Just reset if we couldn't get coordinates
+                        dispatch({ type: 'SET_IS_DRAWING', payload: false });
+                        dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                        originalFoldedCanvasState.current = null;
+                        originalUnfoldedCanvasState.current = null;
+                    }
+                } else {
+                    // Just reset if we couldn't get coordinates
+                    dispatch({ type: 'SET_IS_DRAWING', payload: false });
+                    dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                    originalFoldedCanvasState.current = null;
+                    originalUnfoldedCanvasState.current = null;
+                }
+            }
+        }
+    }, [state.currentTool, state.isDrawing, state.lineStartPoint, dispatch, getCanvasCoordinates, endDrawing]);
+
+    const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault(); // Prevent scrolling
+        // Just reset drawing state
+        dispatch({ type: 'SET_IS_DRAWING', payload: false });
+        dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+        originalFoldedCanvasState.current = null;
+        originalUnfoldedCanvasState.current = null;
+
+        // Restore canvases to their original state
+        const foldedCanvas = foldedCanvasRef.current;
+        const unfoldedCanvas = unfoldedCanvasRef.current;
+        if (!foldedCanvas || !unfoldedCanvas) return;
+
+        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
+        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
+
+        if (foldedCtx && unfoldedCtx) {
+            if (originalFoldedCanvasState.current) {
+                foldedCtx.putImageData(originalFoldedCanvasState.current, 0, 0);
+            }
+            if (originalUnfoldedCanvasState.current) {
+                unfoldedCtx.putImageData(originalUnfoldedCanvasState.current, 0, 0);
+            }
+        }
+    }, [dispatch]);
 
     const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         // Stop drawing for both tools when mouse leaves canvas
@@ -480,10 +587,16 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         updateUnfoldedCanvas,
         initializeCanvases,
 
-        // Event handlers
+        // Mouse event handlers
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
-        handleMouseLeave
+        handleMouseLeave,
+
+        // Touch event handlers
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
+        handleTouchCancel
     };
 } 

@@ -16,7 +16,11 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
-        handleMouseLeave
+        handleMouseLeave,
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
+        handleTouchCancel
     } = useCanvas({ state, dispatch });
 
     // Initialize canvases when dimensions or folds change
@@ -27,10 +31,6 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
     return (
         <div className="canvas-container">
             <div className="canvas-wrapper">
-                <h3>Unfolded Version</h3>
-                <canvas ref={unfoldedCanvasRef} />
-            </div>
-            <div className="canvas-wrapper">
                 <h3>Folded Version</h3>
                 <canvas
                     ref={foldedCanvasRef}
@@ -38,7 +38,15 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchCancel}
                 />
+            </div>
+            <div className="canvas-wrapper">
+                <h3>Unfolded Version</h3>
+                <canvas ref={unfoldedCanvasRef} />
             </div>
         </div>
     );
