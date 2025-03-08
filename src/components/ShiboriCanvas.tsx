@@ -1,41 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useReducer } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
-import { debounce } from '../utils/debounce';
-import { AppConfig, DrawingTool, FoldState } from '../types';
+import { debounce } from 'lodash-es';
+import { DrawingTool } from '../types';
+import {
+    initialState,
+    reducer
+} from '../store/shiboriCanvasState';
 import './ShiboriCanvas.css';
-
-// Default configuration values
-const DEFAULT_CONFIG: AppConfig = {
-    unfoldedCanvasWidth: 400,
-    unfoldedCanvasHeight: 400,
-    maxFolds: 3,
-    defaultCircleRadius: 20,
-    circleColor: 'white',
-    defaultLineThickness: 2,
-    lineColor: 'white',
-    debounceDelay: 15
-};
 
 const ShiboriCanvas = () => {
     // Canvas references
     const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
     const foldedCanvasRef = useRef<HTMLCanvasElement>(null);
 
-    // State for configuration and drawing
-    const [config] = useState<AppConfig>(DEFAULT_CONFIG);
-    const [circleRadius, setCircleRadius] = useState(DEFAULT_CONFIG.defaultCircleRadius);
-    const [lineThickness, setLineThickness] = useState(DEFAULT_CONFIG.defaultLineThickness);
-    const [currentTool, setCurrentTool] = useState<DrawingTool>(DrawingTool.Circle);
-    const [isDrawing, setIsDrawing] = useState(false);
-    const [lineStartPoint, setLineStartPoint] = useState<{ x: number; y: number } | null>(null);
-    const [folds, setFolds] = useState<FoldState>({
-        vertical: 2,
-        horizontal: 2
-    });
-    const [canvasDimensions, setCanvasDimensions] = useState({
-        width: DEFAULT_CONFIG.unfoldedCanvasWidth,
-        height: DEFAULT_CONFIG.unfoldedCanvasHeight
-    });
+    // Use reducer instead of multiple useState hooks
+    const [state, dispatch] = useReducer(reducer, initialState);
 
     // Function to clear both canvases
     const clearCanvases = () => {
@@ -60,8 +39,8 @@ const ShiboriCanvas = () => {
 
         if (!unfoldedCanvas || !foldedCanvas) return;
 
-        const foldedWidth = unfoldedCanvas.width / Math.pow(2, folds.vertical);
-        const foldedHeight = unfoldedCanvas.height / Math.pow(2, folds.horizontal);
+        const foldedWidth = unfoldedCanvas.width / Math.pow(2, state.folds.vertical);
+        const foldedHeight = unfoldedCanvas.height / Math.pow(2, state.folds.horizontal);
 
         foldedCanvas.width = foldedWidth;
         foldedCanvas.height = foldedHeight;
@@ -90,7 +69,7 @@ const ShiboriCanvas = () => {
         const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
         if (!unfoldedCtx) return;
 
-        const foldCount = isVertical ? folds.vertical : folds.horizontal;
+        const foldCount = isVertical ? state.folds.vertical : state.folds.horizontal;
         const canvasSize = isVertical ? unfoldedCanvas.width : unfoldedCanvas.height;
 
         unfoldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -126,8 +105,8 @@ const ShiboriCanvas = () => {
         if (!foldedCtx) return;
 
         foldedCtx.beginPath();
-        foldedCtx.arc(x, y, circleRadius, 0, Math.PI * 2);
-        foldedCtx.fillStyle = config.circleColor;
+        foldedCtx.arc(x, y, state.circleRadius, 0, Math.PI * 2);
+        foldedCtx.fillStyle = state.config.circleColor;
         foldedCtx.fill();
 
         debouncedUpdateUnfoldedCanvas();
@@ -144,8 +123,8 @@ const ShiboriCanvas = () => {
         foldedCtx.beginPath();
         foldedCtx.moveTo(startX, startY);
         foldedCtx.lineTo(endX, endY);
-        foldedCtx.strokeStyle = config.lineColor;
-        foldedCtx.lineWidth = lineThickness;
+        foldedCtx.strokeStyle = state.config.lineColor;
+        foldedCtx.lineWidth = state.lineThickness;
         foldedCtx.stroke();
 
         debouncedUpdateUnfoldedCanvas();
@@ -174,8 +153,8 @@ const ShiboriCanvas = () => {
         const bothFlipped = ImageUtils.flipVertical(horizontalFlipped); // or flipHorizontal(verticalFlipped)
 
         // Calculate the total grid size based on folds
-        const gridWidth = Math.pow(2, folds.vertical);
-        const gridHeight = Math.pow(2, folds.horizontal);
+        const gridWidth = Math.pow(2, state.folds.vertical);
+        const gridHeight = Math.pow(2, state.folds.horizontal);
 
         // Determine each cell's dimensions
         const cellWidth = originalImage.width;
@@ -214,28 +193,31 @@ const ShiboriCanvas = () => {
     };
 
     // Create a debounced version of updateUnfoldedCanvas
-    const debouncedUpdateUnfoldedCanvas = debounce(updateUnfoldedCanvas, config.debounceDelay);
+    const debouncedUpdateUnfoldedCanvas = debounce(updateUnfoldedCanvas, state.config.debounceDelay);
 
     // Handle fold button clicks
     const handleFoldButtonClick = (isVertical: boolean) => {
-        const foldCount = isVertical ? folds.vertical : folds.horizontal;
+        const foldCount = isVertical ? state.folds.vertical : state.folds.horizontal;
 
-        if (foldCount < config.maxFolds) {
-            setFolds(prevFolds => ({
-                ...prevFolds,
-                [isVertical ? 'vertical' : 'horizontal']: foldCount + 1
-            }));
+        if (foldCount < state.config.maxFolds) {
+            dispatch({
+                type: 'UPDATE_FOLD',
+                payload: {
+                    axis: isVertical ? 'vertical' : 'horizontal',
+                    value: foldCount + 1
+                }
+            });
         }
     };
 
     // Handle reset button click
     const handleResetButtonClick = () => {
-        setFolds({ vertical: 1, horizontal: 1 });
+        dispatch({ type: 'RESET_FOLDS' });
     };
 
     // Handle canvas dimension changes
     const handleCanvasDimensionsChange = (width: number, height: number) => {
-        setCanvasDimensions({ width, height });
+        dispatch({ type: 'SET_CANVAS_DIMENSIONS', payload: { width, height } });
     };
 
     // Handle mouse events for the folded canvas
@@ -247,13 +229,13 @@ const ShiboriCanvas = () => {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        if (currentTool === DrawingTool.Circle) {
-            setIsDrawing(true);
+        if (state.currentTool === DrawingTool.Circle) {
+            dispatch({ type: 'SET_IS_DRAWING', payload: true });
             drawCircleOnFoldedCanvas(x, y);
-        } else if (currentTool === DrawingTool.Line) {
-            if (lineStartPoint === null) {
+        } else if (state.currentTool === DrawingTool.Line) {
+            if (state.lineStartPoint === null) {
                 // First click - set start point
-                setLineStartPoint({ x, y });
+                dispatch({ type: 'SET_LINE_START_POINT', payload: { x, y } });
 
                 // Draw a temporary dot to show the start point
                 const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
@@ -261,18 +243,18 @@ const ShiboriCanvas = () => {
 
                 foldedCtx.beginPath();
                 foldedCtx.arc(x, y, 3, 0, Math.PI * 2);
-                foldedCtx.fillStyle = config.lineColor;
+                foldedCtx.fillStyle = state.config.lineColor;
                 foldedCtx.fill();
             } else {
                 // Second click - draw the line
-                drawLineOnFoldedCanvas(lineStartPoint.x, lineStartPoint.y, x, y);
-                setLineStartPoint(null);
+                drawLineOnFoldedCanvas(state.lineStartPoint.x, state.lineStartPoint.y, x, y);
+                dispatch({ type: 'SET_LINE_START_POINT', payload: null });
             }
         }
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (currentTool === DrawingTool.Circle && isDrawing) {
+        if (state.currentTool === DrawingTool.Circle && state.isDrawing) {
             const foldedCanvas = foldedCanvasRef.current;
             if (!foldedCanvas) return;
 
@@ -285,14 +267,14 @@ const ShiboriCanvas = () => {
     };
 
     const handleMouseUp = () => {
-        if (currentTool === DrawingTool.Circle) {
-            setIsDrawing(false);
+        if (state.currentTool === DrawingTool.Circle) {
+            dispatch({ type: 'SET_IS_DRAWING', payload: false });
         }
     };
 
     const handleMouseLeave = () => {
-        if (currentTool === DrawingTool.Circle) {
-            setIsDrawing(false);
+        if (state.currentTool === DrawingTool.Circle) {
+            dispatch({ type: 'SET_IS_DRAWING', payload: false });
         }
     };
 
@@ -304,8 +286,8 @@ const ShiboriCanvas = () => {
         if (!unfoldedCanvas || !foldedCanvas) return;
 
         // Set initial canvas dimensions
-        unfoldedCanvas.width = canvasDimensions.width;
-        unfoldedCanvas.height = canvasDimensions.height;
+        unfoldedCanvas.width = state.canvasDimensions.width;
+        unfoldedCanvas.height = state.canvasDimensions.height;
 
         // Update folded canvas dimensions
         updateFoldedCanvasDimensions();
@@ -315,7 +297,7 @@ const ShiboriCanvas = () => {
 
         // Draw the fold lines
         drawFoldLines();
-    }, [canvasDimensions, folds]); // Re-run when canvas dimensions or folds change
+    }, [state.canvasDimensions, state.folds]);
 
     return (
         <div className="shibori-app">
@@ -328,12 +310,12 @@ const ShiboriCanvas = () => {
             <div className="button-container">
                 <button
                     onClick={() => handleFoldButtonClick(true)}
-                    disabled={folds.vertical >= config.maxFolds}>
+                    disabled={state.folds.vertical >= state.config.maxFolds}>
                     Fold Vertically
                 </button>
                 <button
                     onClick={() => handleFoldButtonClick(false)}
-                    disabled={folds.horizontal >= config.maxFolds}>
+                    disabled={state.folds.horizontal >= state.config.maxFolds}>
                     Fold Horizontally
                 </button>
                 <button onClick={handleResetButtonClick}>
@@ -349,8 +331,11 @@ const ShiboriCanvas = () => {
                     className="dimension-input"
                     min="100"
                     max="1000"
-                    value={canvasDimensions.width}
-                    onChange={(e) => setCanvasDimensions(prev => ({ ...prev, width: parseInt(e.target.value) || 100 }))}
+                    value={state.canvasDimensions.width}
+                    onChange={(e) => dispatch({
+                        type: 'UPDATE_CANVAS_WIDTH',
+                        payload: parseInt(e.target.value) || 100
+                    })}
                 />
                 <label htmlFor="canvasHeight">Height:</label>
                 <input
@@ -359,10 +344,13 @@ const ShiboriCanvas = () => {
                     className="dimension-input"
                     min="100"
                     max="1000"
-                    value={canvasDimensions.height}
-                    onChange={(e) => setCanvasDimensions(prev => ({ ...prev, height: parseInt(e.target.value) || 100 }))}
+                    value={state.canvasDimensions.height}
+                    onChange={(e) => dispatch({
+                        type: 'UPDATE_CANVAS_HEIGHT',
+                        payload: parseInt(e.target.value) || 100
+                    })}
                 />
-                <button onClick={() => handleCanvasDimensionsChange(canvasDimensions.width, canvasDimensions.height)}>
+                <button onClick={() => handleCanvasDimensionsChange(state.canvasDimensions.width, state.canvasDimensions.height)}>
                     Apply
                 </button>
             </div>
@@ -393,8 +381,8 @@ const ShiboriCanvas = () => {
                                 type="radio"
                                 name="drawingTool"
                                 value={DrawingTool.Circle}
-                                checked={currentTool === DrawingTool.Circle}
-                                onChange={() => setCurrentTool(DrawingTool.Circle)}
+                                checked={state.currentTool === DrawingTool.Circle}
+                                onChange={() => dispatch({ type: 'SET_CURRENT_TOOL', payload: DrawingTool.Circle })}
                             />
                             Circle Brush
                         </label>
@@ -403,15 +391,15 @@ const ShiboriCanvas = () => {
                                 type="radio"
                                 name="drawingTool"
                                 value={DrawingTool.Line}
-                                checked={currentTool === DrawingTool.Line}
-                                onChange={() => setCurrentTool(DrawingTool.Line)}
+                                checked={state.currentTool === DrawingTool.Line}
+                                onChange={() => dispatch({ type: 'SET_CURRENT_TOOL', payload: DrawingTool.Line })}
                             />
                             Line Tool
                         </label>
                     </div>
                 </div>
 
-                {currentTool === DrawingTool.Circle ? (
+                {state.currentTool === DrawingTool.Circle ? (
                     <div className="slider-container" id="circleControls">
                         <label htmlFor="sizeSlider">Circle Size:</label>
                         <input
@@ -419,10 +407,13 @@ const ShiboriCanvas = () => {
                             id="sizeSlider"
                             min="5"
                             max="50"
-                            value={circleRadius}
-                            onChange={(e) => setCircleRadius(parseInt(e.target.value))}
+                            value={state.circleRadius}
+                            onChange={(e) => dispatch({
+                                type: 'SET_CIRCLE_RADIUS',
+                                payload: parseInt(e.target.value)
+                            })}
                         />
-                        <span>{circleRadius}</span>px
+                        <span>{state.circleRadius}</span>px
                     </div>
                 ) : (
                     <div className="slider-container" id="lineControls">
@@ -432,10 +423,13 @@ const ShiboriCanvas = () => {
                             id="lineThicknessSlider"
                             min="1"
                             max="20"
-                            value={lineThickness}
-                            onChange={(e) => setLineThickness(parseInt(e.target.value))}
+                            value={state.lineThickness}
+                            onChange={(e) => dispatch({
+                                type: 'SET_LINE_THICKNESS',
+                                payload: parseInt(e.target.value)
+                            })}
                         />
-                        <span>{lineThickness}</span>px
+                        <span>{state.lineThickness}</span>px
                     </div>
                 )}
             </div>
