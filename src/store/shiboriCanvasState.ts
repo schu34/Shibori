@@ -2,12 +2,12 @@ import { AppConfig, DrawingTool, FoldState } from '../types';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
-    unfoldedCanvasWidth: 400,
-    unfoldedCanvasHeight: 400,
+    unfoldedCanvasWidth: 800,
+    unfoldedCanvasHeight: 800,
     maxFolds: 3,
     defaultCircleRadius: 20,
     circleColor: 'white',
-    defaultLineThickness: 2,
+    defaultLineThickness: 4,
     lineColor: 'white',
     debounceDelay: 15
 };
