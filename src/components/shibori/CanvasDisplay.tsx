@@ -28,6 +28,35 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         initializeCanvases();
     }, [state.canvasDimensions, state.folds, initializeCanvases]);
 
+    // Add touch event listeners with passive: false to ensure preventDefault works
+    useEffect(() => {
+        const foldedCanvas = foldedCanvasRef.current;
+        if (!foldedCanvas) return;
+
+        // Options for the event listeners - critical for making preventDefault work
+        const options = { passive: false };
+
+        // Convert React touch event handlers to DOM event handlers
+        const touchStartHandler = (e: TouchEvent) => handleTouchStart(e as unknown as React.TouchEvent<HTMLCanvasElement>);
+        const touchMoveHandler = (e: TouchEvent) => handleTouchMove(e as unknown as React.TouchEvent<HTMLCanvasElement>);
+        const touchEndHandler = (e: TouchEvent) => handleTouchEnd(e as unknown as React.TouchEvent<HTMLCanvasElement>);
+        const touchCancelHandler = (e: TouchEvent) => handleTouchCancel(e as unknown as React.TouchEvent<HTMLCanvasElement>);
+
+        // Add event listeners with non-passive option
+        foldedCanvas.addEventListener('touchstart', touchStartHandler, options);
+        foldedCanvas.addEventListener('touchmove', touchMoveHandler, options);
+        foldedCanvas.addEventListener('touchend', touchEndHandler, options);
+        foldedCanvas.addEventListener('touchcancel', touchCancelHandler, options);
+
+        // Clean up event listeners when component unmounts
+        return () => {
+            foldedCanvas.removeEventListener('touchstart', touchStartHandler);
+            foldedCanvas.removeEventListener('touchmove', touchMoveHandler);
+            foldedCanvas.removeEventListener('touchend', touchEndHandler);
+            foldedCanvas.removeEventListener('touchcancel', touchCancelHandler);
+        };
+    }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel]);
+
     return (
         <div className="canvas-container">
             <div className="canvas-wrapper">
@@ -38,10 +67,7 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchCancel={handleTouchCancel}
+                /* Touch events will be handled via direct event listeners with {passive: false} */
                 />
             </div>
             <div className="canvas-wrapper">
