@@ -15,7 +15,6 @@ describe('ToolControls Component', () => {
             circleColor: 'white',
             defaultLineThickness: 2,
             lineColor: 'white',
-            debounceDelay: 15
         },
         folds: {
             vertical: 2,

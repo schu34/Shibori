@@ -9,7 +9,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     circleColor: 'white',
     defaultLineThickness: 4,
     lineColor: 'white',
-    debounceDelay: 15
 };
 
 // Define the State interface

@@ -1,5 +1,4 @@
 .shibori-app {
-    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     font-family: Arial, sans-serif;
@@ -76,6 +75,7 @@ h1 {
 .canvas-container {
     display: flex;
     justify-content: space-around;
+    align-items: center;
     margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 20px;
@@ -83,6 +83,7 @@ h1 {
     background-color: #f0f8ff;
     border-radius: 8px;
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+    min-height: 450px;
 }
 
 .canvas-wrapper {
@@ -91,6 +92,12 @@ h1 {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     padding: 10px;
     background-color: #f0f8ff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    /* Ensure minimum height for containers */
 }
 
 .canvas-wrapper h3 {
@@ -104,6 +111,10 @@ canvas {
     /* Navy background for canvases */
     border-radius: 6px;
     box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    margin: auto;
+    /* Center horizontally */
+    display: block;
+    /* Better block display for centering */
 }
 
 .controls {
@@ -214,6 +225,17 @@ input[type="range"]:focus {
     .canvas-container {
         flex-direction: column;
         align-items: center;
+        min-height: auto;
+        /* Allow container to adjust to content on small screens */
+        padding: 10px;
+    }
+
+    .canvas-wrapper {
+        width: 90%;
+        /* Make canvas wrappers wider on small screens */
+        min-height: 300px;
+        /* Smaller minimum height on mobile */
+        margin-bottom: 15px;
     }
 
     .dimension-controls {

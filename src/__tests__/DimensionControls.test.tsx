@@ -15,7 +15,6 @@ describe('DimensionControls Component', () => {
             circleColor: 'white',
             defaultLineThickness: 2,
             lineColor: 'white',
-            debounceDelay: 15
         },
         folds: {
             vertical: 2,
@@ -43,7 +42,6 @@ describe('DimensionControls Component', () => {
 
         expect(screen.getByLabelText('Canvas Width:')).toBeInTheDocument();
         expect(screen.getByLabelText('Height:')).toBeInTheDocument();
-        expect(screen.getByText('Apply')).toBeInTheDocument();
     });
 
     test('width input shows current canvas width', () => {
@@ -60,7 +58,7 @@ describe('DimensionControls Component', () => {
         expect(heightInput.value).toBe('400');
     });
 
-    test('changing width input dispatches correct action', () => {
+    test('changing width input dispatches both UPDATE and SET actions', () => {
         render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
 
         const widthInput = screen.getByLabelText('Canvas Width:');
@@ -70,18 +68,32 @@ describe('DimensionControls Component', () => {
             type: 'UPDATE_CANVAS_WIDTH',
             payload: 500
         });
+
+        expect(mockDispatch).toHaveBeenCalledWith({
+            type: 'SET_CANVAS_DIMENSIONS',
+            payload: {
+                width: 500,
+                height: 400
+            }
+        });
     });
 
-    test('apply button dispatches SET_CANVAS_DIMENSIONS action', () => {
+    test('changing height input dispatches both UPDATE and SET actions', () => {
         render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
 
-        fireEvent.click(screen.getByText('Apply'));
+        const heightInput = screen.getByLabelText('Height:');
+        fireEvent.change(heightInput, { target: { value: '600' } });
+
+        expect(mockDispatch).toHaveBeenCalledWith({
+            type: 'UPDATE_CANVAS_HEIGHT',
+            payload: 600
+        });
 
         expect(mockDispatch).toHaveBeenCalledWith({
             type: 'SET_CANVAS_DIMENSIONS',
             payload: {
                 width: 400,
-                height: 400
+                height: 600
             }
         });
     });

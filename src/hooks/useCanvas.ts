@@ -1,5 +1,4 @@
 import { useRef, useCallback } from 'react';
-import { debounce } from 'lodash-es';
 import { ImageUtils } from '../utils/imageUtils';
 import { DrawingTool } from '../types';
 import { State, Action } from '../store/shiboriCanvasState';
@@ -160,13 +159,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         drawFoldLines();
     }, [state.folds.vertical, state.folds.horizontal, drawFoldLines]);
 
-    // Create a debounced version of updateUnfoldedCanvas using useCallback
-    const debouncedUpdateUnfoldedCanvas = useCallback(
-        debounce(() => {
-            updateUnfoldedCanvas();
-        }, state.config.debounceDelay),
-        [updateUnfoldedCanvas, state.config.debounceDelay]
-    );
 
     // Function to draw a circle on the folded canvas
     const drawCircleOnFoldedCanvas = useCallback((x: number, y: number) => {
@@ -181,8 +173,8 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         foldedCtx.fillStyle = state.config.circleColor;
         foldedCtx.fill();
 
-        debouncedUpdateUnfoldedCanvas();
-    }, [state.circleRadius, state.config.circleColor, debouncedUpdateUnfoldedCanvas]);
+        updateUnfoldedCanvas();
+    }, [state.circleRadius, state.config.circleColor, updateUnfoldedCanvas]);
 
     // Function to draw a line on the folded canvas
     const drawLineOnFoldedCanvas = useCallback((startX: number, startY: number, endX: number, endY: number) => {
@@ -199,8 +191,8 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         foldedCtx.lineWidth = state.lineThickness;
         foldedCtx.stroke();
 
-        debouncedUpdateUnfoldedCanvas();
-    }, [state.config.lineColor, state.lineThickness, debouncedUpdateUnfoldedCanvas]);
+        updateUnfoldedCanvas();
+    }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas]);
 
     // Handle mouse events for the folded canvas
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -486,7 +478,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         drawCircleOnFoldedCanvas,
         drawLineOnFoldedCanvas,
         updateUnfoldedCanvas,
-        debouncedUpdateUnfoldedCanvas,
         initializeCanvases,
 
         // Event handlers

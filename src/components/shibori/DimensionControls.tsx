@@ -7,9 +7,35 @@ interface DimensionControlsProps {
 }
 
 export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dispatch }) => {
-    // Handle canvas dimension changes
-    const handleCanvasDimensionsChange = (width: number, height: number) => {
-        dispatch({ type: 'SET_CANVAS_DIMENSIONS', payload: { width, height } });
+    // Handle input changes
+    const handleWidthChange = (width: number) => {
+        const validWidth = width || 100;
+        dispatch({
+            type: 'UPDATE_CANVAS_WIDTH',
+            payload: validWidth
+        });
+        dispatch({
+            type: 'SET_CANVAS_DIMENSIONS',
+            payload: {
+                width: validWidth,
+                height: state.canvasDimensions.height
+            }
+        });
+    };
+
+    const handleHeightChange = (height: number) => {
+        const validHeight = height || 100;
+        dispatch({
+            type: 'UPDATE_CANVAS_HEIGHT',
+            payload: validHeight
+        });
+        dispatch({
+            type: 'SET_CANVAS_DIMENSIONS',
+            payload: {
+                width: state.canvasDimensions.width,
+                height: validHeight
+            }
+        });
     };
 
     return (
@@ -22,10 +48,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dis
                 min="100"
                 max="1000"
                 value={state.canvasDimensions.width}
-                onChange={(e) => dispatch({
-                    type: 'UPDATE_CANVAS_WIDTH',
-                    payload: parseInt(e.target.value) || 100
-                })}
+                onChange={(e) => handleWidthChange(parseInt(e.target.value))}
             />
             <label htmlFor="canvasHeight">Height:</label>
             <input
@@ -35,14 +58,8 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dis
                 min="100"
                 max="1000"
                 value={state.canvasDimensions.height}
-                onChange={(e) => dispatch({
-                    type: 'UPDATE_CANVAS_HEIGHT',
-                    payload: parseInt(e.target.value) || 100
-                })}
+                onChange={(e) => handleHeightChange(parseInt(e.target.value))}
             />
-            <button onClick={() => handleCanvasDimensionsChange(state.canvasDimensions.width, state.canvasDimensions.height)}>
-                Apply
-            </button>
         </div>
     );
 }; 

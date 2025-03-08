@@ -6,7 +6,6 @@ export interface AppConfig {
     circleColor: string;
     defaultLineThickness: number;
     lineColor: string;
-    debounceDelay: number;
 }
 
 export interface FoldState {
