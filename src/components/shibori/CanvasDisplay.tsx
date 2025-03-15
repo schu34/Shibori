@@ -12,7 +12,7 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
-        initializeCanvases,
+        resetCanvases,
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
@@ -25,8 +25,8 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
 
     // Initialize canvases when dimensions or folds change
     useEffect(() => {
-        initializeCanvases();
-    }, [state.canvasDimensions, state.folds, initializeCanvases]);
+        resetCanvases();
+    }, [state.canvasDimensions, state.folds, resetCanvases]);
 
     // Add touch event listeners with passive: false to ensure preventDefault works
     useEffect(() => {
@@ -55,7 +55,7 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
             foldedCanvas.removeEventListener('touchend', touchEndHandler);
             foldedCanvas.removeEventListener('touchcancel', touchCancelHandler);
         };
-    }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel]);
+    }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, foldedCanvasRef]);
 
     return (
         <div className="canvas-container">
@@ -67,6 +67,8 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
+                    width={state.canvasDimensions.width}
+                    height={state.canvasDimensions.height}
                 /* Touch events will be handled via direct event listeners with {passive: false} */
                 />
             </div>

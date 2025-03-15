@@ -1,4 +1,4 @@
-import { AppConfig, DrawingTool, FoldState } from '../types';
+import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
@@ -35,8 +35,13 @@ export const initialState: State = {
     isDrawing: false,
     lineStartPoint: null,
     folds: {
-        vertical: 2,
-        horizontal: 2
+        vertical: 1,
+        horizontal: 1,
+        diagonal: {
+            enabled: false,
+            count: 1,
+            direction: DiagonalDirection.TopLeftToBottomRight
+        }
     },
     canvasDimensions: {
         width: DEFAULT_CONFIG.unfoldedCanvasWidth,
@@ -52,6 +57,9 @@ export type Action =
     | { type: 'SET_IS_DRAWING', payload: boolean }
     | { type: 'SET_LINE_START_POINT', payload: { x: number; y: number } | null }
     | { type: 'UPDATE_FOLD', payload: { axis: 'vertical' | 'horizontal', value: number } }
+    | { type: 'TOGGLE_DIAGONAL_FOLD', payload: boolean }
+    | { type: 'UPDATE_DIAGONAL_FOLD_COUNT', payload: number }
+    | { type: 'UPDATE_DIAGONAL_FOLD_DIRECTION', payload: DiagonalDirection }
     | { type: 'RESET_FOLDS' }
     | { type: 'SET_CANVAS_DIMENSIONS', payload: { width: number; height: number } }
     | { type: 'UPDATE_CANVAS_WIDTH', payload: number }
@@ -70,18 +78,81 @@ export function reducer(state: State, action: Action): State {
             return { ...state, isDrawing: action.payload };
         case 'SET_LINE_START_POINT':
             return { ...state, lineStartPoint: action.payload };
-        case 'UPDATE_FOLD':
+        case 'UPDATE_FOLD': {
+            const newFolds = {
+                ...state.folds,
+                [action.payload.axis]: action.payload.value
+            };
+
+            // Check if canvas is still square after this update
+            const isSquare =
+                (action.payload.axis === 'vertical' && action.payload.value === state.folds.horizontal) ||
+                (action.payload.axis === 'horizontal' && action.payload.value === state.folds.vertical);
+
+            // If not square, reset diagonal folds
+            if (!isSquare) {
+                newFolds.diagonal = {
+                    ...state.folds.diagonal,
+                    enabled: false,
+                    count: 0
+                };
+            }
+
+            return {
+                ...state,
+                folds: newFolds
+            };
+        }
+        case 'TOGGLE_DIAGONAL_FOLD': {
+            // Don't enable diagonal folds if canvas isn't square
+            const isSquare = state.folds.vertical === state.folds.horizontal;
+            const canEnable = action.payload && isSquare;
+
             return {
                 ...state,
                 folds: {
                     ...state.folds,
-                    [action.payload.axis]: action.payload.value
+                    diagonal: {
+                        ...state.folds.diagonal,
+                        enabled: canEnable,
+                        // Reset count to 0 if disabling
+                        count: canEnable ? state.folds.diagonal.count : 0
+                    }
+                }
+            };
+        }
+        case 'UPDATE_DIAGONAL_FOLD_COUNT': {
+            // Enforce only one diagonal fold
+            const newCount = action.payload > 1 ? 1 : action.payload;
+
+            return {
+                ...state,
+                folds: {
+                    ...state.folds,
+                    diagonal: {
+                        ...state.folds.diagonal,
+                        count: newCount
+                    }
+                }
+            };
+        }
+        case 'UPDATE_DIAGONAL_FOLD_DIRECTION':
+            return {
+                ...state,
+                folds: {
+                    ...state.folds,
+                    diagonal: {
+                        ...state.folds.diagonal,
+                        direction: action.payload
+                    }
                 }
             };
         case 'RESET_FOLDS':
             return {
                 ...state,
-                folds: { vertical: 1, horizontal: 1 }
+                folds: {
+                    ...initialState.folds
+                }
             };
         case 'SET_CANVAS_DIMENSIONS':
             return {

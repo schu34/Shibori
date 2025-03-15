@@ -2,10 +2,23 @@ import { useRef, useCallback } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
 import { DrawingTool } from '../types';
 import { State, Action } from '../store/shiboriCanvasState';
+import throttle from 'lodash-es/throttle';
 
 export interface UseCanvasProps {
     state: State;
     dispatch: React.Dispatch<Action>;
+}
+
+function cachedLazy<T>(fn: () => T): () => T {
+    let isCachePopulated = false;
+    let returnValue: T | null = null;
+    return () => {
+        if (!isCachePopulated || returnValue === null) {
+            returnValue = fn();
+            isCachePopulated = true;
+        }
+        return returnValue;
+    };
 }
 
 export function useCanvas({ state, dispatch }: UseCanvasProps) {
@@ -13,8 +26,10 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
     const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
     const foldedCanvasRef = useRef<HTMLCanvasElement>(null);
 
-    // Add a ref to store the original canvas state
+    // Reference to the folded canvas original state (for preview drawing)
     const originalFoldedCanvasState = useRef<ImageData | null>(null);
+
+    // Reference to the unfolded canvas original state (for preview drawing)
     const originalUnfoldedCanvasState = useRef<ImageData | null>(null);
 
     // Function to clear both canvases
@@ -68,6 +83,46 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         }
     }, [state.folds.vertical, state.folds.horizontal]);
 
+    // Function to draw diagonal fold lines
+    const drawDiagonalFoldLines = useCallback(() => {
+        // Only draw if diagonal folds are enabled, only one fold is applied, and canvas is square
+        if (!state.folds.diagonal.enabled ||
+            state.folds.diagonal.count !== 1 ||
+            state.folds.vertical !== state.folds.horizontal) {
+            return;
+        }
+
+        const unfoldedCanvas = unfoldedCanvasRef.current;
+        if (!unfoldedCanvas) return;
+
+        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
+        if (!unfoldedCtx) return;
+
+        const width = unfoldedCanvas.width;
+        const height = unfoldedCanvas.height;
+        const isTopLeftToBottomRight = state.folds.diagonal.direction === 'topLeftToBottomRight';
+
+        unfoldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        unfoldedCtx.lineWidth = 1.5;
+        unfoldedCtx.setLineDash([5, 3]); // Make diagonal lines dashed for distinction
+
+        // With a single diagonal fold, we just need to draw the main diagonal
+        unfoldedCtx.beginPath();
+
+        if (isTopLeftToBottomRight) {
+            // Top-left to bottom-right diagonal
+            unfoldedCtx.moveTo(0, 0);
+            unfoldedCtx.lineTo(width, height);
+        } else {
+            // Top-right to bottom-left diagonal
+            unfoldedCtx.moveTo(width, 0);
+            unfoldedCtx.lineTo(0, height);
+        }
+
+        unfoldedCtx.stroke();
+        unfoldedCtx.setLineDash([]); // Reset line style
+    }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
+
     // Function to draw fold lines on the unfolded canvas
     const drawFoldLines = useCallback(() => {
         const unfoldedCanvas = unfoldedCanvasRef.current;
@@ -76,12 +131,42 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
         if (!unfoldedCtx) return;
 
-        // Draw vertical fold lines
-        drawFoldLinesForAxis(true);
+        const width = unfoldedCanvas.width;
+        const height = unfoldedCanvas.height;
 
-        // Draw horizontal fold lines
-        drawFoldLinesForAxis(false);
-    }, [drawFoldLinesForAxis]);
+        // Draw vertical fold lines
+        unfoldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        unfoldedCtx.lineWidth = 1;
+
+        // Vertical fold lines
+        for (let i = 1; i <= state.folds.vertical; i++) {
+            const segments = Math.pow(2, i);
+            for (let j = 1; j < segments; j++) {
+                const x = (width / segments) * j;
+
+                unfoldedCtx.beginPath();
+                unfoldedCtx.moveTo(x, 0);
+                unfoldedCtx.lineTo(x, height);
+                unfoldedCtx.stroke();
+            }
+        }
+
+        // Horizontal fold lines
+        for (let i = 1; i <= state.folds.horizontal; i++) {
+            const segments = Math.pow(2, i);
+            for (let j = 1; j < segments; j++) {
+                const y = (height / segments) * j;
+
+                unfoldedCtx.beginPath();
+                unfoldedCtx.moveTo(0, y);
+                unfoldedCtx.lineTo(width, y);
+                unfoldedCtx.stroke();
+            }
+        }
+
+        // No need to draw diagonal fold lines on the unfolded canvas anymore
+        // They're drawn on the folded canvas and propagated through normal unfolding
+    }, [state.folds.vertical, state.folds.horizontal]);
 
     // Function to update folded canvas dimensions
     const updateFoldedCanvasDimensions = useCallback(() => {
@@ -97,8 +182,49 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         foldedCanvas.height = foldedHeight;
     }, [state.folds.vertical, state.folds.horizontal]);
 
+    // Function to draw diagonal fold lines on the folded canvas
+    const drawDiagonalFoldLinesOnFolded = useCallback(() => {
+        // Only draw if diagonal folds are enabled, exactly one fold, and canvas is square
+        if (!state.folds.diagonal.enabled ||
+            state.folds.diagonal.count !== 1 ||
+            state.folds.vertical !== state.folds.horizontal) {
+            return;
+        }
+
+        const foldedCanvas = foldedCanvasRef.current;
+        if (!foldedCanvas) return;
+
+        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
+        if (!foldedCtx) return;
+
+        const width = foldedCanvas.width;
+        const height = foldedCanvas.height;
+        const isTopLeftToBottomRight = state.folds.diagonal.direction === 'topLeftToBottomRight';
+
+        foldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        foldedCtx.lineWidth = 1;
+        foldedCtx.setLineDash([3, 2]); // Make diagonal lines dashed for distinction
+
+        // Draw the diagonal fold line
+        foldedCtx.beginPath();
+
+        if (isTopLeftToBottomRight) {
+            // Top-left to bottom-right diagonal
+            foldedCtx.moveTo(0, 0);
+            foldedCtx.lineTo(width, height);
+        } else {
+            // Top-right to bottom-left diagonal
+            foldedCtx.moveTo(width, 0);
+            foldedCtx.lineTo(0, height);
+        }
+
+        foldedCtx.stroke();
+        foldedCtx.setLineDash([]); // Reset line style
+    }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
+
     // Function to update the unfolded canvas by mirroring the folded canvas
-    const updateUnfoldedCanvas = useCallback(() => {
+    const updateUnfoldedCanvasUnthrottled = useCallback(() => {
+        console.log('updateUnfoldedCanvasUnthrottled');
         const unfoldedCanvas = unfoldedCanvasRef.current;
         const foldedCanvas = foldedCanvasRef.current;
 
@@ -114,10 +240,36 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         // Get the original image data from the folded canvas
         const originalImage = foldedCtx.getImageData(0, 0, foldedCanvas.width, foldedCanvas.height);
 
-        // Create the other three pattern variations we'll need
-        const horizontalFlipped = ImageUtils.flipHorizontal(originalImage);
-        const verticalFlipped = ImageUtils.flipVertical(originalImage);
-        const bothFlipped = ImageUtils.flipVertical(horizontalFlipped); // or flipHorizontal(verticalFlipped)
+        // Create the other pattern variations we'll need based on horizontal and vertical folds
+        const horizontalFlipped = cachedLazy(() => ImageUtils.flipHorizontal(originalImage));
+        const verticalFlipped = cachedLazy(() => ImageUtils.flipVertical(originalImage));
+        const bothFlipped = cachedLazy(() => ImageUtils.flipVertical(horizontalFlipped())); // or flipHorizontal(verticalFlipped)
+
+        // Apply diagonal fold transformations if enabled
+        // We'll apply them to all four basic patterns
+        const getOriginal = () => originalImage;
+        let getHorizontalFlipped = horizontalFlipped;
+        let getVerticalFlipped = verticalFlipped;
+        let getBothFlipped = bothFlipped;
+
+        // Only apply diagonal transformations when enabled, exactly one fold, and canvas is square
+        if (state.folds.diagonal.enabled &&
+            state.folds.diagonal.count === 1 &&
+            state.folds.vertical === state.folds.horizontal) {
+
+            if (state.folds.diagonal.direction === 'topLeftToBottomRight') {
+                // Keep original as is
+                getHorizontalFlipped = cachedLazy(() => ImageUtils.flipDiagonalTopLeftToBottomRight(horizontalFlipped()));
+                getVerticalFlipped = cachedLazy(() => ImageUtils.flipDiagonalTopLeftToBottomRight(verticalFlipped()));
+                getBothFlipped = cachedLazy(() => ImageUtils.flipDiagonalTopLeftToBottomRight(bothFlipped()));
+            } else {
+                // topRightToBottomLeft
+                // Keep original as is
+                getHorizontalFlipped = cachedLazy(() => ImageUtils.flipDiagonalTopRightToBottomLeft(horizontalFlipped()));
+                getVerticalFlipped = cachedLazy(() => ImageUtils.flipDiagonalTopRightToBottomLeft(verticalFlipped()));
+                getBothFlipped = cachedLazy(() => ImageUtils.flipDiagonalTopRightToBottomLeft(bothFlipped()));
+            }
+        }
 
         // Calculate the total grid size based on folds
         const gridWidth = Math.pow(2, state.folds.vertical);
@@ -127,7 +279,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         const cellWidth = originalImage.width;
         const cellHeight = originalImage.height;
 
-        // For each cell in the grid, determine which of the 4 patterns to use
+        // For each cell in the grid, determine which pattern to use
         for (let row = 0; row < gridHeight; row++) {
             for (let col = 0; col < gridWidth; col++) {
                 // Determine which pattern to use based on row and column position
@@ -137,13 +289,13 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                 const isColEven = col % 2 === 0;
 
                 if (isRowEven && isColEven) {
-                    patternToUse = originalImage;
+                    patternToUse = getOriginal();
                 } else if (isRowEven && !isColEven) {
-                    patternToUse = horizontalFlipped;
+                    patternToUse = getHorizontalFlipped();
                 } else if (!isRowEven && isColEven) {
-                    patternToUse = verticalFlipped;
+                    patternToUse = getVerticalFlipped();
                 } else {
-                    patternToUse = bothFlipped;
+                    patternToUse = getBothFlipped();
                 }
 
                 // Calculate the position to place this pattern
@@ -157,8 +309,10 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         // Draw fold lines
         drawFoldLines();
-    }, [state.folds.vertical, state.folds.horizontal, drawFoldLines]);
+    }, [state.folds.vertical, state.folds.horizontal, state.folds.diagonal, drawFoldLines]);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const updateUnfoldedCanvas = useCallback(throttle(updateUnfoldedCanvasUnthrottled, 100), [updateUnfoldedCanvasUnthrottled]);
 
     // Function to draw a circle on the folded canvas
     const drawCircleOnFoldedCanvas = useCallback((x: number, y: number) => {
@@ -173,8 +327,11 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         foldedCtx.fillStyle = state.config.circleColor;
         foldedCtx.fill();
 
+        // Redraw diagonal fold lines on the folded canvas
+        drawDiagonalFoldLinesOnFolded();
+
         updateUnfoldedCanvas();
-    }, [state.circleRadius, state.config.circleColor, updateUnfoldedCanvas]);
+    }, [state.circleRadius, state.config.circleColor, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded]);
 
     // Function to draw a line on the folded canvas
     const drawLineOnFoldedCanvas = useCallback((startX: number, startY: number, endX: number, endY: number) => {
@@ -191,8 +348,11 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         foldedCtx.lineWidth = state.lineThickness;
         foldedCtx.stroke();
 
+        // Redraw diagonal fold lines on the folded canvas
+        drawDiagonalFoldLinesOnFolded();
+
         updateUnfoldedCanvas();
-    }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas]);
+    }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded]);
 
     // Helper function to get canvas coordinates from mouse/touch event
     const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
@@ -251,6 +411,9 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         foldedCtx.globalAlpha = 0.6;
         foldedCtx.stroke();
         foldedCtx.globalAlpha = 1.0;
+
+        // Redraw diagonal fold lines on the folded canvas for visual guidance
+        drawDiagonalFoldLinesOnFolded();
 
         // Calculate relative positions for unfolded canvas
         const foldedWidth = foldedCanvas.width;
@@ -552,26 +715,20 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         }
     }, [state.currentTool, state.isDrawing, state.lineStartPoint, dispatch, drawLineOnFoldedCanvas]);
 
-    // Initialize function to set up canvases
-    const initializeCanvases = useCallback(() => {
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-        const foldedCanvas = foldedCanvasRef.current;
-
-        if (!unfoldedCanvas || !foldedCanvas) return;
-
-        // Set initial canvas dimensions
-        unfoldedCanvas.width = state.canvasDimensions.width;
-        unfoldedCanvas.height = state.canvasDimensions.height;
-
+    // Function called when initializing or resetting the drawing canvas
+    const resetCanvases = useCallback(() => {
         // Update folded canvas dimensions
         updateFoldedCanvasDimensions();
+
+        // Draw diagonal fold lines on the folded canvas
+        drawDiagonalFoldLinesOnFolded();
 
         // Clear the canvases
         clearCanvases();
 
         // Draw the fold lines
         drawFoldLines();
-    }, [state.canvasDimensions, clearCanvases, updateFoldedCanvasDimensions, drawFoldLines]);
+    }, [state.canvasDimensions, clearCanvases, updateFoldedCanvasDimensions, drawFoldLines, drawDiagonalFoldLinesOnFolded]);
 
     return {
         // Refs
@@ -585,7 +742,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         drawCircleOnFoldedCanvas,
         drawLineOnFoldedCanvas,
         updateUnfoldedCanvas,
-        initializeCanvases,
+        resetCanvases,
 
         // Mouse event handlers
         handleMouseDown,

@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DimensionControls } from '../components/shibori/DimensionControls';
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool } from '../types';
+import { DrawingTool, DiagonalDirection } from '../types';
 
 describe('DimensionControls Component', () => {
     const mockState: State = {
@@ -18,7 +18,12 @@ describe('DimensionControls Component', () => {
         },
         folds: {
             vertical: 2,
-            horizontal: 1
+            horizontal: 1,
+            diagonal: {
+                enabled: false,
+                count: 0,
+                direction: DiagonalDirection.TopLeftToBottomRight
+            }
         },
         circleRadius: 20,
         lineThickness: 2,

@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { CanvasDisplay } from '../components/shibori/CanvasDisplay';
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool } from '../types';
+import { DrawingTool, DiagonalDirection } from '../types';
 
 // Mock the useCanvas hook
 jest.mock('../hooks/useCanvas', () => ({
@@ -39,7 +39,12 @@ describe('CanvasDisplay Component', () => {
         },
         folds: {
             vertical: 2,
-            horizontal: 1
+            horizontal: 1,
+            diagonal: {
+                enabled: false,
+                count: 0,
+                direction: DiagonalDirection.TopLeftToBottomRight
+            }
         },
         circleRadius: 20,
         lineThickness: 2,
