@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
-import { DrawingTool, DiagonalDirection } from '../types';
+import { DrawingTool } from '../types';
 import { State, Action, ActionType } from '../store/shiboriCanvasState';
 import throttle from 'lodash-es/throttle';
 
@@ -123,7 +123,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         const width = foldedCanvas.width;
         const height = foldedCanvas.height;
-        const isTopLeftToBottomRight = state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight;
+        const isTopLeftToBottomRight = false
 
         foldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
         foldedCtx.lineWidth = 1;
@@ -132,15 +132,9 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         // Draw the diagonal fold line
         foldedCtx.beginPath();
 
-        if (isTopLeftToBottomRight) {
-            // Top-right to bottom-left diagonal
-            foldedCtx.moveTo(width, 0);
-            foldedCtx.lineTo(0, height);
-        } else {
-            // Top-left to bottom-right diagonal
-            foldedCtx.moveTo(0, 0);
-            foldedCtx.lineTo(width, height);
-        }
+        // Top-left to bottom-right diagonal
+        foldedCtx.moveTo(0, 0);
+        foldedCtx.lineTo(width, height);
 
         foldedCtx.stroke();
         foldedCtx.setLineDash([]); // Reset line style
@@ -258,11 +252,9 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         if (!foldedCanvas) return true;
 
 
-        if (state.folds.diagonal.direction === DiagonalDirection.TopRightToBottomLeft) {
-            return y < x;
-        }
+        return y < x;
 
-        return x < y;
+
     }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
 
     // Function to draw a circle on the folded canvas
@@ -308,41 +300,23 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         // If one endpoint is invalid, find intersection with diagonal line
         if (!startValid || !endValid) {
-            const width = foldedCanvas.width;
             const height = foldedCanvas.height;
-            const isTopLeftToBottomRight = state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight;
 
             // Calculate the intersection point with the diagonal line
             let intersectionX, intersectionY;
 
-            if (isTopLeftToBottomRight) {
-                // For top-left to bottom-right diagonal (y = -x + width)
-                // Parametric equation of the line segment: 
-                // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
-                // Intersection: startY + t*(endY-startY) = -startX - t*(endX-startX) + width
-                const t = (width - startX - startY) / ((endX - startX) + (endY - startY));
+            // For top-right to bottom-left diagonal (y = x)
+            // Parametric equation of the line segment: 
+            // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
+            // Intersection: startY + t*(endY-startY) = height - startX - t*(endX-startX)
+            const t = (height - startX - startY) / ((endX - startX) + (endY - startY));
 
-                if (t >= 0 && t <= 1) {
-                    intersectionX = startX + t * (endX - startX);
-                    intersectionY = startY + t * (endY - startY);
-                } else {
-                    // No valid intersection
-                    return;
-                }
+            if (t >= 0 && t <= 1) {
+                intersectionX = startX + t * (endX - startX);
+                intersectionY = startY + t * (endY - startY);
             } else {
-                // For top-right to bottom-left diagonal (y = x)
-                // Parametric equation of the line segment: 
-                // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
-                // Intersection: startY + t*(endY-startY) = height - startX - t*(endX-startX)
-                const t = (height - startX - startY) / ((endX - startX) + (endY - startY));
-
-                if (t >= 0 && t <= 1) {
-                    intersectionX = startX + t * (endX - startX);
-                    intersectionY = startY + t * (endY - startY);
-                } else {
-                    // No valid intersection
-                    return;
-                }
+                // No valid intersection
+                return;
             }
 
             // Update the invalid endpoint to the intersection point
@@ -366,7 +340,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         drawDiagonalFoldLinesOnFolded();
 
         updateUnfoldedCanvas();
-    }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas, isInValidDrawingArea, state.folds.diagonal, drawDiagonalFoldLinesOnFolded]);
+    }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded]);
 
     // Helper function to get canvas coordinates from mouse/touch event
     const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
@@ -433,43 +407,24 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         // If one endpoint is invalid, find intersection with diagonal line
         if (!startValid || !endValid) {
-            const width = foldedCanvas.width;
             const height = foldedCanvas.height;
-            const isTopLeftToBottomRight = state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight;
 
             // Calculate the intersection point with the diagonal line
             let intersectionX, intersectionY;
 
-            if (isTopLeftToBottomRight) {
-                // For top-left to bottom-right diagonal (y = -x + width)
-                // Parametric equation of the line segment: 
-                // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
-                // Intersection: startY + t*(endY-startY) = -startX - t*(endX-startX) + width
-                const t = (width - startX - startY) / ((endX - startX) + (endY - startY));
+            // For top-right to bottom-left diagonal (y = x)
+            // Parametric equation of the line segment: 
+            // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
+            // Intersection: startY + t*(endY-startY) = height - startX - t*(endX-startX)
+            const t = (height - startX - startY) / ((endX - startX) + (endY - startY));
 
-                if (t >= 0 && t <= 1) {
-                    intersectionX = startX + t * (endX - startX);
-                    intersectionY = startY + t * (endY - startY);
-                } else {
-                    // No valid intersection, just draw the fold lines
-                    drawDiagonalFoldLinesOnFolded();
-                    return;
-                }
+            if (t >= 0 && t <= 1) {
+                intersectionX = startX + t * (endX - startX);
+                intersectionY = startY + t * (endY - startY);
             } else {
-                // For top-right to bottom-left diagonal (y = x)
-                // Parametric equation of the line segment: 
-                // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
-                // Intersection: startY + t*(endY-startY) = height - startX - t*(endX-startX)
-                const t = (height - startX - startY) / ((endX - startX) + (endY - startY));
-
-                if (t >= 0 && t <= 1) {
-                    intersectionX = startX + t * (endX - startX);
-                    intersectionY = startY + t * (endY - startY);
-                } else {
-                    // No valid intersection, just draw the fold lines
-                    drawDiagonalFoldLinesOnFolded();
-                    return;
-                }
+                // No valid intersection, just draw the fold lines
+                drawDiagonalFoldLinesOnFolded();
+                return;
             }
 
             // Update the invalid endpoint to the intersection point
@@ -502,7 +457,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         const horizontalFolds = state.folds.horizontal;
         const hasDiagonalFold = state.folds.diagonal.count === 1 &&
             state.folds.vertical === state.folds.horizontal;
-        const diagonalDirection = state.folds.diagonal.direction;
 
         // Draw preview line on each section of the unfolded canvas
         unfoldedCtx.globalAlpha = 0.6;
@@ -540,27 +494,16 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                             : true;
 
                     if (isDiagonalCell) {
-                        // Transpose coordinates for diagonal flipping
-                        if (diagonalDirection === DiagonalDirection.TopLeftToBottomRight) {
-                            // Swap x and y for top-left to bottom-right diagonal
-                            const tempStartX = mappedStartX;
-                            mappedStartX = mappedStartY;
-                            mappedStartY = tempStartX;
+                        // For top-right to bottom-left diagonal
+                        // Swap and invert both coordinates
+                        const tempStartX = mappedStartX;
+                        mappedStartX = foldedWidth - mappedStartY;
+                        mappedStartY = foldedHeight - tempStartX;
 
-                            const tempEndX = mappedEndX;
-                            mappedEndX = mappedEndY;
-                            mappedEndY = tempEndX;
-                        } else {
-                            // For top-right to bottom-left diagonal
-                            // Swap and invert both coordinates
-                            const tempStartX = mappedStartX;
-                            mappedStartX = foldedWidth - mappedStartY;
-                            mappedStartY = foldedHeight - tempStartX;
+                        const tempEndX = mappedEndX;
+                        mappedEndX = foldedWidth - mappedEndY;
+                        mappedEndY = foldedHeight - tempEndX;
 
-                            const tempEndX = mappedEndX;
-                            mappedEndX = foldedWidth - mappedEndY;
-                            mappedEndY = foldedHeight - tempEndX;
-                        }
                     }
                 }
 

@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { State, Action, ActionType } from '../../store/shiboriCanvasState';
-import { DiagonalDirection } from '../../types';
 
 interface FoldControlsProps {
     state: State;
@@ -67,17 +66,6 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
         }
     }, [dispatch, state.folds.diagonal.count]);
 
-    // Handle diagonal direction change
-    const handleDiagonalDirectionChange = useCallback(() => {
-        const newDirection = state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight
-            ? DiagonalDirection.TopRightToBottomLeft
-            : DiagonalDirection.TopLeftToBottomRight;
-
-        dispatch({
-            type: ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION,
-            payload: newDirection
-        });
-    }, [dispatch, state.folds.diagonal.direction]);
 
     // Check if diagonal folds are allowed (square canvas)
     const isDiagonalFoldAllowed = useCallback(() => {
@@ -131,13 +119,6 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
                         onClick={handleDiagonalFoldDecrease}
                         disabled={state.folds.diagonal.count <= 0}>
                         -
-                    </button>
-                    <button
-                        onClick={handleDiagonalDirectionChange}
-                        disabled={!isDiagonalFoldAllowed()}>
-                        Direction: {state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight
-                            ? '↘️ Top-Left to Bottom-Right'
-                            : '↙️ Top-Right to Bottom-Left'}
                     </button>
                 </>
 

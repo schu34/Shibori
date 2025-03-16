@@ -38,7 +38,7 @@ export const initialState: State = {
         diagonal: {
             enabled: false,
             count: 1,
-            direction: DiagonalDirection.TopLeftToBottomRight
+            direction: DiagonalDirection.TopRightToBottomLeft
         }
     },
     canvasDimensions: {
