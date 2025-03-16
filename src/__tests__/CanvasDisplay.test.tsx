@@ -10,11 +10,15 @@ jest.mock('../hooks/useCanvas', () => ({
     useCanvas: () => ({
         unfoldedCanvasRef: { current: null },
         foldedCanvasRef: { current: null },
-        initializeCanvases: jest.fn(),
+        resetCanvases: jest.fn(),
         handleMouseDown: jest.fn(),
         handleMouseMove: jest.fn(),
         handleMouseUp: jest.fn(),
         handleMouseLeave: jest.fn(),
+        handleTouchStart: jest.fn(),
+        handleTouchMove: jest.fn(),
+        handleTouchEnd: jest.fn(),
+        handleTouchCancel: jest.fn(),
         // Add missing properties to satisfy TypeScript
         clearCanvases: jest.fn(),
         updateFoldedCanvasDimensions: jest.fn(),

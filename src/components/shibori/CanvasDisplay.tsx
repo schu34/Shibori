@@ -57,6 +57,17 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         };
     }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, foldedCanvasRef]);
 
+    useEffect(() => {
+        if (!unfoldedCanvasRef.current || !foldedCanvasRef.current) {
+            return;
+        }
+        unfoldedCanvasRef.current.width = state.canvasDimensions.width;
+        unfoldedCanvasRef.current.height = state.canvasDimensions.height;
+        foldedCanvasRef.current.width = state.canvasDimensions.width / 2 ** state.folds.vertical;
+        foldedCanvasRef.current.height = state.canvasDimensions.height / 2 ** state.folds.horizontal;
+        console.log('state.canvasDimensions', state.canvasDimensions);
+    }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal]);
+
     return (
         <div className="canvas-container">
             <div className="canvas-wrapper">
@@ -67,9 +78,6 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
-                    width={state.canvasDimensions.width}
-                    height={state.canvasDimensions.height}
-                /* Touch events will be handled via direct event listeners with {passive: false} */
                 />
             </div>
             <div className="canvas-wrapper">

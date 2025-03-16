@@ -1,5 +1,5 @@
 import React, { useCallback, ChangeEvent } from 'react';
-import { State, Action } from '../../store/shiboriCanvasState';
+import { State, Action, ActionType } from '../../store/shiboriCanvasState';
 
 interface DimensionControlsProps {
     state: State;
@@ -16,12 +16,12 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dis
     // Handle dimension changes with an object of optional properties
     const handleDimensionChange = useCallback((newDimensions: DimensionChanges) => {
         // Get current values with fallbacks
-        const newWidth = newDimensions.width !== undefined ? (newDimensions.width || 100) : state.canvasDimensions.width;
-        const newHeight = newDimensions.height !== undefined ? (newDimensions.height || 100) : state.canvasDimensions.height;
+        const newWidth = Math.max(newDimensions.width || state.canvasDimensions.width, 100);
+        const newHeight = Math.max(newDimensions.height || state.canvasDimensions.height, 100);
 
         // Update the full canvas dimensions
         dispatch({
-            type: 'SET_CANVAS_DIMENSIONS',
+            type: ActionType.SET_CANVAS_DIMENSIONS,
             payload: {
                 width: newWidth,
                 height: newHeight

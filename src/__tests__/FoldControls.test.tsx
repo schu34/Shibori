@@ -47,15 +47,23 @@ describe('FoldControls Component', () => {
     test('renders fold buttons', () => {
         render(<FoldControls state={mockState} dispatch={mockDispatch} />);
 
-        expect(screen.getByText('Fold Vertically')).toBeInTheDocument();
-        expect(screen.getByText('Fold Horizontally')).toBeInTheDocument();
+        const verticalFoldSection = screen.getByText('Vertical Folds: 2').closest('.fold-controls-group');
+        const horizontalFoldSection = screen.getByText('Horizontal Folds: 1').closest('.fold-controls-group');
+
+        expect(verticalFoldSection).toBeInTheDocument();
+        expect(horizontalFoldSection).toBeInTheDocument();
         expect(screen.getByText('Reset Folds')).toBeInTheDocument();
     });
 
     test('vertical fold button dispatches correct action', () => {
         render(<FoldControls state={mockState} dispatch={mockDispatch} />);
 
-        fireEvent.click(screen.getByText('Fold Vertically'));
+        const verticalFoldSection = screen.getByText('Vertical Folds: 2').closest('.fold-controls-group');
+        const foldButton = verticalFoldSection?.querySelector('button:first-child');
+
+        if (foldButton) {
+            fireEvent.click(foldButton);
+        }
 
         expect(mockDispatch).toHaveBeenCalledWith({
             type: 'UPDATE_FOLD',
@@ -87,7 +95,9 @@ describe('FoldControls Component', () => {
 
         render(<FoldControls state={stateWithMaxFolds} dispatch={mockDispatch} />);
 
-        const verticalFoldButton = screen.getByText('Fold Vertically');
-        expect(verticalFoldButton).toBeDisabled();
+        const verticalFoldSection = screen.getByText('Vertical Folds: 3').closest('.fold-controls-group');
+        const foldButton = verticalFoldSection?.querySelector('button:first-child');
+
+        expect(foldButton).toBeDisabled();
     });
 }); 

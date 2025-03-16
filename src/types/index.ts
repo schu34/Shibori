@@ -1,6 +1,4 @@
 export interface AppConfig {
-    unfoldedCanvasWidth: number;
-    unfoldedCanvasHeight: number;
     maxFolds: number;
     defaultCircleRadius: number;
     circleColor: string;

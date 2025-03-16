@@ -1,5 +1,5 @@
 import React from 'react';
-import { State, Action } from '../../store/shiboriCanvasState';
+import { State, Action, ActionType } from '../../store/shiboriCanvasState';
 import { DrawingTool } from '../../types';
 
 interface ToolControlsProps {
@@ -19,7 +19,7 @@ export const ToolControls: React.FC<ToolControlsProps> = ({ state, dispatch }) =
                             name="drawingTool"
                             value={DrawingTool.Circle}
                             checked={state.currentTool === DrawingTool.Circle}
-                            onChange={() => dispatch({ type: 'SET_CURRENT_TOOL', payload: DrawingTool.Circle })}
+                            onChange={() => dispatch({ type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool.Circle })}
                         />
                         Circle Brush
                     </label>
@@ -29,7 +29,7 @@ export const ToolControls: React.FC<ToolControlsProps> = ({ state, dispatch }) =
                             name="drawingTool"
                             value={DrawingTool.Line}
                             checked={state.currentTool === DrawingTool.Line}
-                            onChange={() => dispatch({ type: 'SET_CURRENT_TOOL', payload: DrawingTool.Line })}
+                            onChange={() => dispatch({ type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool.Line })}
                         />
                         Line Tool
                     </label>
@@ -46,7 +46,7 @@ export const ToolControls: React.FC<ToolControlsProps> = ({ state, dispatch }) =
                         max="50"
                         value={state.circleRadius}
                         onChange={(e) => dispatch({
-                            type: 'SET_CIRCLE_RADIUS',
+                            type: ActionType.SET_CIRCLE_RADIUS,
                             payload: parseInt(e.target.value)
                         })}
                     />
@@ -62,7 +62,7 @@ export const ToolControls: React.FC<ToolControlsProps> = ({ state, dispatch }) =
                         max="20"
                         value={state.lineThickness}
                         onChange={(e) => dispatch({
-                            type: 'SET_LINE_THICKNESS',
+                            type: ActionType.SET_LINE_THICKNESS,
                             payload: parseInt(e.target.value)
                         })}
                     />

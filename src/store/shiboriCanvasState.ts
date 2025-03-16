@@ -2,8 +2,6 @@ import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
-    unfoldedCanvasWidth: 800,
-    unfoldedCanvasHeight: 800,
     maxFolds: 3,
     defaultCircleRadius: 20,
     circleColor: 'white',
@@ -44,41 +42,54 @@ export const initialState: State = {
         }
     },
     canvasDimensions: {
-        width: DEFAULT_CONFIG.unfoldedCanvasWidth,
-        height: DEFAULT_CONFIG.unfoldedCanvasHeight
+        width: 800,
+        height: 800
     }
 };
 
-// Define action types
+// Action types enum
+export enum ActionType {
+    SET_CIRCLE_RADIUS = 'SET_CIRCLE_RADIUS',
+    SET_LINE_THICKNESS = 'SET_LINE_THICKNESS',
+    SET_CURRENT_TOOL = 'SET_CURRENT_TOOL',
+    SET_IS_DRAWING = 'SET_IS_DRAWING',
+    SET_LINE_START_POINT = 'SET_LINE_START_POINT',
+    UPDATE_FOLD = 'UPDATE_FOLD',
+    TOGGLE_DIAGONAL_FOLD = 'TOGGLE_DIAGONAL_FOLD',
+    UPDATE_DIAGONAL_FOLD_COUNT = 'UPDATE_DIAGONAL_FOLD_COUNT',
+    UPDATE_DIAGONAL_FOLD_DIRECTION = 'UPDATE_DIAGONAL_FOLD_DIRECTION',
+    RESET_FOLDS = 'RESET_FOLDS',
+    SET_CANVAS_DIMENSIONS = 'SET_CANVAS_DIMENSIONS'
+}
+
+// Action type definitions
 export type Action =
-    | { type: 'SET_CIRCLE_RADIUS', payload: number }
-    | { type: 'SET_LINE_THICKNESS', payload: number }
-    | { type: 'SET_CURRENT_TOOL', payload: DrawingTool }
-    | { type: 'SET_IS_DRAWING', payload: boolean }
-    | { type: 'SET_LINE_START_POINT', payload: { x: number; y: number } | null }
-    | { type: 'UPDATE_FOLD', payload: { axis: 'vertical' | 'horizontal', value: number } }
-    | { type: 'TOGGLE_DIAGONAL_FOLD', payload: boolean }
-    | { type: 'UPDATE_DIAGONAL_FOLD_COUNT', payload: number }
-    | { type: 'UPDATE_DIAGONAL_FOLD_DIRECTION', payload: DiagonalDirection }
-    | { type: 'RESET_FOLDS' }
-    | { type: 'SET_CANVAS_DIMENSIONS', payload: { width: number; height: number } }
-    | { type: 'UPDATE_CANVAS_WIDTH', payload: number }
-    | { type: 'UPDATE_CANVAS_HEIGHT', payload: number };
+    | { type: ActionType.SET_CIRCLE_RADIUS, payload: number }
+    | { type: ActionType.SET_LINE_THICKNESS, payload: number }
+    | { type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool }
+    | { type: ActionType.SET_IS_DRAWING, payload: boolean }
+    | { type: ActionType.SET_LINE_START_POINT, payload: { x: number; y: number } | null }
+    | { type: ActionType.UPDATE_FOLD, payload: { axis: 'vertical' | 'horizontal', value: number } }
+    | { type: ActionType.TOGGLE_DIAGONAL_FOLD, payload: boolean }
+    | { type: ActionType.UPDATE_DIAGONAL_FOLD_COUNT, payload: number }
+    | { type: ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION, payload: DiagonalDirection }
+    | { type: ActionType.RESET_FOLDS }
+    | { type: ActionType.SET_CANVAS_DIMENSIONS, payload: { width: number; height: number } };
 
 // Reducer function
 export function reducer(state: State, action: Action): State {
     switch (action.type) {
-        case 'SET_CIRCLE_RADIUS':
+        case ActionType.SET_CIRCLE_RADIUS:
             return { ...state, circleRadius: action.payload };
-        case 'SET_LINE_THICKNESS':
+        case ActionType.SET_LINE_THICKNESS:
             return { ...state, lineThickness: action.payload };
-        case 'SET_CURRENT_TOOL':
+        case ActionType.SET_CURRENT_TOOL:
             return { ...state, currentTool: action.payload };
-        case 'SET_IS_DRAWING':
+        case ActionType.SET_IS_DRAWING:
             return { ...state, isDrawing: action.payload };
-        case 'SET_LINE_START_POINT':
+        case ActionType.SET_LINE_START_POINT:
             return { ...state, lineStartPoint: action.payload };
-        case 'UPDATE_FOLD': {
+        case ActionType.UPDATE_FOLD: {
             const newFolds = {
                 ...state.folds,
                 [action.payload.axis]: action.payload.value
@@ -103,7 +114,7 @@ export function reducer(state: State, action: Action): State {
                 folds: newFolds
             };
         }
-        case 'TOGGLE_DIAGONAL_FOLD': {
+        case ActionType.TOGGLE_DIAGONAL_FOLD: {
             // Don't enable diagonal folds if canvas isn't square
             const isSquare = state.folds.vertical === state.folds.horizontal;
             const canEnable = action.payload && isSquare;
@@ -121,7 +132,7 @@ export function reducer(state: State, action: Action): State {
                 }
             };
         }
-        case 'UPDATE_DIAGONAL_FOLD_COUNT': {
+        case ActionType.UPDATE_DIAGONAL_FOLD_COUNT: {
             // Enforce only one diagonal fold
             const newCount = action.payload > 1 ? 1 : action.payload;
 
@@ -136,7 +147,7 @@ export function reducer(state: State, action: Action): State {
                 }
             };
         }
-        case 'UPDATE_DIAGONAL_FOLD_DIRECTION':
+        case ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION:
             return {
                 ...state,
                 folds: {
@@ -147,33 +158,17 @@ export function reducer(state: State, action: Action): State {
                     }
                 }
             };
-        case 'RESET_FOLDS':
+        case ActionType.RESET_FOLDS:
             return {
                 ...state,
                 folds: {
                     ...initialState.folds
                 }
             };
-        case 'SET_CANVAS_DIMENSIONS':
+        case ActionType.SET_CANVAS_DIMENSIONS:
             return {
                 ...state,
                 canvasDimensions: action.payload
-            };
-        case 'UPDATE_CANVAS_WIDTH':
-            return {
-                ...state,
-                canvasDimensions: {
-                    ...state.canvasDimensions,
-                    width: action.payload
-                }
-            };
-        case 'UPDATE_CANVAS_HEIGHT':
-            return {
-                ...state,
-                canvasDimensions: {
-                    ...state.canvasDimensions,
-                    height: action.payload
-                }
             };
         default:
             return state;

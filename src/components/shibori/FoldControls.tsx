@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { State, Action } from '../../store/shiboriCanvasState';
+import { State, Action, ActionType } from '../../store/shiboriCanvasState';
 import { DiagonalDirection } from '../../types';
 
 interface FoldControlsProps {
@@ -14,7 +14,7 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
 
         if (foldCount < state.config.maxFolds) {
             dispatch({
-                type: 'UPDATE_FOLD',
+                type: ActionType.UPDATE_FOLD,
                 payload: {
                     axis: isVertical ? 'vertical' : 'horizontal',
                     value: foldCount + 1
@@ -29,7 +29,7 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
 
         if (foldCount > 0) {
             dispatch({
-                type: 'UPDATE_FOLD',
+                type: ActionType.UPDATE_FOLD,
                 payload: {
                     axis: isVertical ? 'vertical' : 'horizontal',
                     value: foldCount - 1
@@ -40,13 +40,13 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
 
     // Handle reset button click
     const handleResetButtonClick = () => {
-        dispatch({ type: 'RESET_FOLDS' });
+        dispatch({ type: ActionType.RESET_FOLDS });
     };
 
     // Handle diagonal fold toggle
     const handleDiagonalFoldToggle = useCallback(() => {
         dispatch({
-            type: 'TOGGLE_DIAGONAL_FOLD',
+            type: ActionType.TOGGLE_DIAGONAL_FOLD,
             payload: !state.folds.diagonal.enabled
         });
     }, [dispatch, state.folds.diagonal.enabled]);
@@ -57,7 +57,7 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
 
         if (currentCount < state.config.maxFolds) {
             dispatch({
-                type: 'UPDATE_DIAGONAL_FOLD_COUNT',
+                type: ActionType.UPDATE_DIAGONAL_FOLD_COUNT,
                 payload: currentCount + 1
             });
         }
@@ -68,7 +68,7 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
         const currentCount = state.folds.diagonal.count;
         if (currentCount > 0) {
             dispatch({
-                type: 'UPDATE_DIAGONAL_FOLD_COUNT',
+                type: ActionType.UPDATE_DIAGONAL_FOLD_COUNT,
                 payload: currentCount - 1
             });
         }
@@ -81,7 +81,7 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
             : DiagonalDirection.TopLeftToBottomRight;
 
         dispatch({
-            type: 'UPDATE_DIAGONAL_FOLD_DIRECTION',
+            type: ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION,
             payload: newDirection
         });
     }, [dispatch, state.folds.diagonal.direction]);

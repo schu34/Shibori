@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
 import { DrawingTool } from '../types';
-import { State, Action } from '../store/shiboriCanvasState';
+import { State, Action, ActionType } from '../store/shiboriCanvasState';
 import throttle from 'lodash-es/throttle';
 
 export interface UseCanvasProps {
@@ -47,81 +47,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
         foldedCtx.clearRect(0, 0, foldedCanvas.width, foldedCanvas.height);
     }, []);
-
-    // Function to draw fold lines for a specific axis
-    const drawFoldLinesForAxis = useCallback((isVertical: boolean) => {
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-        if (!unfoldedCanvas) return;
-
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!unfoldedCtx) return;
-
-        const foldCount = isVertical ? state.folds.vertical : state.folds.horizontal;
-        const canvasSize = isVertical ? unfoldedCanvas.width : unfoldedCanvas.height;
-
-        unfoldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-        unfoldedCtx.lineWidth = 1.5;
-
-        for (let i = 1; i <= foldCount; i++) {
-            const position = (canvasSize / Math.pow(2, i));
-
-            for (let j = 1; j < Math.pow(2, i); j += 2) {
-                unfoldedCtx.beginPath();
-
-                if (isVertical) {
-                    const x = position * j;
-                    unfoldedCtx.moveTo(x, 0);
-                    unfoldedCtx.lineTo(x, unfoldedCanvas.height);
-                } else {
-                    const y = position * j;
-                    unfoldedCtx.moveTo(0, y);
-                    unfoldedCtx.lineTo(unfoldedCanvas.width, y);
-                }
-
-                unfoldedCtx.stroke();
-            }
-        }
-    }, [state.folds.vertical, state.folds.horizontal]);
-
-    // Function to draw diagonal fold lines
-    const drawDiagonalFoldLines = useCallback(() => {
-        // Only draw if diagonal folds are enabled, only one fold is applied, and canvas is square
-        if (!state.folds.diagonal.enabled ||
-            state.folds.diagonal.count !== 1 ||
-            state.folds.vertical !== state.folds.horizontal) {
-            return;
-        }
-
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-        if (!unfoldedCanvas) return;
-
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!unfoldedCtx) return;
-
-        const width = unfoldedCanvas.width;
-        const height = unfoldedCanvas.height;
-        const isTopLeftToBottomRight = state.folds.diagonal.direction === 'topLeftToBottomRight';
-
-        unfoldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-        unfoldedCtx.lineWidth = 1.5;
-        unfoldedCtx.setLineDash([5, 3]); // Make diagonal lines dashed for distinction
-
-        // With a single diagonal fold, we just need to draw the main diagonal
-        unfoldedCtx.beginPath();
-
-        if (isTopLeftToBottomRight) {
-            // Top-left to bottom-right diagonal
-            unfoldedCtx.moveTo(0, 0);
-            unfoldedCtx.lineTo(width, height);
-        } else {
-            // Top-right to bottom-left diagonal
-            unfoldedCtx.moveTo(width, 0);
-            unfoldedCtx.lineTo(0, height);
-        }
-
-        unfoldedCtx.stroke();
-        unfoldedCtx.setLineDash([]); // Reset line style
-    }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
 
     // Function to draw fold lines on the unfolded canvas
     const drawFoldLines = useCallback(() => {
@@ -462,16 +387,16 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         }
 
         unfoldedCtx.globalAlpha = 1.0;
-    }, [state.config.lineColor, state.lineThickness, state.folds.vertical, state.folds.horizontal]);
+    }, [state.config.lineColor, state.lineThickness, state.folds.vertical, state.folds.horizontal, drawDiagonalFoldLinesOnFolded]);
 
     // Common start drawing function
     const startDrawing = useCallback((x: number, y: number) => {
         if (state.currentTool === DrawingTool.Circle) {
-            dispatch({ type: 'SET_IS_DRAWING', payload: true });
+            dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
             drawCircleOnFoldedCanvas(x, y);
         } else if (state.currentTool === DrawingTool.Line) {
-            dispatch({ type: 'SET_LINE_START_POINT', payload: { x, y } });
-            dispatch({ type: 'SET_IS_DRAWING', payload: true });
+            dispatch({ type: ActionType.SET_LINE_START_POINT, payload: { x, y } });
+            dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
             storeCanvasStates();
         }
     }, [state.currentTool, dispatch, drawCircleOnFoldedCanvas, storeCanvasStates]);
@@ -493,11 +418,11 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
     // Common end drawing function
     const endDrawing = useCallback((x: number, y: number) => {
         if (state.currentTool === DrawingTool.Circle) {
-            dispatch({ type: 'SET_IS_DRAWING', payload: false });
+            dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         } else if (state.currentTool === DrawingTool.Line && state.isDrawing && state.lineStartPoint !== null) {
             drawLineOnFoldedCanvas(state.lineStartPoint.x, state.lineStartPoint.y, x, y);
-            dispatch({ type: 'SET_IS_DRAWING', payload: false });
-            dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+            dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+            dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
             originalFoldedCanvasState.current = null;
             originalUnfoldedCanvasState.current = null;
         }
@@ -553,14 +478,14 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         if (state.isDrawing) {
             // For touch end, we need to use the last known position since there are no coordinates in the touchend event
             if (state.currentTool === DrawingTool.Circle) {
-                dispatch({ type: 'SET_IS_DRAWING', payload: false });
+                dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
             } else if (state.currentTool === DrawingTool.Line && state.lineStartPoint !== null) {
                 // For lines, check if we have a last touch position
                 // If not, just cancel the drawing
                 const foldedCanvas = foldedCanvasRef.current;
                 if (!foldedCanvas) {
-                    dispatch({ type: 'SET_IS_DRAWING', payload: false });
-                    dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+                    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
                     originalFoldedCanvasState.current = null;
                     originalUnfoldedCanvasState.current = null;
                     return;
@@ -574,15 +499,15 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                         endDrawing(coords.x, coords.y);
                     } else {
                         // Just reset if we couldn't get coordinates
-                        dispatch({ type: 'SET_IS_DRAWING', payload: false });
-                        dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+                        dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
                         originalFoldedCanvasState.current = null;
                         originalUnfoldedCanvasState.current = null;
                     }
                 } else {
                     // Just reset if we couldn't get coordinates
-                    dispatch({ type: 'SET_IS_DRAWING', payload: false });
-                    dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+                    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
                     originalFoldedCanvasState.current = null;
                     originalUnfoldedCanvasState.current = null;
                 }
@@ -593,8 +518,8 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
     const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
         // Just reset drawing state
-        dispatch({ type: 'SET_IS_DRAWING', payload: false });
-        dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+        dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
         originalFoldedCanvasState.current = null;
         originalUnfoldedCanvasState.current = null;
 
@@ -620,12 +545,12 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         // Stop drawing for both tools when mouse leaves canvas
         if (state.isDrawing) {
             if (state.currentTool === DrawingTool.Circle) {
-                dispatch({ type: 'SET_IS_DRAWING', payload: false });
+                dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
             } else if (state.currentTool === DrawingTool.Line && state.lineStartPoint !== null) {
                 const foldedCanvas = foldedCanvasRef.current;
                 if (!foldedCanvas) {
-                    dispatch({ type: 'SET_IS_DRAWING', payload: false });
-                    dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+                    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
                     originalFoldedCanvasState.current = null;
                     originalUnfoldedCanvasState.current = null;
                     return;
@@ -707,8 +632,8 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                 }
 
                 // Reset drawing state
-                dispatch({ type: 'SET_IS_DRAWING', payload: false });
-                dispatch({ type: 'SET_LINE_START_POINT', payload: null });
+                dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+                dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
                 originalFoldedCanvasState.current = null;
                 originalUnfoldedCanvasState.current = null;
             }
@@ -728,7 +653,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         // Draw the fold lines
         drawFoldLines();
-    }, [state.canvasDimensions, clearCanvases, updateFoldedCanvasDimensions, drawFoldLines, drawDiagonalFoldLinesOnFolded]);
+    }, [clearCanvases, updateFoldedCanvasDimensions, drawFoldLines, drawDiagonalFoldLinesOnFolded]);
 
     return {
         // Refs
