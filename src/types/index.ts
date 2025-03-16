@@ -7,7 +7,6 @@ export interface AppConfig {
 }
 
 export enum DiagonalDirection {
-    TopLeftToBottomRight = 'topLeftToBottomRight',
     TopRightToBottomLeft = 'topRightToBottomLeft'
 }
 

@@ -34,8 +34,6 @@ describe('CanvasDisplay Component', () => {
     const mockState: State = {
         config: {
             maxFolds: 3,
-            unfoldedCanvasWidth: 400,
-            unfoldedCanvasHeight: 400,
             defaultCircleRadius: 20,
             circleColor: 'white',
             defaultLineThickness: 2,

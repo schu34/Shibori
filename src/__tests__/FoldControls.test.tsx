@@ -9,9 +9,6 @@ describe('FoldControls Component', () => {
     const mockState: State = {
         config: {
             maxFolds: 3,
-            // Include other required state properties to avoid TypeScript errors
-            unfoldedCanvasWidth: 400,
-            unfoldedCanvasHeight: 400,
             defaultCircleRadius: 20,
             circleColor: 'white',
             defaultLineThickness: 2,
@@ -26,7 +23,6 @@ describe('FoldControls Component', () => {
                 direction: DiagonalDirection.TopLeftToBottomRight
             }
         },
-        // Other required state properties
         circleRadius: 20,
         lineThickness: 2,
         currentTool: DrawingTool.Circle,

@@ -43,13 +43,6 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
         dispatch({ type: ActionType.RESET_FOLDS });
     };
 
-    // Handle diagonal fold toggle
-    const handleDiagonalFoldToggle = useCallback(() => {
-        dispatch({
-            type: ActionType.TOGGLE_DIAGONAL_FOLD,
-            payload: !state.folds.diagonal.enabled
-        });
-    }, [dispatch, state.folds.diagonal.enabled]);
 
     // Handle diagonal fold count change (increase)
     const handleDiagonalFoldIncrease = useCallback(() => {
@@ -126,39 +119,28 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
             </div>
 
             <div className="diagonal-fold-controls">
-                <label className="toggle-switch">
-                    <input
-                        type="checkbox"
-                        checked={state.folds.diagonal.enabled}
-                        onChange={handleDiagonalFoldToggle}
-                        disabled={!isDiagonalFoldAllowed()}
-                    />
-                    <span className="slider round"></span>
-                </label>
                 <span>Diagonal Fold</span>
+                <>
+                    <h3>Diagonal Folds: {state.folds.diagonal.count}</h3>
+                    <button
+                        onClick={handleDiagonalFoldIncrease}
+                        disabled={state.folds.diagonal.count >= 1 || !isDiagonalFoldAllowed()}>
+                        +
+                    </button>
+                    <button
+                        onClick={handleDiagonalFoldDecrease}
+                        disabled={state.folds.diagonal.count <= 0}>
+                        -
+                    </button>
+                    <button
+                        onClick={handleDiagonalDirectionChange}
+                        disabled={!isDiagonalFoldAllowed()}>
+                        Direction: {state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight
+                            ? '↘️ Top-Left to Bottom-Right'
+                            : '↙️ Top-Right to Bottom-Left'}
+                    </button>
+                </>
 
-                {state.folds.diagonal.enabled && (
-                    <>
-                        <h3>Diagonal Folds: {state.folds.diagonal.count}</h3>
-                        <button
-                            onClick={handleDiagonalFoldIncrease}
-                            disabled={state.folds.diagonal.count >= 1 || !isDiagonalFoldAllowed()}>
-                            +
-                        </button>
-                        <button
-                            onClick={handleDiagonalFoldDecrease}
-                            disabled={state.folds.diagonal.count <= 0}>
-                            -
-                        </button>
-                        <button
-                            onClick={handleDiagonalDirectionChange}
-                            disabled={!isDiagonalFoldAllowed()}>
-                            Direction: {state.folds.diagonal.direction === DiagonalDirection.TopLeftToBottomRight
-                                ? '↘️ Top-Left to Bottom-Right'
-                                : '↙️ Top-Right to Bottom-Left'}
-                        </button>
-                    </>
-                )}
             </div>
 
             <button onClick={handleResetButtonClick}>

@@ -56,22 +56,19 @@ export const ImageUtils = {
     },
 
     // Flip image diagonally from top-left to bottom-right
-    flipDiagonalTopLeftToBottomRight(imageData: ImageData): ImageData {
-        // For diagonal flip, width and height are swapped
+    mirrorDiagonalTopLeftToBottomRight(imageData: ImageData): ImageData {
         const { width, height } = imageData;
-        const result = new ImageData(height, width);
 
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                // Transpose the coordinates (x,y) -> (y,x)
                 this.copyPixel(
                     imageData, x, y,
-                    result, y, x
+                    imageData, y, x
                 );
             }
         }
 
-        return result;
+        return imageData;
     },
 
     // Flip image diagonally from top-right to bottom-left
