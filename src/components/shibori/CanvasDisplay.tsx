@@ -12,7 +12,7 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
-        initializeCanvases,
+        resetCanvases,
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
@@ -25,8 +25,8 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
 
     // Initialize canvases when dimensions or folds change
     useEffect(() => {
-        initializeCanvases();
-    }, [state.canvasDimensions, state.folds, initializeCanvases]);
+        resetCanvases();
+    }, [state.canvasDimensions, state.folds, resetCanvases]);
 
     // Add touch event listeners with passive: false to ensure preventDefault works
     useEffect(() => {
@@ -55,7 +55,18 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
             foldedCanvas.removeEventListener('touchend', touchEndHandler);
             foldedCanvas.removeEventListener('touchcancel', touchCancelHandler);
         };
-    }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel]);
+    }, [handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, foldedCanvasRef]);
+
+    useEffect(() => {
+        if (!unfoldedCanvasRef.current || !foldedCanvasRef.current) {
+            return;
+        }
+        unfoldedCanvasRef.current.width = state.canvasDimensions.width;
+        unfoldedCanvasRef.current.height = state.canvasDimensions.height;
+        foldedCanvasRef.current.width = state.canvasDimensions.width / 2 ** state.folds.vertical;
+        foldedCanvasRef.current.height = state.canvasDimensions.height / 2 ** state.folds.horizontal;
+        console.log('state.canvasDimensions', state.canvasDimensions);
+    }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal]);
 
     return (
         <div className="canvas-container">
@@ -67,7 +78,6 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
-                /* Touch events will be handled via direct event listeners with {passive: false} */
                 />
             </div>
             <div className="canvas-wrapper">

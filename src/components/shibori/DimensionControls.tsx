@@ -1,42 +1,42 @@
-import React from 'react';
-import { State, Action } from '../../store/shiboriCanvasState';
+import React, { useCallback, ChangeEvent } from 'react';
+import { State, Action, ActionType } from '../../store/shiboriCanvasState';
 
 interface DimensionControlsProps {
     state: State;
     dispatch: React.Dispatch<Action>;
 }
 
-export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dispatch }) => {
-    // Handle input changes
-    const handleWidthChange = (width: number) => {
-        const validWidth = width || 100;
-        dispatch({
-            type: 'UPDATE_CANVAS_WIDTH',
-            payload: validWidth
-        });
-        dispatch({
-            type: 'SET_CANVAS_DIMENSIONS',
-            payload: {
-                width: validWidth,
-                height: state.canvasDimensions.height
-            }
-        });
-    };
+// Define an interface for the dimension changes
+interface DimensionChanges {
+    width?: number;
+    height?: number;
+}
 
-    const handleHeightChange = (height: number) => {
-        const validHeight = height || 100;
+export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dispatch }) => {
+    // Handle dimension changes with an object of optional properties
+    const handleDimensionChange = useCallback((newDimensions: DimensionChanges) => {
+        // Get current values with fallbacks
+        const newWidth = Math.max(newDimensions.width || state.canvasDimensions.width, 100);
+        const newHeight = Math.max(newDimensions.height || state.canvasDimensions.height, 100);
+
+        // Update the full canvas dimensions
         dispatch({
-            type: 'UPDATE_CANVAS_HEIGHT',
-            payload: validHeight
-        });
-        dispatch({
-            type: 'SET_CANVAS_DIMENSIONS',
+            type: ActionType.SET_CANVAS_DIMENSIONS,
             payload: {
-                width: state.canvasDimensions.width,
-                height: validHeight
+                width: newWidth,
+                height: newHeight
             }
         });
-    };
+    }, [dispatch, state.canvasDimensions.width, state.canvasDimensions.height]);
+
+    // Event handlers for input change events
+    const handleWidthInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        handleDimensionChange({ width: parseInt(e.target.value) });
+    }, [handleDimensionChange]);
+
+    const handleHeightInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        handleDimensionChange({ height: parseInt(e.target.value) });
+    }, [handleDimensionChange]);
 
     return (
         <div className="dimension-controls">
@@ -48,7 +48,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dis
                 min="100"
                 max="1000"
                 value={state.canvasDimensions.width}
-                onChange={(e) => handleWidthChange(parseInt(e.target.value))}
+                onChange={handleWidthInputChange}
             />
             <label htmlFor="canvasHeight">Height:</label>
             <input
@@ -58,7 +58,7 @@ export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dis
                 min="100"
                 max="1000"
                 value={state.canvasDimensions.height}
-                onChange={(e) => handleHeightChange(parseInt(e.target.value))}
+                onChange={handleHeightInputChange}
             />
         </div>
     );

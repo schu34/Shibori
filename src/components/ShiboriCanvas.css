@@ -231,6 +231,52 @@ input[type="range"]:focus {
     outline: none;
 }
 
+.controls-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.controls-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+.fold-controls-group,
+.tool-controls-group {
+    background-color: #e6f2ff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+}
+
+.fold-controls-group h3,
+.tool-controls-group h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: #000000;
+}
+
+.tool-controls-group .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
+    margin-top: 8px;
+}
+
+.tool-controls-group h3 label {
+    font-weight: normal;
+    font-size: 16px;
+    color: #000000;
+}
+
 @media (max-width: 768px) {
     .canvas-container {
         flex-direction: column;
@@ -250,5 +296,13 @@ input[type="range"]:focus {
 
     .dimension-controls {
         flex-wrap: wrap;
+    }
+
+    .controls-container {
+        flex-direction: column;
+    }
+
+    .controls-section {
+        width: 100%;
     }
 }

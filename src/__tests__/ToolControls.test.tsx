@@ -3,14 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ToolControls } from '../components/shibori/ToolControls';
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool } from '../types';
+import { DrawingTool, DiagonalDirection } from '../types';
 
 describe('ToolControls Component', () => {
     const mockState: State = {
         config: {
             maxFolds: 3,
-            unfoldedCanvasWidth: 400,
-            unfoldedCanvasHeight: 400,
             defaultCircleRadius: 20,
             circleColor: 'white',
             defaultLineThickness: 2,
@@ -18,7 +16,12 @@ describe('ToolControls Component', () => {
         },
         folds: {
             vertical: 2,
-            horizontal: 1
+            horizontal: 1,
+            diagonal: {
+                enabled: false,
+                count: 0,
+                direction: DiagonalDirection.TopLeftToBottomRight
+            }
         },
         circleRadius: 20,
         lineThickness: 2,

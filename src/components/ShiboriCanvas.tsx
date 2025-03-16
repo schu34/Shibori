@@ -18,17 +18,24 @@ const ShiboriCanvas = () => {
                 Use the fold buttons to create different symmetry patterns.
             </p>
 
-            {/* Component for fold buttons */}
-            <FoldControls state={state} dispatch={dispatch} />
+            {/* Controls container for fold and tool controls */}
+            <div className="controls-container">
+                {/* Component for fold buttons */}
+                <div className="controls-section">
+                    <FoldControls state={state} dispatch={dispatch} />
+                </div>
+
+                {/* Component for drawing tool controls */}
+                <div className="controls-section">
+                    <ToolControls state={state} dispatch={dispatch} />
+                </div>
+            </div>
 
             {/* Component for dimension controls */}
             <DimensionControls state={state} dispatch={dispatch} />
 
             {/* Component for canvas display */}
             <CanvasDisplay state={state} dispatch={dispatch} />
-
-            {/* Component for drawing tool controls */}
-            <ToolControls state={state} dispatch={dispatch} />
         </div>
     );
 };

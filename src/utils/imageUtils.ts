@@ -55,6 +55,41 @@ export const ImageUtils = {
         return result;
     },
 
+    // Flip image diagonally from top-left to bottom-right
+    mirrorDiagonalTopLeftToBottomRight(imageData: ImageData): ImageData {
+        const { width, height } = imageData;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                this.copyPixel(
+                    imageData, x, y,
+                    imageData, y, x
+                );
+            }
+        }
+
+        return imageData;
+    },
+
+    // Flip image diagonally from top-right to bottom-left
+    flipDiagonalTopRightToBottomLeft(imageData: ImageData): ImageData {
+        // For diagonal flip, width and height are swapped
+        const { width, height } = imageData;
+        const result = new ImageData(height, width);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                // Transpose and flip (x,y) -> (height-y-1, width-x-1)
+                this.copyPixel(
+                    imageData, x, y,
+                    result, height - y - 1, width - x - 1
+                );
+            }
+        }
+
+        return result;
+    },
+
     // Combine two image data objects horizontally
     combineHorizontal(left: ImageData, right: ImageData): ImageData {
         if (left.height !== right.height) {
