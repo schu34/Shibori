@@ -33,7 +33,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
     const originalUnfoldedCanvasState = useRef<ImageData | null>(null);
 
     // Function to clear both canvases
-    const clearCanvases = useCallback(() => {
+    const clearCanvases = useCallback((backgroundColor?: string) => {
         const unfoldedCanvas = unfoldedCanvasRef.current;
         const foldedCanvas = foldedCanvasRef.current;
 
@@ -46,6 +46,15 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
         foldedCtx.clearRect(0, 0, foldedCanvas.width, foldedCanvas.height);
+
+        // If a background color is provided, fill the canvas with it
+        if (backgroundColor) {
+            unfoldedCtx.fillStyle = backgroundColor;
+            unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
+
+            foldedCtx.fillStyle = backgroundColor;
+            foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
+        }
     }, []);
 
     // Function to draw fold lines on the unfolded canvas
@@ -105,6 +114,13 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         foldedCanvas.width = foldedWidth;
         foldedCanvas.height = foldedHeight;
+
+        // Apply navy background to folded canvas after resizing
+        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
+        if (foldedCtx) {
+            foldedCtx.fillStyle = 'navy';
+            foldedCtx.fillRect(0, 0, foldedWidth, foldedHeight);
+        }
     }, [state.folds.vertical, state.folds.horizontal]);
 
     // Function to draw diagonal fold lines on the folded canvas
@@ -176,7 +192,10 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         if (!unfoldedCtx || !foldedCtx) return;
 
+        // Clear the unfolded canvas and apply navy background
         unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
+        unfoldedCtx.fillStyle = 'navy';
+        unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
 
         // Get the original image data from the folded canvas
         let originalImage = foldedCtx.getImageData(0, 0, foldedCanvas.width, foldedCanvas.height);
@@ -195,7 +214,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         const getHorizontalFlipped = horizontalFlipped;
         const getVerticalFlipped = verticalFlipped;
         const getBothFlipped = bothFlipped;
-
 
         // Calculate the total grid size based on folds
         const gridWidth = Math.pow(2, state.folds.vertical);
@@ -384,10 +402,18 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         // Restore both canvases to their original states
         if (originalFoldedCanvasState.current) {
             foldedCtx.putImageData(originalFoldedCanvasState.current, 0, 0);
+        } else {
+            // If no stored state, ensure the navy background is applied
+            foldedCtx.fillStyle = 'navy';
+            foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
         }
 
         if (originalUnfoldedCanvasState.current) {
             unfoldedCtx.putImageData(originalUnfoldedCanvasState.current, 0, 0);
+        } else {
+            // If no stored state, ensure the navy background is applied
+            unfoldedCtx.fillStyle = 'navy';
+            unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
         }
 
         // For lines, we need to check both endpoints and possibly clip the line for preview
@@ -668,9 +694,18 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         if (foldedCtx && unfoldedCtx) {
             if (originalFoldedCanvasState.current) {
                 foldedCtx.putImageData(originalFoldedCanvasState.current, 0, 0);
+            } else {
+                // If no stored state, ensure the navy background is applied
+                foldedCtx.fillStyle = 'navy';
+                foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
             }
+
             if (originalUnfoldedCanvasState.current) {
                 unfoldedCtx.putImageData(originalUnfoldedCanvasState.current, 0, 0);
+            } else {
+                // If no stored state, ensure the navy background is applied
+                unfoldedCtx.fillStyle = 'navy';
+                unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
             }
         }
     }, [dispatch]);
@@ -779,8 +814,8 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         // Update folded canvas dimensions
         updateFoldedCanvasDimensions();
 
-        // Clear the canvases
-        clearCanvases();
+        // Clear the canvases with navy background
+        clearCanvases('navy');
 
         // Draw the fold lines
         drawFoldLines();
@@ -788,6 +823,33 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         // Draw diagonal fold lines on the folded canvas
         drawDiagonalFoldLinesOnFolded();
     }, [clearCanvases, updateFoldedCanvasDimensions, drawFoldLines, drawDiagonalFoldLinesOnFolded]);
+
+    // Function to download the unfolded canvas as an image
+    const downloadUnfoldedCanvas = useCallback(() => {
+        const unfoldedCanvas = unfoldedCanvasRef.current;
+        if (!unfoldedCanvas) return;
+
+        try {
+            // Create a temporary link element
+            const link = document.createElement('a');
+
+            // Convert canvas to a data URL (PNG format by default)
+            const dataUrl = unfoldedCanvas.toDataURL('image/png');
+
+            // Set the href to the data URL
+            link.href = dataUrl;
+
+            // Set the download attribute with filename
+            link.download = `shibori-design-${new Date().toISOString().slice(0, 10)}.png`;
+
+            // Append to body, click, and remove
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Error downloading canvas as image:', error);
+        }
+    }, []);
 
     return {
         // Refs
@@ -802,6 +864,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         drawLineOnFoldedCanvas,
         updateUnfoldedCanvas,
         resetCanvases,
+        downloadUnfoldedCanvas,
 
         // Mouse event handlers
         handleMouseDown,

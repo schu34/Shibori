@@ -20,7 +20,8 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         handleTouchStart,
         handleTouchMove,
         handleTouchEnd,
-        handleTouchCancel
+        handleTouchCancel,
+        downloadUnfoldedCanvas
     } = useCanvas({ state, dispatch });
 
     // Initialize canvases when dimensions or folds change
@@ -66,7 +67,10 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         foldedCanvasRef.current.width = state.canvasDimensions.width / 2 ** state.folds.vertical;
         foldedCanvasRef.current.height = state.canvasDimensions.height / 2 ** state.folds.horizontal;
         console.log('state.canvasDimensions', state.canvasDimensions);
-    }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal]);
+
+        // Reset canvases after dimension changes to ensure navy background is applied
+        resetCanvases();
+    }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal, resetCanvases]);
 
     return (
         <div className="canvas-container">
@@ -81,7 +85,16 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
                 />
             </div>
             <div className="canvas-wrapper">
-                <h3>Unfolded Version</h3>
+                <div className="canvas-header">
+                    <h3>Unfolded Version</h3>
+                    <button
+                        className="download-button"
+                        onClick={downloadUnfoldedCanvas}
+                        title="Download as PNG image"
+                    >
+                        Download
+                    </button>
+                </div>
                 <canvas ref={unfoldedCanvasRef} />
             </div>
         </div>
