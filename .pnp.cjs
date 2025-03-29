@@ -51,6 +51,7 @@ const RAW_RUNTIME_STATE =
           ["jest", "virtual:5a5c4da0cd4f90179338a730d02e69a7c2a04b1f7c665ba2c22ab3e4aef0efa71522b1f2d4604a528c9476f07e590f28c122929bdb6797c77d3c8ce4684c7640#npm:29.7.0"],\
           ["jest-environment-jsdom", "virtual:5a5c4da0cd4f90179338a730d02e69a7c2a04b1f7c665ba2c22ab3e4aef0efa71522b1f2d4604a528c9476f07e590f28c122929bdb6797c77d3c8ce4684c7640#npm:29.7.0"],\
           ["lodash-es", "npm:4.17.21"],\
+          ["perfect-freehand", "npm:1.2.2"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:5a5c4da0cd4f90179338a730d02e69a7c2a04b1f7c665ba2c22ab3e4aef0efa71522b1f2d4604a528c9476f07e590f28c122929bdb6797c77d3c8ce4684c7640#npm:19.0.0"],\
           ["typescript", "patch:typescript@npm%3A5.7.3#optional!builtin<compat/typescript>::version=5.7.3&hash=5786d5"],\
@@ -7818,6 +7819,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["perfect-freehand", [\
+      ["npm:1.2.2", {\
+        "packageLocation": "../../.yarn/berry/cache/perfect-freehand-npm-1.2.2-804f23895c-10c0.zip/node_modules/perfect-freehand/",\
+        "packageDependencies": [\
+          ["perfect-freehand", "npm:1.2.2"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["picocolors", [\
       ["npm:1.1.1", {\
         "packageLocation": "../../.yarn/berry/cache/picocolors-npm-1.1.1-4fede47cf1-10c0.zip/node_modules/picocolors/",\
@@ -8340,6 +8350,7 @@ const RAW_RUNTIME_STATE =
           ["jest", "virtual:5a5c4da0cd4f90179338a730d02e69a7c2a04b1f7c665ba2c22ab3e4aef0efa71522b1f2d4604a528c9476f07e590f28c122929bdb6797c77d3c8ce4684c7640#npm:29.7.0"],\
           ["jest-environment-jsdom", "virtual:5a5c4da0cd4f90179338a730d02e69a7c2a04b1f7c665ba2c22ab3e4aef0efa71522b1f2d4604a528c9476f07e590f28c122929bdb6797c77d3c8ce4684c7640#npm:29.7.0"],\
           ["lodash-es", "npm:4.17.21"],\
+          ["perfect-freehand", "npm:1.2.2"],\
           ["react", "npm:19.0.0"],\
           ["react-dom", "virtual:5a5c4da0cd4f90179338a730d02e69a7c2a04b1f7c665ba2c22ab3e4aef0efa71522b1f2d4604a528c9476f07e590f28c122929bdb6797c77d3c8ce4684c7640#npm:19.0.0"],\
           ["typescript", "patch:typescript@npm%3A5.7.3#optional!builtin<compat/typescript>::version=5.7.3&hash=5786d5"],\

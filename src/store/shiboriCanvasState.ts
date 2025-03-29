@@ -5,7 +5,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     maxFolds: 3,
     defaultCircleRadius: 20,
     circleColor: 'white',
-    defaultLineThickness: 4,
+    defaultLineThickness: 10,
     lineColor: 'white',
 };
 
@@ -17,6 +17,7 @@ export interface State {
     currentTool: DrawingTool;
     isDrawing: boolean;
     lineStartPoint: { x: number; y: number } | null;
+    currentStrokePoints: { x: number; y: number }[];
     folds: FoldState;
     canvasDimensions: {
         width: number;
@@ -29,9 +30,10 @@ export const initialState: State = {
     config: DEFAULT_CONFIG,
     circleRadius: DEFAULT_CONFIG.defaultCircleRadius,
     lineThickness: DEFAULT_CONFIG.defaultLineThickness,
-    currentTool: DrawingTool.Circle,
+    currentTool: DrawingTool.Paintbrush,
     isDrawing: false,
     lineStartPoint: null,
+    currentStrokePoints: [],
     folds: {
         vertical: 1,
         horizontal: 1,
@@ -59,7 +61,9 @@ export enum ActionType {
     UPDATE_DIAGONAL_FOLD_COUNT = 'UPDATE_DIAGONAL_FOLD_COUNT',
     UPDATE_DIAGONAL_FOLD_DIRECTION = 'UPDATE_DIAGONAL_FOLD_DIRECTION',
     RESET_FOLDS = 'RESET_FOLDS',
-    SET_CANVAS_DIMENSIONS = 'SET_CANVAS_DIMENSIONS'
+    SET_CANVAS_DIMENSIONS = 'SET_CANVAS_DIMENSIONS',
+    ADD_STROKE_POINT = 'ADD_STROKE_POINT',
+    CLEAR_STROKE_POINTS = 'CLEAR_STROKE_POINTS'
 }
 
 // Action type definitions
@@ -74,7 +78,9 @@ export type Action =
     | { type: ActionType.UPDATE_DIAGONAL_FOLD_COUNT, payload: number }
     | { type: ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION, payload: DiagonalDirection }
     | { type: ActionType.RESET_FOLDS }
-    | { type: ActionType.SET_CANVAS_DIMENSIONS, payload: { width: number; height: number } };
+    | { type: ActionType.SET_CANVAS_DIMENSIONS, payload: { width: number; height: number } }
+    | { type: ActionType.ADD_STROKE_POINT, payload: { x: number; y: number } }
+    | { type: ActionType.CLEAR_STROKE_POINTS };
 
 // Reducer function
 export function reducer(state: State, action: Action): State {
@@ -89,6 +95,10 @@ export function reducer(state: State, action: Action): State {
             return { ...state, isDrawing: action.payload };
         case ActionType.SET_LINE_START_POINT:
             return { ...state, lineStartPoint: action.payload };
+        case ActionType.ADD_STROKE_POINT:
+            return { ...state, currentStrokePoints: [...state.currentStrokePoints, action.payload] };
+        case ActionType.CLEAR_STROKE_POINTS:
+            return { ...state, currentStrokePoints: [] };
         case ActionType.UPDATE_FOLD: {
             const newFolds = {
                 ...state.folds,

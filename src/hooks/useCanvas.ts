@@ -3,6 +3,7 @@ import { ImageUtils } from '../utils/imageUtils';
 import { DrawingTool } from '../types';
 import { State, Action, ActionType } from '../store/shiboriCanvasState';
 import throttle from 'lodash-es/throttle';
+import { getStroke } from 'perfect-freehand';
 
 export interface UseCanvasProps {
     state: State;
@@ -360,6 +361,47 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         updateUnfoldedCanvas();
     }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded]);
 
+    // Function to draw a stroke on the folded canvas
+    const drawStrokeOnFoldedCanvas = useCallback(() => {
+        const foldedCanvas = foldedCanvasRef.current;
+        if (!foldedCanvas || state.currentStrokePoints.length === 0) return;
+
+        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
+        if (!foldedCtx) return;
+
+        // Get the stroke outline points from perfect-freehand
+        const stroke = getStroke(state.currentStrokePoints, {
+            size: state.lineThickness * 2,
+            thinning: 0.5,
+            smoothing: 0.5,
+            streamline: 0.5,
+        });
+
+        if (!stroke.length) return;
+
+        // Draw the stroke
+        foldedCtx.fillStyle = state.config.lineColor;
+        foldedCtx.beginPath();
+
+        // Move to the first point
+        const [firstX, firstY] = stroke[0];
+        foldedCtx.moveTo(firstX, firstY);
+
+        // Draw the rest of the stroke
+        for (let i = 1; i < stroke.length; i++) {
+            const [x, y] = stroke[i];
+            foldedCtx.lineTo(x, y);
+        }
+
+        foldedCtx.closePath();
+        foldedCtx.fill();
+
+        // Redraw diagonal fold lines
+        drawDiagonalFoldLinesOnFolded();
+
+        updateUnfoldedCanvas();
+    }, [state.currentStrokePoints, state.lineThickness, state.config.lineColor, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas]);
+
     // Helper function to get canvas coordinates from mouse/touch event
     const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
         const foldedCanvas = foldedCanvasRef.current;
@@ -558,6 +600,11 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
             dispatch({ type: ActionType.SET_LINE_START_POINT, payload: { x, y } });
             dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
             storeCanvasStates();
+        } else if (state.currentTool === DrawingTool.Paintbrush) {
+            dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
+            dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
+            dispatch({ type: ActionType.ADD_STROKE_POINT, payload: { x, y } });
+            storeCanvasStates();
         }
     }, [state.currentTool, dispatch, drawCircleOnFoldedCanvas, storeCanvasStates]);
 
@@ -572,8 +619,11 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                 x,
                 y
             );
+        } else if (state.currentTool === DrawingTool.Paintbrush && state.isDrawing) {
+            dispatch({ type: ActionType.ADD_STROKE_POINT, payload: { x, y } });
+            drawStrokeOnFoldedCanvas();
         }
-    }, [state.currentTool, state.isDrawing, state.lineStartPoint, drawCircleOnFoldedCanvas, drawPreviewLineOnBothCanvases]);
+    }, [state.currentTool, state.isDrawing, state.lineStartPoint, drawCircleOnFoldedCanvas, drawPreviewLineOnBothCanvases, dispatch, drawStrokeOnFoldedCanvas]);
 
     // Common end drawing function
     const endDrawing = useCallback((x: number, y: number) => {
@@ -583,6 +633,11 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
             drawLineOnFoldedCanvas(state.lineStartPoint.x, state.lineStartPoint.y, x, y);
             dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
             dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
+            originalFoldedCanvasState.current = null;
+            originalUnfoldedCanvasState.current = null;
+        } else if (state.currentTool === DrawingTool.Paintbrush) {
+            dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+            dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
             originalFoldedCanvasState.current = null;
             originalUnfoldedCanvasState.current = null;
         }
