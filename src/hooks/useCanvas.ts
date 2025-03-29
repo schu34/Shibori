@@ -620,10 +620,12 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                 y
             );
         } else if (state.currentTool === DrawingTool.Paintbrush && state.isDrawing) {
-            dispatch({ type: ActionType.ADD_STROKE_POINT, payload: { x, y } });
-            drawStrokeOnFoldedCanvas();
+            if (isInValidDrawingArea(x, y)) {
+                dispatch({ type: ActionType.ADD_STROKE_POINT, payload: { x, y } });
+                drawStrokeOnFoldedCanvas();
+            }
         }
-    }, [state.currentTool, state.isDrawing, state.lineStartPoint, drawCircleOnFoldedCanvas, drawPreviewLineOnBothCanvases, dispatch, drawStrokeOnFoldedCanvas]);
+    }, [state.currentTool, state.isDrawing, state.lineStartPoint, drawCircleOnFoldedCanvas, drawPreviewLineOnBothCanvases, isInValidDrawingArea, dispatch, drawStrokeOnFoldedCanvas]);
 
     // Common end drawing function
     const endDrawing = useCallback((x: number, y: number) => {
