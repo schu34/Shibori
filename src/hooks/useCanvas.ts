@@ -1,9 +1,8 @@
 import { useRef, useCallback } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
-import { DrawingTool } from '../types';
-import { State, Action, ActionType } from '../store/shiboriCanvasState';
+import { State, Action } from '../store/shiboriCanvasState';
 import throttle from 'lodash-es/throttle';
-import { getStroke } from 'perfect-freehand';
+import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
 
 export interface UseCanvasProps {
     state: State;
@@ -26,12 +25,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
     // Canvas references
     const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
     const foldedCanvasRef = useRef<HTMLCanvasElement>(null);
-
-    // Reference to the folded canvas original state (for preview drawing)
-    const originalFoldedCanvasState = useRef<ImageData | null>(null);
-
-    // Reference to the unfolded canvas original state (for preview drawing)
-    const originalUnfoldedCanvasState = useRef<ImageData | null>(null);
 
     // Function to clear both canvases
     const clearCanvases = useCallback((backgroundColor?: string) => {
@@ -98,9 +91,6 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
                 unfoldedCtx.stroke();
             }
         }
-
-        // No need to draw diagonal fold lines on the unfolded canvas anymore
-        // They're drawn on the folded canvas and propagated through normal unfolding
     }, [state.folds.vertical, state.folds.horizontal]);
 
     // Function to update folded canvas dimensions
@@ -140,7 +130,7 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         const width = foldedCanvas.width;
         const height = foldedCanvas.height;
-        const isTopLeftToBottomRight = false
+        const isTopLeftToBottomRight = false;
 
         foldedCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
         foldedCtx.lineWidth = 1;
@@ -270,137 +260,8 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         const foldedCanvas = foldedCanvasRef.current;
         if (!foldedCanvas) return true;
 
-
         return y < x;
-
-
     }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
-
-    // Function to draw a circle on the folded canvas
-    const drawCircleOnFoldedCanvas = useCallback((x: number, y: number) => {
-        const foldedCanvas = foldedCanvasRef.current;
-        if (!foldedCanvas) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx) return;
-
-        // Only draw if in valid area for the diagonal fold
-        if (!isInValidDrawingArea(x, y)) {
-            return;
-        }
-
-        foldedCtx.beginPath();
-        foldedCtx.arc(x, y, state.circleRadius, 0, Math.PI * 2);
-        foldedCtx.fillStyle = state.config.circleColor;
-        foldedCtx.fill();
-
-        // Redraw diagonal fold lines
-        drawDiagonalFoldLinesOnFolded();
-
-        updateUnfoldedCanvas();
-    }, [state.circleRadius, state.config.circleColor, updateUnfoldedCanvas, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded]);
-
-    // Function to draw a line on the folded canvas
-    const drawLineOnFoldedCanvas = useCallback((startX: number, startY: number, endX: number, endY: number) => {
-        const foldedCanvas = foldedCanvasRef.current;
-        if (!foldedCanvas) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx) return;
-
-        // For lines, we need to check both endpoints and possibly clip the line
-        const startValid = isInValidDrawingArea(startX, startY);
-        const endValid = isInValidDrawingArea(endX, endY);
-
-        // If both endpoints are invalid, don't draw anything
-        if (!startValid && !endValid) {
-            return;
-        }
-
-        // If one endpoint is invalid, find intersection with diagonal line
-        if (!startValid || !endValid) {
-            const height = foldedCanvas.height;
-
-            // Calculate the intersection point with the diagonal line
-            let intersectionX, intersectionY;
-
-            // For top-right to bottom-left diagonal (y = x)
-            // Parametric equation of the line segment: 
-            // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
-            // Intersection: startY + t*(endY-startY) = height - startX - t*(endX-startX)
-            const t = (height - startX - startY) / ((endX - startX) + (endY - startY));
-
-            if (t >= 0 && t <= 1) {
-                intersectionX = startX + t * (endX - startX);
-                intersectionY = startY + t * (endY - startY);
-            } else {
-                // No valid intersection
-                return;
-            }
-
-            // Update the invalid endpoint to the intersection point
-            if (!startValid) {
-                startX = intersectionX;
-                startY = intersectionY;
-            } else {
-                endX = intersectionX;
-                endY = intersectionY;
-            }
-        }
-
-        foldedCtx.beginPath();
-        foldedCtx.moveTo(startX, startY);
-        foldedCtx.lineTo(endX, endY);
-        foldedCtx.strokeStyle = state.config.lineColor;
-        foldedCtx.lineWidth = state.lineThickness;
-        foldedCtx.stroke();
-
-        // Redraw diagonal fold lines
-        drawDiagonalFoldLinesOnFolded();
-
-        updateUnfoldedCanvas();
-    }, [state.config.lineColor, state.lineThickness, updateUnfoldedCanvas, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded]);
-
-    // Function to draw a stroke on the folded canvas
-    const drawStrokeOnFoldedCanvas = useCallback(() => {
-        const foldedCanvas = foldedCanvasRef.current;
-        if (!foldedCanvas || state.currentStrokePoints.length === 0) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx) return;
-
-        // Get the stroke outline points from perfect-freehand
-        const stroke = getStroke(state.currentStrokePoints, {
-            size: state.lineThickness * 2,
-            thinning: 0.5,
-            smoothing: 0.5,
-            streamline: 0.5,
-        });
-
-        if (!stroke.length) return;
-
-        // Draw the stroke
-        foldedCtx.fillStyle = state.config.lineColor;
-        foldedCtx.beginPath();
-
-        // Move to the first point
-        const [firstX, firstY] = stroke[0];
-        foldedCtx.moveTo(firstX, firstY);
-
-        // Draw the rest of the stroke
-        for (let i = 1; i < stroke.length; i++) {
-            const [x, y] = stroke[i];
-            foldedCtx.lineTo(x, y);
-        }
-
-        foldedCtx.closePath();
-        foldedCtx.fill();
-
-        // Redraw diagonal fold lines
-        drawDiagonalFoldLinesOnFolded();
-
-        updateUnfoldedCanvas();
-    }, [state.currentStrokePoints, state.lineThickness, state.config.lineColor, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas]);
 
     // Helper function to get canvas coordinates from mouse/touch event
     const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
@@ -414,236 +275,47 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
         };
     }, []);
 
-    // Helper function to store original canvas states
-    const storeCanvasStates = useCallback(() => {
-        const foldedCanvas = foldedCanvasRef.current;
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-        if (!foldedCanvas || !unfoldedCanvas) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-
-        if (foldedCtx && unfoldedCtx) {
-            originalFoldedCanvasState.current = foldedCtx.getImageData(0, 0, foldedCanvas.width, foldedCanvas.height);
-            originalUnfoldedCanvasState.current = unfoldedCtx.getImageData(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
-        }
-    }, []);
-
-    // Helper function to draw preview line on both canvases
-    const drawPreviewLineOnBothCanvases = useCallback((startX: number, startY: number, endX: number, endY: number) => {
-        const foldedCanvas = foldedCanvasRef.current;
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-
-        if (!foldedCanvas || !unfoldedCanvas) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-
-        if (!foldedCtx || !unfoldedCtx) return;
-
-        // Restore both canvases to their original states
-        if (originalFoldedCanvasState.current) {
-            foldedCtx.putImageData(originalFoldedCanvasState.current, 0, 0);
-        } else {
-            // If no stored state, ensure the navy background is applied
-            foldedCtx.fillStyle = 'navy';
-            foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
-        }
-
-        if (originalUnfoldedCanvasState.current) {
-            unfoldedCtx.putImageData(originalUnfoldedCanvasState.current, 0, 0);
-        } else {
-            // If no stored state, ensure the navy background is applied
-            unfoldedCtx.fillStyle = 'navy';
-            unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
-        }
-
-        // For lines, we need to check both endpoints and possibly clip the line for preview
-        const startValid = isInValidDrawingArea(startX, startY);
-        const endValid = isInValidDrawingArea(endX, endY);
-        let validStartX = startX;
-        let validStartY = startY;
-        let validEndX = endX;
-        let validEndY = endY;
-
-        // If both endpoints are invalid, don't draw anything
-        if (!startValid && !endValid) {
-            // Still draw the fold lines for guidance
-            drawDiagonalFoldLinesOnFolded();
-            return;
-        }
-
-        // If one endpoint is invalid, find intersection with diagonal line
-        if (!startValid || !endValid) {
-            const height = foldedCanvas.height;
-
-            // Calculate the intersection point with the diagonal line
-            let intersectionX, intersectionY;
-
-            // For top-right to bottom-left diagonal (y = x)
-            // Parametric equation of the line segment: 
-            // (x,y) = (startX,startY) + t * (endX-startX, endY-startY)
-            // Intersection: startY + t*(endY-startY) = height - startX - t*(endX-startX)
-            const t = (height - startX - startY) / ((endX - startX) + (endY - startY));
-
-            if (t >= 0 && t <= 1) {
-                intersectionX = startX + t * (endX - startX);
-                intersectionY = startY + t * (endY - startY);
-            } else {
-                // No valid intersection, just draw the fold lines
-                drawDiagonalFoldLinesOnFolded();
-                return;
-            }
-
-            // Update the invalid endpoint to the intersection point
-            if (!startValid) {
-                validStartX = intersectionX;
-                validStartY = intersectionY;
-            } else {
-                validEndX = intersectionX;
-                validEndY = intersectionY;
-            }
-        }
-
-        // Draw preview line on folded canvas
-        foldedCtx.beginPath();
-        foldedCtx.moveTo(validStartX, validStartY);
-        foldedCtx.lineTo(validEndX, validEndY);
-        foldedCtx.strokeStyle = state.config.lineColor;
-        foldedCtx.lineWidth = state.lineThickness;
-        foldedCtx.globalAlpha = 0.6;
-        foldedCtx.stroke();
-        foldedCtx.globalAlpha = 1.0;
-
-        // Redraw diagonal fold lines on the folded canvas for visual guidance
-        drawDiagonalFoldLinesOnFolded();
-
-        // Calculate relative positions for unfolded canvas
-        const foldedWidth = foldedCanvas.width;
-        const foldedHeight = foldedCanvas.height;
-        const verticalFolds = state.folds.vertical;
-        const horizontalFolds = state.folds.horizontal;
-        const hasDiagonalFold = state.folds.diagonal.count === 1 &&
-            state.folds.vertical === state.folds.horizontal;
-
-        // Draw preview line on each section of the unfolded canvas
-        unfoldedCtx.globalAlpha = 0.6;
-        unfoldedCtx.strokeStyle = state.config.lineColor;
-        unfoldedCtx.lineWidth = state.lineThickness;
-
-        // For each cell in the grid, determine how to map the line
-        for (let row = 0; row < Math.pow(2, horizontalFolds); row++) {
-            for (let col = 0; col < Math.pow(2, verticalFolds); col++) {
-                const isRowEven = row % 2 === 0;
-                const isColEven = col % 2 === 0;
-
-                let mappedStartX = validStartX;
-                let mappedStartY = validStartY;
-                let mappedEndX = validEndX;
-                let mappedEndY = validEndY;
-
-                // Apply horizontal flipping if needed
-                if (!isColEven) {
-                    mappedStartX = foldedWidth - mappedStartX;
-                    mappedEndX = foldedWidth - mappedEndX;
-                }
-
-                // Apply vertical flipping if needed
-                if (!isRowEven) {
-                    mappedStartY = foldedHeight - mappedStartY;
-                    mappedEndY = foldedHeight - mappedEndY;
-                }
-
-                // Apply diagonal flipping if needed
-                if (hasDiagonalFold) {
-                    const isDiagonalCell =
-                        (isRowEven && isColEven) || (!isRowEven && !isColEven)
-                            ? false
-                            : true;
-
-                    if (isDiagonalCell) {
-                        // For top-right to bottom-left diagonal
-                        // Swap and invert both coordinates
-                        const tempStartX = mappedStartX;
-                        mappedStartX = foldedWidth - mappedStartY;
-                        mappedStartY = foldedHeight - tempStartX;
-
-                        const tempEndX = mappedEndX;
-                        mappedEndX = foldedWidth - mappedEndY;
-                        mappedEndY = foldedHeight - tempEndX;
-
-                    }
-                }
-
-                // Calculate position in the unfolded canvas
-                const offsetX = col * foldedWidth;
-                const offsetY = row * foldedHeight;
-
-                // Draw the line segment
-                unfoldedCtx.beginPath();
-                unfoldedCtx.moveTo(offsetX + mappedStartX, offsetY + mappedStartY);
-                unfoldedCtx.lineTo(offsetX + mappedEndX, offsetY + mappedEndY);
-                unfoldedCtx.stroke();
-            }
-        }
-
-        unfoldedCtx.globalAlpha = 1.0;
-    }, [state.config.lineColor, state.lineThickness, state.folds.vertical, state.folds.horizontal,
-    state.folds.diagonal, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
-
     // Common start drawing function
     const startDrawing = useCallback((x: number, y: number) => {
-        if (state.currentTool === DrawingTool.Circle) {
-            dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
-            drawCircleOnFoldedCanvas(x, y);
-        } else if (state.currentTool === DrawingTool.Line) {
-            dispatch({ type: ActionType.SET_LINE_START_POINT, payload: { x, y } });
-            dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
-            storeCanvasStates();
-        } else if (state.currentTool === DrawingTool.Paintbrush) {
-            dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
-            dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
-            dispatch({ type: ActionType.ADD_STROKE_POINT, payload: { x, y } });
-            storeCanvasStates();
-        }
-    }, [state.currentTool, dispatch, drawCircleOnFoldedCanvas, storeCanvasStates]);
+        const mode = DrawingModeFactory.getMode(state.currentTool);
+        mode.start({ x, y }, {
+            state,
+            dispatch,
+            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            updateUnfoldedCanvas,
+            drawDiagonalFoldLinesOnFolded,
+            isInValidDrawingArea
+        });
+    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Common continue drawing function
     const continueDrawing = useCallback((x: number, y: number) => {
-        if (state.currentTool === DrawingTool.Circle && state.isDrawing) {
-            drawCircleOnFoldedCanvas(x, y);
-        } else if (state.currentTool === DrawingTool.Line && state.isDrawing && state.lineStartPoint !== null) {
-            drawPreviewLineOnBothCanvases(
-                state.lineStartPoint.x,
-                state.lineStartPoint.y,
-                x,
-                y
-            );
-        } else if (state.currentTool === DrawingTool.Paintbrush && state.isDrawing) {
-            if (isInValidDrawingArea(x, y)) {
-                dispatch({ type: ActionType.ADD_STROKE_POINT, payload: { x, y } });
-                drawStrokeOnFoldedCanvas();
-            }
-        }
-    }, [state.currentTool, state.isDrawing, state.lineStartPoint, drawCircleOnFoldedCanvas, drawPreviewLineOnBothCanvases, isInValidDrawingArea, dispatch, drawStrokeOnFoldedCanvas]);
+        const mode = DrawingModeFactory.getMode(state.currentTool);
+        mode.continue({ x, y }, {
+            state,
+            dispatch,
+            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            updateUnfoldedCanvas,
+            drawDiagonalFoldLinesOnFolded,
+            isInValidDrawingArea
+        });
+    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Common end drawing function
     const endDrawing = useCallback((x: number, y: number) => {
-        if (state.currentTool === DrawingTool.Circle) {
-            dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-        } else if (state.currentTool === DrawingTool.Line && state.isDrawing && state.lineStartPoint !== null) {
-            drawLineOnFoldedCanvas(state.lineStartPoint.x, state.lineStartPoint.y, x, y);
-            dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-            dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-            originalFoldedCanvasState.current = null;
-            originalUnfoldedCanvasState.current = null;
-        } else if (state.currentTool === DrawingTool.Paintbrush) {
-            dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-            dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
-            originalFoldedCanvasState.current = null;
-            originalUnfoldedCanvasState.current = null;
-        }
-    }, [state.currentTool, state.isDrawing, state.lineStartPoint, dispatch, drawLineOnFoldedCanvas]);
+        const mode = DrawingModeFactory.getMode(state.currentTool);
+        mode.end({ x, y }, {
+            state,
+            dispatch,
+            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            updateUnfoldedCanvas,
+            drawDiagonalFoldLinesOnFolded,
+            isInValidDrawingArea
+        });
+    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Handle mouse events for the folded canvas
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -666,6 +338,21 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
         endDrawing(coords.x, coords.y);
     }, [getCanvasCoordinates, endDrawing]);
+
+    const handleMouseLeave = useCallback(() => {
+        if (state.isDrawing) {
+            const mode = DrawingModeFactory.getMode(state.currentTool);
+            mode.cancel({
+                state,
+                dispatch,
+                foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+                unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+                updateUnfoldedCanvas,
+                drawDiagonalFoldLinesOnFolded,
+                isInValidDrawingArea
+            });
+        }
+    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Handle touch events for mobile devices
     const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -692,179 +379,40 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
 
     const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
-        if (state.isDrawing) {
-            // For touch end, we need to use the last known position since there are no coordinates in the touchend event
-            if (state.currentTool === DrawingTool.Circle) {
-                dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-            } else if (state.currentTool === DrawingTool.Line && state.lineStartPoint !== null) {
-                // For lines, check if we have a last touch position
-                // If not, just cancel the drawing
-                const foldedCanvas = foldedCanvasRef.current;
-                if (!foldedCanvas) {
-                    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-                    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-                    originalFoldedCanvasState.current = null;
-                    originalUnfoldedCanvasState.current = null;
-                    return;
-                }
-
-                // Use the last position from changedTouches if available
-                if (e.changedTouches && e.changedTouches.length > 0) {
-                    const touch = e.changedTouches[0];
-                    const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-                    if (coords) {
-                        endDrawing(coords.x, coords.y);
-                    } else {
-                        // Just reset if we couldn't get coordinates
-                        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-                        dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-                        originalFoldedCanvasState.current = null;
-                        originalUnfoldedCanvasState.current = null;
-                    }
-                } else {
-                    // Just reset if we couldn't get coordinates
-                    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-                    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-                    originalFoldedCanvasState.current = null;
-                    originalUnfoldedCanvasState.current = null;
-                }
+        if (state.isDrawing && e.changedTouches && e.changedTouches.length > 0) {
+            const touch = e.changedTouches[0];
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            if (coords) {
+                endDrawing(coords.x, coords.y);
+            } else {
+                // If we couldn't get coordinates, cancel the current drawing mode
+                const mode = DrawingModeFactory.getMode(state.currentTool);
+                mode.cancel({
+                    state,
+                    dispatch,
+                    foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+                    unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+                    updateUnfoldedCanvas,
+                    drawDiagonalFoldLinesOnFolded,
+                    isInValidDrawingArea
+                });
             }
         }
-    }, [state.currentTool, state.isDrawing, state.lineStartPoint, dispatch, getCanvasCoordinates, endDrawing]);
+    }, [state, dispatch, getCanvasCoordinates, endDrawing, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
-        // Just reset drawing state
-        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-        dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-        originalFoldedCanvasState.current = null;
-        originalUnfoldedCanvasState.current = null;
-
-        // Restore canvases to their original state
-        const foldedCanvas = foldedCanvasRef.current;
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-        if (!foldedCanvas || !unfoldedCanvas) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-
-        if (foldedCtx && unfoldedCtx) {
-            if (originalFoldedCanvasState.current) {
-                foldedCtx.putImageData(originalFoldedCanvasState.current, 0, 0);
-            } else {
-                // If no stored state, ensure the navy background is applied
-                foldedCtx.fillStyle = 'navy';
-                foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
-            }
-
-            if (originalUnfoldedCanvasState.current) {
-                unfoldedCtx.putImageData(originalUnfoldedCanvasState.current, 0, 0);
-            } else {
-                // If no stored state, ensure the navy background is applied
-                unfoldedCtx.fillStyle = 'navy';
-                unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
-            }
-        }
-    }, [dispatch]);
-
-    const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        // Stop drawing for both tools when mouse leaves canvas
-        if (state.isDrawing) {
-            if (state.currentTool === DrawingTool.Circle) {
-                dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-            } else if (state.currentTool === DrawingTool.Line && state.lineStartPoint !== null) {
-                const foldedCanvas = foldedCanvasRef.current;
-                if (!foldedCanvas) {
-                    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-                    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-                    originalFoldedCanvasState.current = null;
-                    originalUnfoldedCanvasState.current = null;
-                    return;
-                }
-
-                // Get mouse position at the time it left the canvas
-                const rect = foldedCanvas.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-
-                // Calculate direction vector from start point to current mouse position
-                const directionX = mouseX - state.lineStartPoint.x;
-                const directionY = mouseY - state.lineStartPoint.y;
-
-                // Find intersection with canvas boundary
-                // First, determine which boundaries we need to check based on direction
-                const boundaries = [];
-
-                if (directionX > 0) {
-                    // Moving right, check right boundary
-                    boundaries.push({
-                        x: foldedCanvas.width,
-                        y: state.lineStartPoint.y + directionY * (foldedCanvas.width - state.lineStartPoint.x) / directionX
-                    });
-                } else if (directionX < 0) {
-                    // Moving left, check left boundary
-                    boundaries.push({
-                        x: 0,
-                        y: state.lineStartPoint.y + directionY * (-state.lineStartPoint.x) / directionX
-                    });
-                }
-
-                if (directionY > 0) {
-                    // Moving down, check bottom boundary
-                    boundaries.push({
-                        x: state.lineStartPoint.x + directionX * (foldedCanvas.height - state.lineStartPoint.y) / directionY,
-                        y: foldedCanvas.height
-                    });
-                } else if (directionY < 0) {
-                    // Moving up, check top boundary
-                    boundaries.push({
-                        x: state.lineStartPoint.x + directionX * (-state.lineStartPoint.y) / directionY,
-                        y: 0
-                    });
-                }
-
-                // Find the closest valid intersection point
-                let intersectionPoint = null;
-                let minDistance = Infinity;
-
-                for (const point of boundaries) {
-                    // Check if the point is actually on the canvas boundary (between 0 and width/height)
-                    if (point.x >= 0 && point.x <= foldedCanvas.width &&
-                        point.y >= 0 && point.y <= foldedCanvas.height) {
-
-                        // Calculate distance from start point to this intersection
-                        const dx = point.x - state.lineStartPoint.x;
-                        const dy = point.y - state.lineStartPoint.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-
-                        // Check if this is along the direction of mouse movement
-                        const dotProduct = dx * directionX + dy * directionY;
-
-                        if (dotProduct > 0 && distance < minDistance) {
-                            minDistance = distance;
-                            intersectionPoint = point;
-                        }
-                    }
-                }
-
-                // Draw the line to the intersection point if found
-                if (intersectionPoint) {
-                    drawLineOnFoldedCanvas(
-                        state.lineStartPoint.x,
-                        state.lineStartPoint.y,
-                        intersectionPoint.x,
-                        intersectionPoint.y
-                    );
-                }
-
-                // Reset drawing state
-                dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-                dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
-                originalFoldedCanvasState.current = null;
-                originalUnfoldedCanvasState.current = null;
-            }
-        }
-    }, [state.currentTool, state.isDrawing, state.lineStartPoint, dispatch, drawLineOnFoldedCanvas]);
+        const mode = DrawingModeFactory.getMode(state.currentTool);
+        mode.cancel({
+            state,
+            dispatch,
+            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            updateUnfoldedCanvas,
+            drawDiagonalFoldLinesOnFolded,
+            isInValidDrawingArea
+        });
+    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Function called when initializing or resetting the drawing canvas
     const resetCanvases = useCallback(() => {
@@ -909,27 +457,18 @@ export function useCanvas({ state, dispatch }: UseCanvasProps) {
     }, []);
 
     return {
-        // Refs
         unfoldedCanvasRef,
         foldedCanvasRef,
-
-        // Canvas operations
         clearCanvases,
         updateFoldedCanvasDimensions,
         drawFoldLines,
-        drawCircleOnFoldedCanvas,
-        drawLineOnFoldedCanvas,
         updateUnfoldedCanvas,
         resetCanvases,
         downloadUnfoldedCanvas,
-
-        // Mouse event handlers
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
         handleMouseLeave,
-
-        // Touch event handlers
         handleTouchStart,
         handleTouchMove,
         handleTouchEnd,
