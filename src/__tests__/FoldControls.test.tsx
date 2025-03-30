@@ -1,6 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { renderWithRedux } from '../testUtils';
+import * as reduxHooks from '../hooks/useReduxHooks';
 import { FoldControls } from '../components/shibori/FoldControls';
 import { State } from '../store/shiboriCanvasState';
 import { DrawingTool, DiagonalDirection } from '../types';
@@ -20,7 +22,7 @@ describe('FoldControls Component', () => {
             diagonal: {
                 enabled: false,
                 count: 0,
-                direction: DiagonalDirection.TopLeftToBottomRight
+                direction: DiagonalDirection.TopRightToBottomLeft
             }
         },
         circleRadius: 20,
@@ -28,6 +30,7 @@ describe('FoldControls Component', () => {
         currentTool: DrawingTool.Circle,
         isDrawing: false,
         lineStartPoint: null,
+        currentStrokePoints: [],
         canvasDimensions: {
             width: 400,
             height: 400
@@ -38,28 +41,43 @@ describe('FoldControls Component', () => {
 
     beforeEach(() => {
         mockDispatch.mockClear();
+        // Mock the Redux hooks
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => mockState);
+        jest.spyOn(reduxHooks, 'useAppDispatch').mockImplementation(() => mockDispatch);
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
     });
 
     test('renders fold buttons', () => {
-        render(<FoldControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<FoldControls />);
 
-        const verticalFoldSection = screen.getByText('Vertical Folds: 2').closest('.fold-controls-group');
-        const horizontalFoldSection = screen.getByText('Horizontal Folds: 1').closest('.fold-controls-group');
+        // Find the groups and check their headings
+        const foldGroups = screen.getAllByRole('heading');
+        const verticalHeading = foldGroups.find(h => h.textContent?.includes('Vertical Folds'));
+        const horizontalHeading = foldGroups.find(h => h.textContent?.includes('Horizontal Folds'));
 
-        expect(verticalFoldSection).toBeInTheDocument();
-        expect(horizontalFoldSection).toBeInTheDocument();
+        expect(verticalHeading).toBeInTheDocument();
+        expect(horizontalHeading).toBeInTheDocument();
         expect(screen.getByText('Reset Folds')).toBeInTheDocument();
+
+        // Check fold values
+        expect(verticalHeading?.textContent).toContain('2');
+        expect(horizontalHeading?.textContent).toContain('1');
     });
 
     test('vertical fold button dispatches correct action', () => {
-        render(<FoldControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<FoldControls />);
 
-        const verticalFoldSection = screen.getByText('Vertical Folds: 2').closest('.fold-controls-group');
-        const foldButton = verticalFoldSection?.querySelector('button:first-child');
+        // Find the vertical fold group and its first button
+        const foldGroups = screen.getAllByRole('heading');
+        const verticalHeading = foldGroups.find(h => h.textContent?.includes('Vertical Folds'));
+        const verticalGroup = verticalHeading?.closest('.fold-controls-group');
 
-        if (foldButton) {
-            fireEvent.click(foldButton);
-        }
+        // Find the fold button within the group
+        const foldButton = within(verticalGroup as HTMLElement).getByText('Fold +');
+        fireEvent.click(foldButton);
 
         expect(mockDispatch).toHaveBeenCalledWith({
             type: 'UPDATE_FOLD',
@@ -71,7 +89,7 @@ describe('FoldControls Component', () => {
     });
 
     test('reset button dispatches correct action', () => {
-        render(<FoldControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<FoldControls />);
 
         fireEvent.click(screen.getByText('Reset Folds'));
 
@@ -81,7 +99,8 @@ describe('FoldControls Component', () => {
     });
 
     test('disables fold button when max folds is reached', () => {
-        const stateWithMaxFolds: State = {
+        // Create state with max vertical folds
+        const stateWithMaxFolds = {
             ...mockState,
             folds: {
                 ...mockState.folds,
@@ -89,11 +108,21 @@ describe('FoldControls Component', () => {
             }
         };
 
-        render(<FoldControls state={stateWithMaxFolds} dispatch={mockDispatch} />);
+        // Override the mock for this test only
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => stateWithMaxFolds);
 
-        const verticalFoldSection = screen.getByText('Vertical Folds: 3').closest('.fold-controls-group');
-        const foldButton = verticalFoldSection?.querySelector('button:first-child');
+        renderWithRedux(<FoldControls />);
 
+        // Find the vertical fold group and check its content
+        const foldGroups = screen.getAllByRole('heading');
+        const verticalHeading = foldGroups.find(h => h.textContent?.includes('Vertical Folds'));
+        const verticalGroup = verticalHeading?.closest('.fold-controls-group');
+
+        // Check that the value is 3 in the UI and the fold button is disabled
+        expect(verticalHeading?.textContent).toContain('3');
+
+        // Find the fold button within the group
+        const foldButton = within(verticalGroup as HTMLElement).getByText('Fold +');
         expect(foldButton).toBeDisabled();
     });
 }); 

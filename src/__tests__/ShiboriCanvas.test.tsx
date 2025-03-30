@@ -1,7 +1,7 @@
 import React from 'react';
-import { render } from '@testing-library/react';
-import { screen } from '@testing-library/dom';
-import '@testing-library/jest-dom';
+import { } from '@testing-library/react';
+import { renderWithRedux } from '../testUtils';import { screen } from '@testing-library/dom';
+import * as reduxHooks from '../hooks/useReduxHooks';import '@testing-library/jest-dom';
 import ShiboriCanvas from '../components/ShiboriCanvas';
 
 // Mock the child components to isolate the main component in tests
@@ -23,7 +23,7 @@ jest.mock('../components/shibori/ToolControls', () => ({
 
 describe('ShiboriCanvas Component', () => {
     test('renders without crashing', () => {
-        render(<ShiboriCanvas />);
+        renderWithRedux(<ShiboriCanvas />);
 
         // Check if the component renders its title
         expect(screen.getByText('Folded Paper Drawing')).toBeInTheDocument();

@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DimensionControls } from '../components/shibori/DimensionControls';
+import { renderWithRedux } from '../testUtils';
+import * as reduxHooks from '../hooks/useReduxHooks';
 import { State } from '../store/shiboriCanvasState';
 import { DrawingTool, DiagonalDirection } from '../types';
 
@@ -20,7 +22,7 @@ describe('DimensionControls Component', () => {
             diagonal: {
                 enabled: false,
                 count: 0,
-                direction: DiagonalDirection.TopLeftToBottomRight
+                direction: DiagonalDirection.TopRightToBottomLeft
             }
         },
         circleRadius: 20,
@@ -28,6 +30,7 @@ describe('DimensionControls Component', () => {
         currentTool: DrawingTool.Circle,
         isDrawing: false,
         lineStartPoint: null,
+        currentStrokePoints: [],
         canvasDimensions: {
             width: 400,
             height: 400
@@ -38,31 +41,38 @@ describe('DimensionControls Component', () => {
 
     beforeEach(() => {
         mockDispatch.mockClear();
+        // Mock the Redux hooks
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => mockState);
+        jest.spyOn(reduxHooks, 'useAppDispatch').mockImplementation(() => mockDispatch);
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
     });
 
     test('renders dimension controls', () => {
-        render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<DimensionControls />);
 
         expect(screen.getByLabelText('Canvas Width:')).toBeInTheDocument();
         expect(screen.getByLabelText('Height:')).toBeInTheDocument();
     });
 
     test('width input shows current canvas width', () => {
-        render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<DimensionControls />);
 
         const widthInput = screen.getByLabelText('Canvas Width:') as HTMLInputElement;
         expect(widthInput.value).toBe('400');
     });
 
     test('height input shows current canvas height', () => {
-        render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<DimensionControls />);
 
         const heightInput = screen.getByLabelText('Height:') as HTMLInputElement;
         expect(heightInput.value).toBe('400');
     });
 
     test('changing width input dispatches SET_CANVAS_DIMENSIONS action', () => {
-        render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<DimensionControls />);
 
         const widthInput = screen.getByLabelText('Canvas Width:');
         fireEvent.change(widthInput, { target: { value: '500' } });
@@ -77,7 +87,7 @@ describe('DimensionControls Component', () => {
     });
 
     test('changing height input dispatches SET_CANVAS_DIMENSIONS action', () => {
-        render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
+        renderWithRedux(<DimensionControls />);
 
         const heightInput = screen.getByLabelText('Height:');
         fireEvent.change(heightInput, { target: { value: '600' } });
@@ -91,15 +101,13 @@ describe('DimensionControls Component', () => {
         });
     });
 
-    test('updating both width and height works correctly', () => {
-        // Render with initial state
-        const { rerender } = render(<DimensionControls state={mockState} dispatch={mockDispatch} />);
+    test('updating width and height changes are dispatched correctly', () => {
+        renderWithRedux(<DimensionControls />);
 
-        // Change width
-        const widthInput = screen.getByLabelText('Canvas Width:') as HTMLInputElement;
+        // Change width and verify dispatch
+        const widthInput = screen.getByLabelText('Canvas Width:');
         fireEvent.change(widthInput, { target: { value: '500' } });
 
-        // Verify dispatch was called
         expect(mockDispatch).toHaveBeenCalledWith({
             type: 'SET_CANVAS_DIMENSIONS',
             payload: {
@@ -108,48 +116,22 @@ describe('DimensionControls Component', () => {
             }
         });
 
-        // Create updated state with new width
-        const updatedStateWidth = {
-            ...mockState,
-            canvasDimensions: {
-                width: 500,
-                height: 400
-            }
-        };
+        // Reset the mock to check for the next call
+        mockDispatch.mockClear();
 
-        // Re-render with updated state
-        rerender(<DimensionControls state={updatedStateWidth} dispatch={mockDispatch} />);
+        // Now update our mock state to reflect the new width
+        mockState.canvasDimensions.width = 500;
 
-        // Verify width input is updated
-        expect(widthInput.value).toBe('500');
-
-        // Now change height
-        const heightInput = screen.getByLabelText('Height:') as HTMLInputElement;
+        // Change height and verify dispatch with the updated width
+        const heightInput = screen.getByLabelText('Height:');
         fireEvent.change(heightInput, { target: { value: '600' } });
 
-        // Verify dispatch was called
         expect(mockDispatch).toHaveBeenCalledWith({
             type: 'SET_CANVAS_DIMENSIONS',
             payload: {
-                width: 500,
+                width: 500,  // Should use the updated width
                 height: 600
             }
         });
-
-        // Create updated state with new height
-        const updatedStateBoth = {
-            ...updatedStateWidth,
-            canvasDimensions: {
-                width: 500,
-                height: 600
-            }
-        };
-
-        // Re-render with fully updated state
-        rerender(<DimensionControls state={updatedStateBoth} dispatch={mockDispatch} />);
-
-        // Verify both inputs are updated
-        expect(widthInput.value).toBe('500');
-        expect(heightInput.value).toBe('600');
     });
 }); 

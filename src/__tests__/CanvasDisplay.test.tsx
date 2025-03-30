@@ -1,7 +1,7 @@
 import React from 'react';
-import { render } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import { CanvasDisplay } from '../components/shibori/CanvasDisplay';
+import { } from '@testing-library/react';
+import { renderWithRedux } from '../testUtils';import '@testing-library/jest-dom';
+import * as reduxHooks from '../hooks/useReduxHooks';import { CanvasDisplay } from '../components/shibori/CanvasDisplay';
 import { State } from '../store/shiboriCanvasState';
 import { DrawingTool, DiagonalDirection } from '../types';
 
@@ -45,7 +45,7 @@ describe('CanvasDisplay Component', () => {
             diagonal: {
                 enabled: false,
                 count: 0,
-                direction: DiagonalDirection.TopLeftToBottomRight
+                direction: DiagonalDirection.TopRightToBottomLeft
             }
         },
         circleRadius: 20,
@@ -62,7 +62,7 @@ describe('CanvasDisplay Component', () => {
     const mockDispatch = jest.fn();
 
     test('renders canvas components', () => {
-        const { container } = render(<CanvasDisplay state={mockState} dispatch={mockDispatch} />);
+        const { container } = renderWithRedux(<CanvasDisplay />);
 
         // Check if the component renders canvas elements
         const canvases = container.querySelectorAll('canvas');
