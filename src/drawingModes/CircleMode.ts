@@ -3,14 +3,12 @@ import { ActionType } from '../store/shiboriCanvasState';
 
 export class CircleMode implements DrawingMode {
     start(point: Point, context: DrawingModeContext): void {
-        const { dispatch, foldedCanvasRef, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas, state } = context;
+        const { dispatch, foldedCtx, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas, state } = context;
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
 
         if (!isInValidDrawingArea(point.x, point.y)) return;
 
-        const foldedCtx = foldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx) return;
 
         foldedCtx.beginPath();
         foldedCtx.arc(point.x, point.y, state.circleRadius, 0, Math.PI * 2);

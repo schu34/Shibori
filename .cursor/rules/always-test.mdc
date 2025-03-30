@@ -1,7 +1,8 @@
 ---
-description: coding
-globs: *.tsx, *.ts
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
-After making changes, ALLWAYS run tests with `yarn test` to make sure you haven't caused any regressions
+- After making changes, ALLWAYS run tests with `yarn test` to make sure you haven't caused any regressions
  
+- After making changes check for any lint errors/warnings with `yarn lint`

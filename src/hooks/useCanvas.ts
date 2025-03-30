@@ -1,8 +1,9 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect, RefObject } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
 import throttle from 'lodash-es/throttle';
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
 import { useAppSelector, useAppDispatch } from './useReduxHooks';
+import { CanvasDimensions } from '../types/DrawingMode';
 
 function cachedLazy<T>(fn: () => T): () => T {
     let isCachePopulated = false;
@@ -24,17 +25,28 @@ export function useCanvas() {
     const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
     const foldedCanvasRef = useRef<HTMLCanvasElement>(null);
 
+    // Canvas context references - shared across the app
+    const foldedCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const unfoldedCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+    // Initialize canvas contexts when canvas refs are available
+    useEffect(() => {
+        if (foldedCanvasRef.current) {
+            foldedCtxRef.current = foldedCanvasRef.current.getContext('2d', { willReadFrequently: true });
+        }
+        if (unfoldedCanvasRef.current) {
+            unfoldedCtxRef.current = unfoldedCanvasRef.current.getContext('2d', { willReadFrequently: true });
+        }
+    }, [foldedCanvasRef.current, unfoldedCanvasRef.current]);
+
     // Function to clear both canvases
     const clearCanvases = useCallback((backgroundColor?: string) => {
         const unfoldedCanvas = unfoldedCanvasRef.current;
         const foldedCanvas = foldedCanvasRef.current;
+        const unfoldedCtx = unfoldedCtxRef.current;
+        const foldedCtx = foldedCtxRef.current;
 
-        if (!unfoldedCanvas || !foldedCanvas) return;
-
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-
-        if (!unfoldedCtx || !foldedCtx) return;
+        if (!unfoldedCanvas || !foldedCanvas || !unfoldedCtx || !foldedCtx) return;
 
         unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
         foldedCtx.clearRect(0, 0, foldedCanvas.width, foldedCanvas.height);
@@ -52,10 +64,9 @@ export function useCanvas() {
     // Function to draw fold lines on the unfolded canvas
     const drawFoldLines = useCallback(() => {
         const unfoldedCanvas = unfoldedCanvasRef.current;
-        if (!unfoldedCanvas) return;
+        const unfoldedCtx = unfoldedCtxRef.current;
 
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!unfoldedCtx) return;
+        if (!unfoldedCanvas || !unfoldedCtx) return;
 
         const width = unfoldedCanvas.width;
         const height = unfoldedCanvas.height;
@@ -104,11 +115,13 @@ export function useCanvas() {
         foldedCanvas.width = foldedWidth;
         foldedCanvas.height = foldedHeight;
 
+        // Re-initialize context after canvas resize
+        foldedCtxRef.current = foldedCanvas.getContext('2d', { willReadFrequently: true });
+
         // Apply navy background to folded canvas after resizing
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (foldedCtx) {
-            foldedCtx.fillStyle = 'navy';
-            foldedCtx.fillRect(0, 0, foldedWidth, foldedHeight);
+        if (foldedCtxRef.current) {
+            foldedCtxRef.current.fillStyle = 'navy';
+            foldedCtxRef.current.fillRect(0, 0, foldedWidth, foldedHeight);
         }
     }, [state.folds.vertical, state.folds.horizontal]);
 
@@ -121,10 +134,9 @@ export function useCanvas() {
         }
 
         const foldedCanvas = foldedCanvasRef.current;
-        if (!foldedCanvas) return;
+        const foldedCtx = foldedCtxRef.current;
 
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx) return;
+        if (!foldedCanvas || !foldedCtx) return;
 
         const width = foldedCanvas.width;
         const height = foldedCanvas.height;
@@ -173,13 +185,10 @@ export function useCanvas() {
         console.log('updateUnfoldedCanvasUnthrottled');
         const unfoldedCanvas = unfoldedCanvasRef.current;
         const foldedCanvas = foldedCanvasRef.current;
+        const unfoldedCtx = unfoldedCtxRef.current;
+        const foldedCtx = foldedCtxRef.current;
 
-        if (!unfoldedCanvas || !foldedCanvas) return;
-
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-
-        if (!unfoldedCtx || !foldedCtx) return;
+        if (!unfoldedCanvas || !foldedCanvas || !unfoldedCtx || !foldedCtx) return;
 
         // Clear the unfolded canvas and apply navy background
         unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
@@ -262,10 +271,7 @@ export function useCanvas() {
     }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
 
     // Helper function to get canvas coordinates from mouse/touch event
-    const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
-        const foldedCanvas = foldedCanvasRef.current;
-        if (!foldedCanvas) return null;
-
+    const getCanvasCoordinates = useCallback((clientX: number, clientY: number, foldedCanvas: HTMLCanvasElement) => {
         const rect = foldedCanvas.getBoundingClientRect();
         return {
             x: clientX - rect.left,
@@ -273,65 +279,98 @@ export function useCanvas() {
         };
     }, []);
 
+    // Canvas dimension getters
+    const getFoldedCanvasDimensions = useCallback((): CanvasDimensions | null => {
+        const canvas = foldedCanvasRef.current;
+        if (!canvas) return null;
+
+        return {
+            width: canvas.width,
+            height: canvas.height
+        };
+    }, []);
+
+    const getUnfoldedCanvasDimensions = useCallback((): CanvasDimensions | null => {
+        const canvas = unfoldedCanvasRef.current;
+        if (!canvas) return null;
+
+        return {
+            width: canvas.width,
+            height: canvas.height
+        };
+    }, []);
+
     // Common start drawing function
     const startDrawing = useCallback((x: number, y: number) => {
         const mode = DrawingModeFactory.getMode(state.currentTool);
+        if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         mode.start({ x, y }, {
             state,
             dispatch,
-            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            foldedCtx: foldedCtxRef.current,
+            unfoldedCtx: unfoldedCtxRef.current,
+            getFoldedCanvasDimensions,
+            getUnfoldedCanvasDimensions,
             updateUnfoldedCanvas,
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
-    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Common continue drawing function
     const continueDrawing = useCallback((x: number, y: number) => {
         const mode = DrawingModeFactory.getMode(state.currentTool);
+        if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         mode.continue({ x, y }, {
             state,
             dispatch,
-            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            foldedCtx: foldedCtxRef.current,
+            unfoldedCtx: unfoldedCtxRef.current,
+            getFoldedCanvasDimensions,
+            getUnfoldedCanvasDimensions,
             updateUnfoldedCanvas,
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
-    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Common end drawing function
     const endDrawing = useCallback((x: number, y: number) => {
         const mode = DrawingModeFactory.getMode(state.currentTool);
+        if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         mode.end({ x, y }, {
             state,
             dispatch,
-            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            foldedCtx: foldedCtxRef.current,
+            unfoldedCtx: unfoldedCtxRef.current,
+            getFoldedCanvasDimensions,
+            getUnfoldedCanvasDimensions,
             updateUnfoldedCanvas,
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
-    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Handle mouse events for the folded canvas
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
+        const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
         if (!coords) return;
 
         startDrawing(coords.x, coords.y);
     }, [getCanvasCoordinates, startDrawing]);
 
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
+        const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
         if (!coords) return;
 
         continueDrawing(coords.x, coords.y);
     }, [getCanvasCoordinates, continueDrawing]);
 
     const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
+        const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
         if (!coords) return;
 
         endDrawing(coords.x, coords.y);
@@ -340,24 +379,28 @@ export function useCanvas() {
     const handleMouseLeave = useCallback(() => {
         if (state.isDrawing) {
             const mode = DrawingModeFactory.getMode(state.currentTool);
+            if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
             mode.cancel({
                 state,
                 dispatch,
-                foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-                unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+                foldedCtx: foldedCtxRef.current,
+                unfoldedCtx: unfoldedCtxRef.current,
+                getFoldedCanvasDimensions,
+                getUnfoldedCanvasDimensions,
                 updateUnfoldedCanvas,
                 drawDiagonalFoldLinesOnFolded,
                 isInValidDrawingArea
             });
         }
-    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Handle touch events for mobile devices
     const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
         if (e.touches.length === 1) {
             const touch = e.touches[0];
-            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            const foldedCanvas = assertCanvasRef(foldedCanvasRef);
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY, foldedCanvas);
             if (!coords) return;
 
             startDrawing(coords.x, coords.y);
@@ -368,7 +411,8 @@ export function useCanvas() {
         e.preventDefault(); // Prevent scrolling
         if (e.touches.length === 1) {
             const touch = e.touches[0];
-            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            const foldedCanvas = assertCanvasRef(foldedCanvasRef);
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY, foldedCanvas);
             if (!coords) return;
 
             continueDrawing(coords.x, coords.y);
@@ -379,21 +423,10 @@ export function useCanvas() {
         e.preventDefault(); // Prevent scrolling
         if (state.isDrawing && e.changedTouches && e.changedTouches.length > 0) {
             const touch = e.changedTouches[0];
-            const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
+            const foldedCanvas = assertCanvasRef(foldedCanvasRef);
+            const coords = getCanvasCoordinates(touch.clientX, touch.clientY, foldedCanvas);
             if (coords) {
                 endDrawing(coords.x, coords.y);
-            } else {
-                // If we couldn't get coordinates, cancel the current drawing mode
-                const mode = DrawingModeFactory.getMode(state.currentTool);
-                mode.cancel({
-                    state,
-                    dispatch,
-                    foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-                    unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-                    updateUnfoldedCanvas,
-                    drawDiagonalFoldLinesOnFolded,
-                    isInValidDrawingArea
-                });
             }
         }
     }, [state, dispatch, getCanvasCoordinates, endDrawing, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
@@ -401,16 +434,19 @@ export function useCanvas() {
     const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
         const mode = DrawingModeFactory.getMode(state.currentTool);
+        if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         mode.cancel({
             state,
             dispatch,
-            foldedCanvasRef: foldedCanvasRef as React.RefObject<HTMLCanvasElement>,
-            unfoldedCanvasRef: unfoldedCanvasRef as React.RefObject<HTMLCanvasElement>,
+            foldedCtx: foldedCtxRef.current,
+            unfoldedCtx: unfoldedCtxRef.current,
+            getFoldedCanvasDimensions,
+            getUnfoldedCanvasDimensions,
             updateUnfoldedCanvas,
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
-    }, [state, dispatch, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Function called when initializing or resetting the drawing canvas
     const resetCanvases = useCallback(() => {
@@ -472,4 +508,11 @@ export function useCanvas() {
         handleTouchEnd,
         handleTouchCancel
     };
-} 
+}
+
+function assertCanvasRef(canvasRef: RefObject<HTMLCanvasElement | null>) {
+    if (!canvasRef.current) {
+        throw new Error('Canvas ref is not set');
+    }
+    return canvasRef.current;
+}

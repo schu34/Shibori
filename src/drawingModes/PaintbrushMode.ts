@@ -6,14 +6,14 @@ export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;
 
     start(point: Point, context: DrawingModeContext): void {
-        const { dispatch, foldedCanvasRef, unfoldedCanvasRef } = context;
+        const { dispatch, foldedCtx, getFoldedCanvasDimensions } = context;
 
         // Store canvas states for preview
-        const foldedCtx = foldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
-        const unfoldedCtx = unfoldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
-
-        if (foldedCtx && unfoldedCtx && foldedCanvasRef.current && unfoldedCanvasRef.current) {
-            this.originalFoldedCanvasState = foldedCtx.getImageData(0, 0, foldedCanvasRef.current.width, foldedCanvasRef.current.height);
+        if (foldedCtx) {
+            const dimensions = getFoldedCanvasDimensions();
+            if (dimensions) {
+                this.originalFoldedCanvasState = foldedCtx.getImageData(0, 0, dimensions.width, dimensions.height);
+            }
         }
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
@@ -22,7 +22,7 @@ export class PaintbrushMode implements DrawingMode {
     }
 
     continue(point: Point, context: DrawingModeContext): void {
-        const { state, dispatch, isInValidDrawingArea, foldedCanvasRef, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas } = context;
+        const { state, dispatch, isInValidDrawingArea, foldedCtx, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas } = context;
 
         if (!state.isDrawing) return;
         if (!isInValidDrawingArea(point.x, point.y)) return;
@@ -30,7 +30,6 @@ export class PaintbrushMode implements DrawingMode {
         dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
 
         // Draw the stroke
-        const foldedCtx = foldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
         if (!foldedCtx || state.currentStrokePoints.length === 0) return;
 
         // Get the stroke outline points from perfect-freehand
@@ -79,7 +78,6 @@ export class PaintbrushMode implements DrawingMode {
 
     cancel(context: DrawingModeContext): void {
         const { dispatch } = context;
-
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         dispatch({ type: ActionType.CLEAR_STROKE_POINTS });

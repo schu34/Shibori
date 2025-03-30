@@ -5,11 +5,18 @@ export interface Point {
     y: number;
 }
 
+export interface CanvasDimensions {
+    width: number;
+    height: number;
+}
+
 export interface DrawingModeContext {
     state: State;
     dispatch: React.Dispatch<Action>;
-    foldedCanvasRef: React.RefObject<HTMLCanvasElement>;
-    unfoldedCanvasRef: React.RefObject<HTMLCanvasElement>;
+    foldedCtx: CanvasRenderingContext2D
+    unfoldedCtx: CanvasRenderingContext2D
+    getFoldedCanvasDimensions: () => CanvasDimensions | null;
+    getUnfoldedCanvasDimensions: () => CanvasDimensions | null;
     updateUnfoldedCanvas: () => void;
     drawDiagonalFoldLinesOnFolded: () => void;
     isInValidDrawingArea: (x: number, y: number) => boolean;

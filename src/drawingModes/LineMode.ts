@@ -6,15 +6,18 @@ export class LineMode implements DrawingMode {
     private originalUnfoldedCanvasState: ImageData | null = null;
 
     start(point: Point, context: DrawingModeContext): void {
-        const { dispatch, foldedCanvasRef, unfoldedCanvasRef } = context;
+        const { dispatch, foldedCtx, unfoldedCtx, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions } = context;
 
         // Store canvas states for preview
-        const foldedCtx = foldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
-        const unfoldedCtx = unfoldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
+        const foldedDimensions = getFoldedCanvasDimensions();
+        const unfoldedDimensions = getUnfoldedCanvasDimensions();
 
-        if (foldedCtx && unfoldedCtx && foldedCanvasRef.current && unfoldedCanvasRef.current) {
-            this.originalFoldedCanvasState = foldedCtx.getImageData(0, 0, foldedCanvasRef.current.width, foldedCanvasRef.current.height);
-            this.originalUnfoldedCanvasState = unfoldedCtx.getImageData(0, 0, unfoldedCanvasRef.current.width, unfoldedCanvasRef.current.height);
+        if (foldedDimensions) {
+            this.originalFoldedCanvasState = foldedCtx.getImageData(0, 0, foldedDimensions.width, foldedDimensions.height);
+        }
+
+        if (unfoldedDimensions) {
+            this.originalUnfoldedCanvasState = unfoldedCtx.getImageData(0, 0, unfoldedDimensions.width, unfoldedDimensions.height);
         }
 
         dispatch({ type: ActionType.SET_LINE_START_POINT, payload: point });
@@ -22,17 +25,9 @@ export class LineMode implements DrawingMode {
     }
 
     continue(point: Point, context: DrawingModeContext): void {
-        const { state, foldedCanvasRef, unfoldedCanvasRef, drawDiagonalFoldLinesOnFolded } = context;
+        const { state, foldedCtx, unfoldedCtx, drawDiagonalFoldLinesOnFolded } = context;
 
         if (!state.isDrawing || !state.lineStartPoint) return;
-
-        const foldedCanvas = foldedCanvasRef.current;
-        const unfoldedCanvas = unfoldedCanvasRef.current;
-        if (!foldedCanvas || !unfoldedCanvas) return;
-
-        const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
-        const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx || !unfoldedCtx) return;
 
         // Restore original states
         if (this.originalFoldedCanvasState) {
@@ -56,7 +51,7 @@ export class LineMode implements DrawingMode {
     }
 
     end(point: Point, context: DrawingModeContext): void {
-        const { state, dispatch, foldedCanvasRef, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas } = context;
+        const { state, dispatch, foldedCtx, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas } = context;
 
         if (!state.isDrawing || !state.lineStartPoint) return;
 
@@ -64,12 +59,6 @@ export class LineMode implements DrawingMode {
         const endValid = isInValidDrawingArea(point.x, point.y);
 
         if (!startValid && !endValid) {
-            this.cancel(context);
-            return;
-        }
-
-        const foldedCtx = foldedCanvasRef.current?.getContext('2d', { willReadFrequently: true });
-        if (!foldedCtx) {
             this.cancel(context);
             return;
         }
@@ -93,21 +82,15 @@ export class LineMode implements DrawingMode {
     }
 
     cancel(context: DrawingModeContext): void {
-        const { dispatch, foldedCanvasRef, unfoldedCanvasRef } = context;
+        const { dispatch, foldedCtx, unfoldedCtx } = context;
 
         // Restore original states if they exist
-        if (this.originalFoldedCanvasState && foldedCanvasRef.current) {
-            const foldedCtx = foldedCanvasRef.current.getContext('2d', { willReadFrequently: true });
-            if (foldedCtx) {
-                foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
-            }
+        if (this.originalFoldedCanvasState && foldedCtx) {
+            foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
         }
 
-        if (this.originalUnfoldedCanvasState && unfoldedCanvasRef.current) {
-            const unfoldedCtx = unfoldedCanvasRef.current.getContext('2d', { willReadFrequently: true });
-            if (unfoldedCtx) {
-                unfoldedCtx.putImageData(this.originalUnfoldedCanvasState, 0, 0);
-            }
+        if (this.originalUnfoldedCanvasState && unfoldedCtx) {
+            unfoldedCtx.putImageData(this.originalUnfoldedCanvasState, 0, 0);
         }
 
         // Reset state
