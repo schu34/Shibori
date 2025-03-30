@@ -37,7 +37,7 @@ export function useCanvas() {
         if (unfoldedCanvasRef.current) {
             unfoldedCtxRef.current = unfoldedCanvasRef.current.getContext('2d', { willReadFrequently: true });
         }
-    }, [foldedCanvasRef.current, unfoldedCanvasRef.current]);
+    }, []);
 
     // Function to clear both canvases
     const clearCanvases = useCallback((backgroundColor?: string) => {
@@ -429,7 +429,7 @@ export function useCanvas() {
                 endDrawing(coords.x, coords.y);
             }
         }
-    }, [state, dispatch, getCanvasCoordinates, endDrawing, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [state, getCanvasCoordinates, endDrawing]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling

@@ -1,7 +1,5 @@
-import React from 'react';
-import { } from '@testing-library/react';
-import { renderWithRedux } from '../testUtils';import { screen } from '@testing-library/dom';
-import * as reduxHooks from '../hooks/useReduxHooks';import '@testing-library/jest-dom';
+import { renderWithRedux } from '../testUtils'; import { screen } from '@testing-library/dom';
+import '@testing-library/jest-dom';
 import ShiboriCanvas from '../components/ShiboriCanvas';
 
 // Mock the child components to isolate the main component in tests

@@ -5,4 +5,4 @@ alwaysApply: true
 ---
 - After making changes, ALLWAYS run tests with `yarn test` to make sure you haven't caused any regressions
  
-- After making changes check for any lint errors/warnings with `yarn lint`
+- After making changes check for any lint errors/warnings with `yarn lint`, and fix any errors or warnings from the output. If you don't think the error is correct, you can add an eslint ignore comment with a justification for why it's ok to 

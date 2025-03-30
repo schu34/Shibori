@@ -1,9 +1,6 @@
-import React from 'react';
-import { } from '@testing-library/react';
-import { renderWithRedux } from '../testUtils';import '@testing-library/jest-dom';
-import * as reduxHooks from '../hooks/useReduxHooks';import { CanvasDisplay } from '../components/shibori/CanvasDisplay';
-import { State } from '../store/shiboriCanvasState';
-import { DrawingTool, DiagonalDirection } from '../types';
+import { renderWithRedux } from '../testUtils';
+import '@testing-library/jest-dom';
+import { CanvasDisplay } from '../components/shibori/CanvasDisplay';
 
 // Mock the useCanvas hook
 jest.mock('../hooks/useCanvas', () => ({
@@ -31,36 +28,6 @@ jest.mock('../hooks/useCanvas', () => ({
 }));
 
 describe('CanvasDisplay Component', () => {
-    const mockState: State = {
-        config: {
-            maxFolds: 3,
-            defaultCircleRadius: 20,
-            circleColor: 'white',
-            defaultLineThickness: 2,
-            lineColor: 'white',
-        },
-        folds: {
-            vertical: 2,
-            horizontal: 1,
-            diagonal: {
-                enabled: false,
-                count: 0,
-                direction: DiagonalDirection.TopRightToBottomLeft
-            }
-        },
-        circleRadius: 20,
-        lineThickness: 2,
-        currentTool: DrawingTool.Circle,
-        isDrawing: false,
-        lineStartPoint: null,
-        canvasDimensions: {
-            width: 400,
-            height: 400
-        }
-    };
-
-    const mockDispatch = jest.fn();
-
     test('renders canvas components', () => {
         const { container } = renderWithRedux(<CanvasDisplay />);
 
