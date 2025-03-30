@@ -114,6 +114,11 @@ h1 {
     margin-bottom: 10px;
 }
 
+.canvas-actions {
+    display: flex;
+    gap: 10px;
+}
+
 .download-button {
     padding: 6px 12px;
     background-color: #3a7bdb;

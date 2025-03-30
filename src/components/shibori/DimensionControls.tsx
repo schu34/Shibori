@@ -1,10 +1,6 @@
 import React, { useCallback, ChangeEvent } from 'react';
-import { State, Action, ActionType } from '../../store/shiboriCanvasState';
-
-interface DimensionControlsProps {
-    state: State;
-    dispatch: React.Dispatch<Action>;
-}
+import { ActionType } from '../../store/shiboriCanvasState';
+import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
 
 // Define an interface for the dimension changes
 interface DimensionChanges {
@@ -12,7 +8,10 @@ interface DimensionChanges {
     height?: number;
 }
 
-export const DimensionControls: React.FC<DimensionControlsProps> = ({ state, dispatch }) => {
+export const DimensionControls: React.FC = () => {
+    const dispatch = useAppDispatch();
+    const state = useAppSelector((state) => state.shibori);
+
     // Handle dimension changes with an object of optional properties
     const handleDimensionChange = useCallback((newDimensions: DimensionChanges) => {
         // Get current values with fallbacks

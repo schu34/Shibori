@@ -1,13 +1,15 @@
 import React, { useCallback } from 'react';
 import { DrawingTool } from '../../types';
-import { Action, ActionType } from '../../store/shiboriCanvasState';
+import { ActionType } from '../../store/shiboriCanvasState';
+import { useAppDispatch } from '../../hooks/useReduxHooks';
 
 interface ToolSelectorProps {
     currentTool: DrawingTool;
-    dispatch: React.Dispatch<Action>;
 }
 
-export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool, dispatch }) => {
+export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool }) => {
+    const dispatch = useAppDispatch();
+
     const handleToolChange = useCallback((tool: DrawingTool) => {
         dispatch({ type: ActionType.SET_CURRENT_TOOL, payload: tool });
     }, [dispatch]);

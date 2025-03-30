@@ -1,5 +1,3 @@
-import { useReducer } from 'react';
-import { initialState, reducer } from '../store/shiboriCanvasState';
 import { FoldControls } from './shibori/FoldControls';
 import { DimensionControls } from './shibori/DimensionControls';
 import { CanvasDisplay } from './shibori/CanvasDisplay';
@@ -7,9 +5,6 @@ import { ToolControls } from './shibori/ToolControls';
 import './ShiboriCanvas.css';
 
 const ShiboriCanvas = () => {
-    // Use reducer for state management
-    const [state, dispatch] = useReducer(reducer, initialState);
-
     return (
         <div className="shibori-app">
             <h1>Folded Paper Drawing</h1>
@@ -22,20 +17,20 @@ const ShiboriCanvas = () => {
             <div className="controls-container">
                 {/* Component for fold buttons */}
                 <div className="controls-section">
-                    <FoldControls state={state} dispatch={dispatch} />
+                    <FoldControls />
                 </div>
 
                 {/* Component for drawing tool controls */}
                 <div className="controls-section">
-                    <ToolControls state={state} dispatch={dispatch} />
+                    <ToolControls />
                 </div>
             </div>
 
             {/* Component for dimension controls */}
-            <DimensionControls state={state} dispatch={dispatch} />
+            <DimensionControls />
 
             {/* Component for canvas display */}
-            <CanvasDisplay state={state} dispatch={dispatch} />
+            <CanvasDisplay />
         </div>
     );
 };

@@ -1,14 +1,13 @@
 import React, { useCallback } from 'react';
-import { State, Action, ActionType } from '../../store/shiboriCanvasState';
+import { ActionType } from '../../store/shiboriCanvasState';
+import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
 
-interface FoldControlsProps {
-    state: State;
-    dispatch: React.Dispatch<Action>;
-}
+export const FoldControls: React.FC = () => {
+    const dispatch = useAppDispatch();
+    const state = useAppSelector((state) => state.shibori);
 
-export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) => {
     // Handle fold button clicks (increase fold count)
-    const handleFoldButtonClick = (isVertical: boolean) => {
+    const handleFoldButtonClick = useCallback((isVertical: boolean) => {
         const foldCount = isVertical ? state.folds.vertical : state.folds.horizontal;
 
         if (foldCount < state.config.maxFolds) {
@@ -20,10 +19,10 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
                 }
             });
         }
-    };
+    }, [dispatch, state.folds.vertical, state.folds.horizontal, state.config.maxFolds]);
 
     // Handle unfold button clicks (decrease fold count)
-    const handleUnfoldButtonClick = (isVertical: boolean) => {
+    const handleUnfoldButtonClick = useCallback((isVertical: boolean) => {
         const foldCount = isVertical ? state.folds.vertical : state.folds.horizontal;
 
         if (foldCount > 0) {
@@ -35,12 +34,12 @@ export const FoldControls: React.FC<FoldControlsProps> = ({ state, dispatch }) =
                 }
             });
         }
-    };
+    }, [dispatch, state.folds.vertical, state.folds.horizontal]);
 
     // Handle reset button click
-    const handleResetButtonClick = () => {
+    const handleResetButtonClick = useCallback(() => {
         dispatch({ type: ActionType.RESET_FOLDS });
-    };
+    }, [dispatch]);
 
 
     // Handle diagonal fold count change (increase)

@@ -1,14 +1,16 @@
 import React, { useCallback } from 'react';
 import { DrawingTool } from '../../types';
-import { Action, ActionType } from '../../store/shiboriCanvasState';
+import { ActionType } from '../../store/shiboriCanvasState';
+import { useAppDispatch } from '../../hooks/useReduxHooks';
 
 interface SizeControlProps {
     tool: DrawingTool;
     value: number;
-    dispatch: React.Dispatch<Action>;
 }
 
-export const SizeControl: React.FC<SizeControlProps> = ({ tool, value, dispatch }) => {
+export const SizeControl: React.FC<SizeControlProps> = ({ tool, value }) => {
+    const dispatch = useAppDispatch();
+
     const handleSizeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseInt(e.target.value);
         if (tool === DrawingTool.Circle) {

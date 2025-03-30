@@ -1,13 +1,10 @@
 import React, { useEffect } from 'react';
-import { State, Action } from '../../store/shiboriCanvasState';
 import { useCanvas } from '../../hooks/useCanvas';
+import { useAppSelector } from '../../hooks/useReduxHooks';
 
-interface CanvasDisplayProps {
-    state: State;
-    dispatch: React.Dispatch<Action>;
-}
+export const CanvasDisplay: React.FC = () => {
+    const state = useAppSelector((state) => state.shibori);
 
-export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch }) => {
     // Use our custom canvas hook
     const {
         unfoldedCanvasRef,
@@ -21,8 +18,9 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         handleTouchMove,
         handleTouchEnd,
         handleTouchCancel,
-        downloadUnfoldedCanvas
-    } = useCanvas({ state, dispatch });
+        downloadUnfoldedCanvas,
+        clearCanvases
+    } = useCanvas();
 
     // Initialize canvases when dimensions or folds change
     useEffect(() => {
@@ -72,6 +70,11 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
         resetCanvases();
     }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal, resetCanvases]);
 
+    const handleClearCanvas = () => {
+        clearCanvases('navy');
+        resetCanvases();
+    };
+
     return (
         <div className="canvas-container">
             <div className="canvas-wrapper">
@@ -87,13 +90,22 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ state, dispatch })
             <div className="canvas-wrapper">
                 <div className="canvas-header">
                     <h3>Unfolded Version</h3>
-                    <button
-                        className="download-button"
-                        onClick={downloadUnfoldedCanvas}
-                        title="Download as PNG image"
-                    >
-                        Download
-                    </button>
+                    <div className="canvas-actions">
+                        <button
+                            className="download-button"
+                            onClick={handleClearCanvas}
+                            title="Clear canvas"
+                        >
+                            Clear
+                        </button>
+                        <button
+                            className="download-button"
+                            onClick={downloadUnfoldedCanvas}
+                            title="Download as PNG image"
+                        >
+                            Download
+                        </button>
+                    </div>
                 </div>
                 <canvas ref={unfoldedCanvasRef} />
             </div>

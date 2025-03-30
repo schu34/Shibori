@@ -1,13 +1,8 @@
 import { useRef, useCallback } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
-import { State, Action } from '../store/shiboriCanvasState';
 import throttle from 'lodash-es/throttle';
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
-
-export interface UseCanvasProps {
-    state: State;
-    dispatch: React.Dispatch<Action>;
-}
+import { useAppSelector, useAppDispatch } from './useReduxHooks';
 
 function cachedLazy<T>(fn: () => T): () => T {
     let isCachePopulated = false;
@@ -21,7 +16,10 @@ function cachedLazy<T>(fn: () => T): () => T {
     };
 }
 
-export function useCanvas({ state, dispatch }: UseCanvasProps) {
+export function useCanvas() {
+    const state = useAppSelector(state => state.shibori);
+    const dispatch = useAppDispatch();
+
     // Canvas references
     const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
     const foldedCanvasRef = useRef<HTMLCanvasElement>(null);
