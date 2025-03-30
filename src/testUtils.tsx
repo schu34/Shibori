@@ -10,7 +10,7 @@ export const createTestStore = () => {
     return configureStore({
         reducer: {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            shibori: (state = initialState, action) => state
+            shibori: (state = initialState, _action) => state
         }
     });
 };
