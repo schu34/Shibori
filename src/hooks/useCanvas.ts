@@ -254,7 +254,7 @@ export function useCanvas() {
     }, [state.folds.vertical, state.folds.horizontal, state.folds.diagonal, drawFoldLines]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const updateUnfoldedCanvas = useCallback(throttle(updateUnfoldedCanvasUnthrottled, 100), [updateUnfoldedCanvasUnthrottled]);
+    const updateUnfoldedCanvas = useCallback(throttle(updateUnfoldedCanvasUnthrottled, 10), [updateUnfoldedCanvasUnthrottled]);
 
     // Function to check if a point is in the valid drawing area based on diagonal fold
     const isInValidDrawingArea = useCallback((x: number, y: number): boolean => {
