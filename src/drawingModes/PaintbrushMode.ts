@@ -4,7 +4,6 @@ import { getStroke } from 'perfect-freehand';
 
 export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;
-    private originalUnfoldedCanvasState: ImageData | null = null;
 
     start(point: Point, context: DrawingModeContext): void {
         const { dispatch, foldedCanvasRef, unfoldedCanvasRef } = context;
@@ -15,7 +14,6 @@ export class PaintbrushMode implements DrawingMode {
 
         if (foldedCtx && unfoldedCtx && foldedCanvasRef.current && unfoldedCanvasRef.current) {
             this.originalFoldedCanvasState = foldedCtx.getImageData(0, 0, foldedCanvasRef.current.width, foldedCanvasRef.current.height);
-            this.originalUnfoldedCanvasState = unfoldedCtx.getImageData(0, 0, unfoldedCanvasRef.current.width, unfoldedCanvasRef.current.height);
         }
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
@@ -71,13 +69,12 @@ export class PaintbrushMode implements DrawingMode {
         updateUnfoldedCanvas();
     }
 
-    end(point: Point, context: DrawingModeContext): void {
+    end(_point: Point, context: DrawingModeContext): void {
         const { dispatch } = context;
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
         this.originalFoldedCanvasState = null;
-        this.originalUnfoldedCanvasState = null;
     }
 
     cancel(context: DrawingModeContext): void {
@@ -87,6 +84,5 @@ export class PaintbrushMode implements DrawingMode {
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
         this.originalFoldedCanvasState = null;
-        this.originalUnfoldedCanvasState = null;
     }
 } 
