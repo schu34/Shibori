@@ -157,11 +157,11 @@ canvas {
     -ms-user-select: none;
     user-select: none;
     /* Control the display size of the higher resolution canvas */
-    max-width: 100%;
-    width: 800px;
+    max-width: min(800px, 95vw);
+    width: 100%;
     /* Keep the display size the same as before */
     height: auto;
-    max-height: 800px;
+    max-height: min(800px, calc(95vw));
 }
 
 .controls {
