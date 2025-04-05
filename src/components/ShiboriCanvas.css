@@ -156,6 +156,12 @@ canvas {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    /* Control the display size of the higher resolution canvas */
+    max-width: 100%;
+    width: 800px;
+    /* Keep the display size the same as before */
+    height: auto;
+    max-height: 800px;
 }
 
 .controls {

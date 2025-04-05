@@ -24,7 +24,7 @@ export interface DrawingModeContext {
 
 export interface DrawingMode {
     start: (point: Point, context: DrawingModeContext) => void;
-    continue: (point: Point, context: DrawingModeContext) => void;
+    continue: (point: Point, context: DrawingModeContext) => boolean;
     end: (point: Point, context: DrawingModeContext) => void;
     cancel: (context: DrawingModeContext) => void;
 } 

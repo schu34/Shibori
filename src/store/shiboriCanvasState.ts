@@ -3,9 +3,9 @@ import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
     maxFolds: 3,
-    defaultCircleRadius: 20,
+    defaultCircleRadius: 40,
     circleColor: 'white',
-    defaultLineThickness: 10,
+    defaultLineThickness: 20,
     lineColor: 'white',
 };
 
@@ -44,8 +44,8 @@ export const initialState: State = {
         }
     },
     canvasDimensions: {
-        width: 800,
-        height: 800
+        width: 1600,
+        height: 1600
     }
 };
 

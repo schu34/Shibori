@@ -21,16 +21,16 @@ export class PaintbrushMode implements DrawingMode {
         dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
     }
 
-    continue(point: Point, context: DrawingModeContext): void {
-        const { state, dispatch, isInValidDrawingArea, foldedCtx, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas } = context;
+    continue(point: Point, context: DrawingModeContext): boolean {
+        const { state, dispatch, isInValidDrawingArea, foldedCtx, drawDiagonalFoldLinesOnFolded } = context;
 
-        if (!state.isDrawing) return;
-        if (!isInValidDrawingArea(point.x, point.y)) return;
+        if (!state.isDrawing) return false;
+        if (!isInValidDrawingArea(point.x, point.y)) return false;
 
         dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
 
         // Draw the stroke
-        if (!foldedCtx || state.currentStrokePoints.length === 0) return;
+        if (!foldedCtx || state.currentStrokePoints.length === 0) return false;
 
         // Get the stroke outline points from perfect-freehand
         const stroke = getStroke(state.currentStrokePoints, {
@@ -40,7 +40,7 @@ export class PaintbrushMode implements DrawingMode {
             streamline: 0.5,
         });
 
-        if (!stroke.length) return;
+        if (!stroke.length) return false;
 
         // Restore original state before drawing new stroke
         if (this.originalFoldedCanvasState) {
@@ -65,7 +65,8 @@ export class PaintbrushMode implements DrawingMode {
         foldedCtx.fill();
 
         drawDiagonalFoldLinesOnFolded();
-        updateUnfoldedCanvas();
+
+        return true;
     }
 
     end(_point: Point, context: DrawingModeContext): void {

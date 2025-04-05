@@ -23,6 +23,7 @@ export const ImageUtils = {
 
     // Flip image data horizontally
     flipHorizontal(imageData: ImageData): ImageData {
+        console.log('flipHorizontal');
         const { width, height } = imageData;
         const result = new ImageData(width, height);
 
@@ -40,6 +41,7 @@ export const ImageUtils = {
 
     // Flip image data vertically
     flipVertical(imageData: ImageData): ImageData {
+        console.log('flipVertical');
         const { width, height } = imageData;
         const result = new ImageData(width, height);
 

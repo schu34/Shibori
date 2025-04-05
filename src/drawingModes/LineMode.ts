@@ -24,7 +24,7 @@ export class LineMode implements DrawingMode {
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
     }
 
-    continue(point: Point, context: DrawingModeContext): void {
+    continue(point: Point, context: DrawingModeContext): boolean {
         const { state, foldedCtx, unfoldedCtx, drawDiagonalFoldLinesOnFolded } = context;
 
         if (!state.isDrawing || !state.lineStartPoint) return;
@@ -50,8 +50,8 @@ export class LineMode implements DrawingMode {
         drawDiagonalFoldLinesOnFolded();
     }
 
-    end(point: Point, context: DrawingModeContext): void {
-        const { state, dispatch, foldedCtx, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded, updateUnfoldedCanvas } = context;
+    end(point: Point, context: DrawingModeContext): boolean {
+        const { state, dispatch, foldedCtx, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded } = context;
 
         if (!state.isDrawing || !state.lineStartPoint) return;
 
@@ -60,7 +60,7 @@ export class LineMode implements DrawingMode {
 
         if (!startValid && !endValid) {
             this.cancel(context);
-            return;
+            return false;
         }
 
         // Draw final line
@@ -72,13 +72,14 @@ export class LineMode implements DrawingMode {
         foldedCtx.stroke();
 
         drawDiagonalFoldLinesOnFolded();
-        updateUnfoldedCanvas();
 
         // Reset state
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
         this.originalFoldedCanvasState = null;
         this.originalUnfoldedCanvasState = null;
+
+        return true;
     }
 
     cancel(context: DrawingModeContext): void {

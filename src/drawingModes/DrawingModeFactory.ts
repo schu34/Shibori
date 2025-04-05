@@ -22,11 +22,16 @@ export class DrawingModeFactory {
                     instance = new PaintbrushMode();
                     break;
                 default:
-                    throw new Error(`Unknown drawing tool: ${tool}`);
+                    // asserts that this is switch is exhaustive
+                    assertNever(tool);
             }
             this.instances.set(tool, instance);
         }
 
         return instance;
     }
-} 
+}
+
+function assertNever(tool: never): never {
+    throw new Error(`Unknown drawing tool: ${tool}`);
+}
