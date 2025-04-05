@@ -27,7 +27,7 @@ export class LineMode implements DrawingMode {
     continue(point: Point, context: DrawingModeContext): boolean {
         const { state, foldedCtx, unfoldedCtx, drawDiagonalFoldLinesOnFolded } = context;
 
-        if (!state.isDrawing || !state.lineStartPoint) return;
+        if (!state.isDrawing || !state.lineStartPoint) return false;
 
         // Restore original states
         if (this.originalFoldedCanvasState) {
@@ -48,12 +48,13 @@ export class LineMode implements DrawingMode {
         foldedCtx.globalAlpha = 1.0;
 
         drawDiagonalFoldLinesOnFolded();
+        return true;
     }
 
     end(point: Point, context: DrawingModeContext): boolean {
         const { state, dispatch, foldedCtx, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded } = context;
 
-        if (!state.isDrawing || !state.lineStartPoint) return;
+        if (!state.isDrawing || !state.lineStartPoint) return false;
 
         const startValid = isInValidDrawingArea(state.lineStartPoint.x, state.lineStartPoint.y);
         const endValid = isInValidDrawingArea(point.x, point.y);
