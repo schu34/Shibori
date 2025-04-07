@@ -9,9 +9,7 @@ export const ImageUtils = {
     // Set RGBA values at a specific pixel position
     setPixel(imageData: ImageData, x: number, y: number, rgba: Uint8ClampedArray): void {
         const index = (y * imageData.width + x) * 4;
-        for (let i = 0; i < 4; i++) {
-            imageData.data[index + i] = rgba[i];
-        }
+        imageData.data.set(rgba, index);
     },
 
     // Copy a pixel from source to target

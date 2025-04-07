@@ -1,9 +1,9 @@
 import { useRef, useCallback, useEffect, RefObject } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
-import throttle from 'lodash-es/throttle';
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
 import { useAppSelector, useAppDispatch } from './useReduxHooks';
 import { CanvasDimensions } from '../types/DrawingMode';
+import { debounce } from 'lodash-es';
 
 function cachedLazy<T>(fn: () => T): () => T {
     let isCachePopulated = false;
@@ -251,7 +251,7 @@ export function useCanvas() {
     }, [state.folds.vertical, state.folds.horizontal, state.folds.diagonal, drawFoldLines]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const updateUnfoldedCanvas = useCallback(throttle(updateUnfoldedCanvasUnthrottled, 50), [updateUnfoldedCanvasUnthrottled]);
+    const updateUnfoldedCanvas = useCallback(debounce(updateUnfoldedCanvasUnthrottled, 100, { maxWait: 1, }), [updateUnfoldedCanvasUnthrottled]);
 
     // Function to check if a point is in the valid drawing area based on diagonal fold
     const isInValidDrawingArea = useCallback((x: number, y: number): boolean => {

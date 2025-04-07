@@ -99,6 +99,7 @@ h1 {
     align-items: center;
     min-height: 400px;
     touch-action: none;
+    width: 800px;
 }
 
 .canvas-wrapper h3 {
@@ -158,10 +159,12 @@ canvas {
     user-select: none;
     /* Control the display size of the higher resolution canvas */
     max-width: min(800px, 95vw);
+    /* min-width: 800px; */
     width: 100%;
     /* Keep the display size the same as before */
     height: auto;
     max-height: min(800px, calc(95vw));
+
 }
 
 .controls {
