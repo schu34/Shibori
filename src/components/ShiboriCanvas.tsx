@@ -2,9 +2,16 @@ import { FoldControls } from './shibori/FoldControls';
 import { DimensionControls } from './shibori/DimensionControls';
 import { CanvasDisplay } from './shibori/CanvasDisplay';
 import { ToolControls } from './shibori/ToolControls';
+import { useState, useCallback } from 'react';
 import './ShiboriCanvas.css';
 
 const ShiboriCanvas = () => {
+    const [isControlsExpanded, setIsControlsExpanded] = useState(true);
+
+    const toggleControls = useCallback(() => {
+        setIsControlsExpanded(prev => !prev);
+    }, []);
+
     return (
         <div className="shibori-app">
             <h1>Folded Paper Drawing</h1>
@@ -15,15 +22,27 @@ const ShiboriCanvas = () => {
 
             {/* Controls container for fold and tool controls */}
             <div className="controls-container">
-                {/* Component for fold buttons */}
-                <div className="controls-section">
-                    <FoldControls />
-                </div>
+                <button
+                    className="controls-toggle"
+                    onClick={toggleControls}
+                    title={isControlsExpanded ? "Collapse controls" : "Expand controls"}
+                >
+                    {isControlsExpanded ? "▼" : "▲"} Controls
+                </button>
 
-                {/* Component for drawing tool controls */}
-                <div className="controls-section">
-                    <ToolControls />
-                </div>
+                {isControlsExpanded && (
+                    <>
+                        {/* Component for fold buttons */}
+                        <div className="controls-section">
+                            <FoldControls />
+                        </div>
+
+                        {/* Component for drawing tool controls */}
+                        <div className="controls-section">
+                            <ToolControls />
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Component for dimension controls */}
