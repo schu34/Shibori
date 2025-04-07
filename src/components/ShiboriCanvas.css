@@ -320,10 +320,12 @@ input[type="range"]:focus {
 @media (max-width: 768px) {
     .canvas-container {
         flex-direction: column;
+        padding: 10px;
     }
 
     .canvas-wrapper {
         width: 100%;
+        min-height: 300px;
     }
 
     .canvas-header {
@@ -337,13 +339,48 @@ input[type="range"]:focus {
 
     .dimension-controls {
         flex-direction: column;
+        align-items: stretch;
     }
 
     .controls-container {
         flex-direction: column;
+        gap: 15px;
     }
 
     .controls-section {
         min-width: 100%;
+    }
+
+    .radio-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .slider-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .tool-selector {
+        padding: 10px;
+    }
+
+    .fold-controls-group,
+    .tool-controls-group {
+        padding: 10px;
+    }
+
+    .button-container {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .button-container button {
+        width: 100%;
+    }
+
+    .dimension-input {
+        width: 100%;
     }
 }
