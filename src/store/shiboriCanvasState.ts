@@ -1,4 +1,5 @@
 import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
+import { UndoableHistoryItem } from '../types/DrawingMode';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
@@ -18,6 +19,7 @@ export interface State {
     isDrawing: boolean;
     lineStartPoint: { x: number; y: number } | null;
     currentStrokePoints: { x: number; y: number }[];
+    history: UndoableHistoryItem[];
     folds: FoldState;
     canvasDimensions: {
         width: number;
@@ -46,7 +48,8 @@ export const initialState: State = {
     canvasDimensions: {
         width: 1600,
         height: 1600
-    }
+    },
+    history: []
 };
 
 // Action types enum
@@ -63,7 +66,10 @@ export enum ActionType {
     RESET_FOLDS = 'RESET_FOLDS',
     SET_CANVAS_DIMENSIONS = 'SET_CANVAS_DIMENSIONS',
     ADD_STROKE_POINT = 'ADD_STROKE_POINT',
-    CLEAR_STROKE_POINTS = 'CLEAR_STROKE_POINTS'
+    CLEAR_STROKE_POINTS = 'CLEAR_STROKE_POINTS',
+    ADD_HISTORY_ITEM = 'ADD_HISTORY_ITEM',
+    UNDO = 'UNDO',
+    CLEAR_UNDO_HISTORY = 'CLEAR_UNDO_HISTORY'
 }
 
 // Action type definitions
@@ -80,7 +86,10 @@ export type Action =
     | { type: ActionType.RESET_FOLDS }
     | { type: ActionType.SET_CANVAS_DIMENSIONS, payload: { width: number; height: number } }
     | { type: ActionType.ADD_STROKE_POINT, payload: { x: number; y: number } }
-    | { type: ActionType.CLEAR_STROKE_POINTS };
+    | { type: ActionType.CLEAR_STROKE_POINTS }
+    | { type: ActionType.ADD_HISTORY_ITEM, payload: UndoableHistoryItem }
+    | { type: ActionType.UNDO }
+    | { type: ActionType.CLEAR_UNDO_HISTORY };
 
 // Reducer function
 export function reducer(state: State, action: Action): State {
@@ -154,7 +163,7 @@ export function reducer(state: State, action: Action): State {
                         ...state.folds.diagonal,
                         count: newCount
                     }
-                }
+                },
             };
         }
         case ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION:
@@ -166,19 +175,34 @@ export function reducer(state: State, action: Action): State {
                         ...state.folds.diagonal,
                         direction: action.payload
                     }
-                }
+                },
             };
         case ActionType.RESET_FOLDS:
             return {
                 ...state,
                 folds: {
                     ...initialState.folds
-                }
+                },
             };
         case ActionType.SET_CANVAS_DIMENSIONS:
             return {
                 ...state,
                 canvasDimensions: action.payload
+            };
+        case ActionType.ADD_HISTORY_ITEM:
+            return {
+                ...state,
+                history: [...state.history, action.payload]
+            };
+        case ActionType.UNDO:
+            return {
+                ...state,
+                history: state.history.slice(0, -1)
+            };
+        case ActionType.CLEAR_UNDO_HISTORY:
+            return {
+                ...state,
+                history: []
             };
         default:
             return state;

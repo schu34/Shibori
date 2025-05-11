@@ -1,9 +1,14 @@
 import { useRef, useCallback, useEffect, RefObject } from 'react';
 import { ImageUtils } from '../utils/imageUtils';
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
-import { useAppSelector, useAppDispatch } from './useReduxHooks';
-import { CanvasDimensions } from '../types/DrawingMode';
+import { useAppDispatch } from './useReduxHooks';
+import { CanvasDimensions, UndoableHistoryItem } from '../types/DrawingMode';
 import { debounce } from 'lodash-es';
+import { ActionType } from '../store/shiboriCanvasState';
+import { useStore } from 'react-redux';
+import { RootState } from '../store';
+
+const BACKGROUND_COLOR = 'navy';
 
 function cachedLazy<T>(fn: () => T): () => T {
     let isCachePopulated = false;
@@ -18,8 +23,12 @@ function cachedLazy<T>(fn: () => T): () => T {
 }
 
 export function useCanvas() {
-    const state = useAppSelector(state => state.shibori);
     const dispatch = useAppDispatch();
+
+    //slightly cursed, no real need for the `shibori` namespace tbh but I don't feel like refactoring
+    const { getState: _getState } = useStore<RootState>() as { getState: () => RootState };
+    const getState = useCallback(() => _getState().shibori, [_getState]);
+
 
     // Canvas references
     const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,8 +67,15 @@ export function useCanvas() {
 
             foldedCtx.fillStyle = backgroundColor;
             foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
+        } else {
+            unfoldedCtx.fillStyle = BACKGROUND_COLOR;
+            unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
+
+            foldedCtx.fillStyle = BACKGROUND_COLOR;
+            foldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
         }
     }, []);
+
 
     // Function to draw fold lines on the unfolded canvas
     const drawFoldLines = useCallback(() => {
@@ -76,7 +92,7 @@ export function useCanvas() {
         unfoldedCtx.lineWidth = 1;
 
         // Vertical fold lines
-        for (let i = 1; i <= state.folds.vertical; i++) {
+        for (let i = 1; i <= getState().folds.vertical; i++) {
             const segments = Math.pow(2, i);
             for (let j = 1; j < segments; j++) {
                 const x = (width / segments) * j;
@@ -89,7 +105,7 @@ export function useCanvas() {
         }
 
         // Horizontal fold lines
-        for (let i = 1; i <= state.folds.horizontal; i++) {
+        for (let i = 1; i <= getState().folds.horizontal; i++) {
             const segments = Math.pow(2, i);
             for (let j = 1; j < segments; j++) {
                 const y = (height / segments) * j;
@@ -100,7 +116,7 @@ export function useCanvas() {
                 unfoldedCtx.stroke();
             }
         }
-    }, [state.folds.vertical, state.folds.horizontal]);
+    }, [getState]);
 
     // Function to update folded canvas dimensions
     const updateFoldedCanvasDimensions = useCallback(() => {
@@ -109,8 +125,8 @@ export function useCanvas() {
 
         if (!unfoldedCanvas || !foldedCanvas) return;
 
-        const foldedWidth = unfoldedCanvas.width / Math.pow(2, state.folds.vertical);
-        const foldedHeight = unfoldedCanvas.height / Math.pow(2, state.folds.horizontal);
+        const foldedWidth = unfoldedCanvas.width / Math.pow(2, getState().folds.vertical);
+        const foldedHeight = unfoldedCanvas.height / Math.pow(2, getState().folds.horizontal);
 
         foldedCanvas.width = foldedWidth;
         foldedCanvas.height = foldedHeight;
@@ -123,13 +139,13 @@ export function useCanvas() {
             foldedCtxRef.current.fillStyle = 'navy';
             foldedCtxRef.current.fillRect(0, 0, foldedWidth, foldedHeight);
         }
-    }, [state.folds.vertical, state.folds.horizontal]);
+    }, [getState]);
 
     // Function to draw diagonal fold lines on the folded canvas
     const drawDiagonalFoldLinesOnFolded = useCallback(() => {
         // Only draw if diagonal folds are exactly one fold, and canvas is square
-        if (state.folds.diagonal.count !== 1 ||
-            state.folds.vertical !== state.folds.horizontal) {
+        if (getState().folds.diagonal.count !== 1 ||
+            getState().folds.vertical !== getState().folds.horizontal) {
             return;
         }
 
@@ -178,7 +194,7 @@ export function useCanvas() {
             foldedCtx.arc(0, height, 3, 0, Math.PI * 2);
             foldedCtx.fill();
         }
-    }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
+    }, [getState]);
 
     // Function to update the unfolded canvas by mirroring the folded canvas
     const updateUnfoldedCanvasUnthrottled = useCallback(() => {
@@ -200,7 +216,7 @@ export function useCanvas() {
 
         // Create the other pattern variations we'll need based on horizontal and vertical folds
         const getOriginal = cachedLazy(() => {
-            if (state.folds.diagonal.count === 1) {
+            if (getState().folds.diagonal.count === 1) {
                 return ImageUtils.mirrorDiagonalTopLeftToBottomRight(originalImage);
             }
             return originalImage;
@@ -211,8 +227,8 @@ export function useCanvas() {
 
 
         // Calculate the total grid size based on folds
-        const gridWidth = Math.pow(2, state.folds.vertical);
-        const gridHeight = Math.pow(2, state.folds.horizontal);
+        const gridWidth = Math.pow(2, getState().folds.vertical);
+        const gridHeight = Math.pow(2, getState().folds.horizontal);
 
         // Determine each cell's dimensions
         const cellWidth = originalImage.width;
@@ -248,7 +264,7 @@ export function useCanvas() {
 
         // Draw fold lines
         drawFoldLines();
-    }, [state.folds.vertical, state.folds.horizontal, state.folds.diagonal, drawFoldLines]);
+    }, [getState, drawFoldLines]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const updateUnfoldedCanvas = useCallback(debounce(updateUnfoldedCanvasUnthrottled, 100), [updateUnfoldedCanvasUnthrottled]);
@@ -256,8 +272,8 @@ export function useCanvas() {
     // Function to check if a point is in the valid drawing area based on diagonal fold
     const isInValidDrawingArea = useCallback((x: number, y: number): boolean => {
         // Only apply restriction if diagonal fold is active (count is 1 and canvas is square)
-        if (state.folds.diagonal.count !== 1 ||
-            state.folds.vertical !== state.folds.horizontal) {
+        if (getState().folds.diagonal.count !== 1 ||
+            getState().folds.vertical !== getState().folds.horizontal) {
             return true;
         }
 
@@ -265,7 +281,7 @@ export function useCanvas() {
         if (!foldedCanvas) return true;
 
         return y < x;
-    }, [state.folds.diagonal, state.folds.vertical, state.folds.horizontal]);
+    }, [getState]);
 
     // Helper function to get canvas coordinates from mouse/touch event
     const getCanvasCoordinates = useCallback((clientX: number, clientY: number, foldedCanvas: HTMLCanvasElement) => {
@@ -303,10 +319,10 @@ export function useCanvas() {
 
     // Common start drawing function
     const startDrawing = useCallback((x: number, y: number) => {
-        const mode = DrawingModeFactory.getMode(state.currentTool);
+        const mode = DrawingModeFactory.getTool(getState().currentTool);
         if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         mode.start({ x, y }, {
-            state,
+            getState,
             dispatch,
             foldedCtx: foldedCtxRef.current,
             unfoldedCtx: unfoldedCtxRef.current,
@@ -316,14 +332,14 @@ export function useCanvas() {
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
-    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [getState, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Common continue drawing function
     const continueDrawing = useCallback((x: number, y: number) => {
-        const mode = DrawingModeFactory.getMode(state.currentTool);
+        const mode = DrawingModeFactory.getTool(getState().currentTool);
         if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         const result = mode.continue({ x, y }, {
-            state,
+            getState,
             dispatch,
             foldedCtx: foldedCtxRef.current,
             unfoldedCtx: unfoldedCtxRef.current,
@@ -335,14 +351,14 @@ export function useCanvas() {
         });
         // Update the unfolded canvas after each drawing operation
         if (result) updateUnfoldedCanvas();
-    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [getState, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Common end drawing function
     const endDrawing = useCallback((x: number, y: number) => {
-        const mode = DrawingModeFactory.getMode(state.currentTool);
+        const mode = DrawingModeFactory.getTool(getState().currentTool);
         if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
-        mode.end({ x, y }, {
-            state,
+        const result = mode.end({ x, y }, {
+            getState,
             dispatch,
             foldedCtx: foldedCtxRef.current,
             unfoldedCtx: unfoldedCtxRef.current,
@@ -352,9 +368,13 @@ export function useCanvas() {
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
+        if (result) {
+            dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: result });
+            console.log(getState().history);
+        }
         // Update the unfolded canvas after the final drawing operation
         updateUnfoldedCanvas();
-    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [getState, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Handle mouse events for the folded canvas
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -379,11 +399,11 @@ export function useCanvas() {
     }, [getCanvasCoordinates, endDrawing]);
 
     const handleMouseLeave = useCallback(() => {
-        if (state.isDrawing) {
-            const mode = DrawingModeFactory.getMode(state.currentTool);
+        if (getState().isDrawing) {
+            const mode = DrawingModeFactory.getTool(getState().currentTool);
             if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
             mode.cancel({
-                state,
+                getState,
                 dispatch,
                 foldedCtx: foldedCtxRef.current,
                 unfoldedCtx: unfoldedCtxRef.current,
@@ -394,7 +414,7 @@ export function useCanvas() {
                 isInValidDrawingArea
             });
         }
-    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [getState, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Handle touch events for mobile devices
     const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -423,7 +443,7 @@ export function useCanvas() {
 
     const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
-        if (state.isDrawing && e.changedTouches && e.changedTouches.length > 0) {
+        if (getState().isDrawing && e.changedTouches && e.changedTouches.length > 0) {
             const touch = e.changedTouches[0];
             const foldedCanvas = assertCanvasRef(foldedCanvasRef);
             const coords = getCanvasCoordinates(touch.clientX, touch.clientY, foldedCanvas);
@@ -431,14 +451,14 @@ export function useCanvas() {
                 endDrawing(coords.x, coords.y);
             }
         }
-    }, [state, getCanvasCoordinates, endDrawing]);
+    }, [getState, getCanvasCoordinates, endDrawing]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         e.preventDefault(); // Prevent scrolling
-        const mode = DrawingModeFactory.getMode(state.currentTool);
+        const mode = DrawingModeFactory.getTool(getState().currentTool);
         if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
         mode.cancel({
-            state,
+            getState,
             dispatch,
             foldedCtx: foldedCtxRef.current,
             unfoldedCtx: unfoldedCtxRef.current,
@@ -448,7 +468,7 @@ export function useCanvas() {
             drawDiagonalFoldLinesOnFolded,
             isInValidDrawingArea
         });
-    }, [state, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
+    }, [getState, dispatch, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, updateUnfoldedCanvas, drawDiagonalFoldLinesOnFolded, isInValidDrawingArea]);
 
     // Function called when initializing or resetting the drawing canvas
     const resetCanvases = useCallback(() => {
@@ -456,7 +476,7 @@ export function useCanvas() {
         updateFoldedCanvasDimensions();
 
         // Clear the canvases with navy background
-        clearCanvases('navy');
+        clearCanvases();
 
         // Draw the fold lines
         drawFoldLines();
@@ -492,6 +512,53 @@ export function useCanvas() {
         }
     }, []);
 
+    const drawFromHistory = useCallback((historyItems: UndoableHistoryItem[]) => {
+        const unfoldedCanvas = unfoldedCanvasRef.current;
+        const unfoldedCtx = unfoldedCtxRef.current;
+        const foldedCtx = foldedCtxRef.current;
+
+        if (!unfoldedCanvas || !unfoldedCtx || !foldedCtx) return;
+
+        console.log('drawFromHistory', historyItems);
+
+        for (const historyItem of historyItems) {
+            const { action, points } = historyItem;
+            const mode = DrawingModeFactory.getTool(action);
+            const args = {
+                getState,
+                dispatch,
+                foldedCtx,
+                unfoldedCtx,
+                getFoldedCanvasDimensions,
+                getUnfoldedCanvasDimensions,
+                updateUnfoldedCanvas,
+                drawDiagonalFoldLinesOnFolded,
+                isInValidDrawingArea
+            }
+            mode.start(points[0], args);
+
+            for (let i = 1; i < points.length - 1; i++) {
+                mode.continue(points[i], args);
+            }
+            mode.end(points[points.length - 1], args);
+        }
+
+    }, [dispatch, drawDiagonalFoldLinesOnFolded, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions, isInValidDrawingArea, getState, updateUnfoldedCanvas]);
+
+    const undo = useCallback(() => {
+        console.log('undo');
+        if (getState().history.length > 0) {
+            console.log('undoing');
+            dispatch({ type: ActionType.UNDO });
+            const historyItems = getState().history
+            resetCanvases();
+            console.log('historyItems', historyItems);
+            drawFromHistory(historyItems);
+            updateUnfoldedCanvas();
+        }
+    }, [getState, dispatch, resetCanvases, drawFromHistory, updateUnfoldedCanvas]);
+
+
     return {
         unfoldedCanvasRef,
         foldedCanvasRef,
@@ -508,7 +575,8 @@ export function useCanvas() {
         handleTouchStart,
         handleTouchMove,
         handleTouchEnd,
-        handleTouchCancel
+        handleTouchCancel,
+        undo,
     };
 }
 

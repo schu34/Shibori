@@ -21,7 +21,6 @@ export interface FoldState {
 }
 
 export enum DrawingTool {
-    Circle = 'circle',
     Line = 'line',
     Paintbrush = 'paintbrush'
 } 

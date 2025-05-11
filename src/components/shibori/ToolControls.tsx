@@ -1,7 +1,6 @@
 import React from 'react';
 import { ToolSelector } from './ToolSelector';
 import { SizeControl } from './SizeControl';
-import { DrawingTool } from '../../types';
 import { useAppSelector } from '../../hooks/useReduxHooks';
 
 export const ToolControls: React.FC = () => {
@@ -14,7 +13,7 @@ export const ToolControls: React.FC = () => {
             />
             <SizeControl
                 tool={state.currentTool}
-                value={state.currentTool === DrawingTool.Circle ? state.circleRadius : state.lineThickness}
+                value={state.lineThickness}
             />
         </div>
     );

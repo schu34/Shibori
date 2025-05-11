@@ -27,14 +27,15 @@ describe('ToolControls Component', () => {
         },
         circleRadius: 20,
         lineThickness: 2,
-        currentTool: DrawingTool.Circle,
+        currentTool: DrawingTool.Paintbrush,
         isDrawing: false,
         lineStartPoint: null,
         currentStrokePoints: [],
         canvasDimensions: {
             width: 400,
             height: 400
-        }
+        },
+        history: []
     };
 
     const mockDispatch = jest.fn();
@@ -54,16 +55,7 @@ describe('ToolControls Component', () => {
         renderWithRedux(<ToolControls />);
 
         expect(screen.getByText('Drawing Tool:')).toBeInTheDocument();
-        expect(screen.getByText('Circle Brush')).toBeInTheDocument();
         expect(screen.getByText('Line Tool')).toBeInTheDocument();
-    });
-
-    test('shows circle controls when circle tool is selected', () => {
-        renderWithRedux(<ToolControls />);
-
-        expect(screen.getByText('Circle Size:')).toBeInTheDocument();
-        expect(screen.getByText('20')).toBeInTheDocument();
-        expect(screen.getByText(/px$/)).toBeInTheDocument();
     });
 
     test('shows line controls when line tool is selected', () => {
@@ -102,15 +94,4 @@ describe('ToolControls Component', () => {
         });
     });
 
-    test('changing circle size slider dispatches SET_CIRCLE_RADIUS action', () => {
-        renderWithRedux(<ToolControls />);
-
-        const sizeSlider = screen.getByLabelText('Circle Size:');
-        fireEvent.change(sizeSlider, { target: { value: '30' } });
-
-        expect(mockDispatch).toHaveBeenCalledWith({
-            type: 'SET_CIRCLE_RADIUS',
-            payload: 30
-        });
-    });
 }); 

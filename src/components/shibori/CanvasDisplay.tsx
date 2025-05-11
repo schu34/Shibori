@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import { useCanvas } from '../../hooks/useCanvas';
-import { useAppSelector } from '../../hooks/useReduxHooks';
+import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
+import { ActionType } from '../../store/shiboriCanvasState';
 
 export const CanvasDisplay: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
-
+    const dispatch = useAppDispatch();
     // Use our custom canvas hook
     const {
         unfoldedCanvasRef,
@@ -19,7 +20,7 @@ export const CanvasDisplay: React.FC = () => {
         handleTouchEnd,
         handleTouchCancel,
         downloadUnfoldedCanvas,
-        clearCanvases
+        undo,
     } = useCanvas();
 
     // Initialize canvases when dimensions or folds change
@@ -60,6 +61,7 @@ export const CanvasDisplay: React.FC = () => {
         if (!unfoldedCanvasRef.current || !foldedCanvasRef.current) {
             return;
         }
+        dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
         unfoldedCanvasRef.current.width = state.canvasDimensions.width;
         unfoldedCanvasRef.current.height = state.canvasDimensions.height;
         foldedCanvasRef.current.width = state.canvasDimensions.width / 2 ** state.folds.vertical;
@@ -68,10 +70,9 @@ export const CanvasDisplay: React.FC = () => {
 
         // Reset canvases after dimension changes to ensure navy background is applied
         resetCanvases();
-    }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal, resetCanvases]);
+    }, [state.canvasDimensions, unfoldedCanvasRef, foldedCanvasRef, state.folds.vertical, state.folds.horizontal, state.folds.diagonal, resetCanvases, dispatch]);
 
     const handleClearCanvas = () => {
-        clearCanvases('navy');
         resetCanvases();
     };
 
@@ -97,6 +98,13 @@ export const CanvasDisplay: React.FC = () => {
                             title="Clear canvas"
                         >
                             Clear
+                        </button>
+                        <button
+                            className="download-button"
+                            onClick={undo}
+                            title="Undo"
+                        >
+                            Undo
                         </button>
                         <button
                             className="download-button"

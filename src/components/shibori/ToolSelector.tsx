@@ -22,16 +22,6 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool }) => {
                     <input
                         type="radio"
                         name="drawingTool"
-                        value={DrawingTool.Circle}
-                        checked={currentTool === DrawingTool.Circle}
-                        onChange={() => handleToolChange(DrawingTool.Circle)}
-                    />
-                    Circle Brush
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
                         value={DrawingTool.Line}
                         checked={currentTool === DrawingTool.Line}
                         onChange={() => handleToolChange(DrawingTool.Line)}

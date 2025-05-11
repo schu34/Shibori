@@ -13,22 +13,11 @@ export const SizeControl: React.FC<SizeControlProps> = ({ tool, value }) => {
 
     const handleSizeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseInt(e.target.value);
-        if (tool === DrawingTool.Circle) {
-            dispatch({ type: ActionType.SET_CIRCLE_RADIUS, payload: newValue });
-        } else {
-            dispatch({ type: ActionType.SET_LINE_THICKNESS, payload: newValue });
-        }
-    }, [dispatch, tool]);
+        dispatch({ type: ActionType.SET_LINE_THICKNESS, payload: newValue });
+    }, [dispatch]);
 
     const getControlConfig = () => {
         switch (tool) {
-            case DrawingTool.Circle:
-                return {
-                    label: 'Circle Size:',
-                    min: 5,
-                    max: 50,
-                    id: 'sizeSlider'
-                };
             case DrawingTool.Line:
                 return {
                     label: 'Line Thickness:',
