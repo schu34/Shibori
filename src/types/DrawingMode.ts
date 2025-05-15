@@ -30,6 +30,6 @@ export interface UndoableHistoryItem {
 export interface DrawingMode {
     start: (point: Point, context: DrawingModeContext) => void;
     continue: (point: Point, context: DrawingModeContext) => boolean;
-    end: (point: Point, context: DrawingModeContext) => UndoableHistoryItem | null;
+    end: (point: Point| null, context: DrawingModeContext) => UndoableHistoryItem | null;
     cancel: (context: DrawingModeContext) => void;
 } 

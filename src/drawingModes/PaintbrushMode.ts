@@ -74,7 +74,7 @@ export class PaintbrushMode implements DrawingMode {
         return true;
     }
 
-    end(_point: Point, context: DrawingModeContext): UndoableHistoryItem | null {
+    end(_point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
         const { dispatch, getState } = context;
 
         const { currentStrokePoints } = getState();
