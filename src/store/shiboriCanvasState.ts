@@ -1,5 +1,6 @@
 import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
+import { SerializableState } from '../utils/urlStateUtils';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
@@ -25,6 +26,8 @@ export interface State {
         width: number;
         height: number;
     };
+    redrawTrigger: number; // Used to trigger canvas redraws
+    isLoadingFromUrl: boolean; // Flag to prevent history clearing during URL loads
 }
 
 // Initial state
@@ -49,7 +52,9 @@ export const initialState: State = {
         width: 1600,
         height: 1600
     },
-    history: []
+    history: [],
+    redrawTrigger: 0,
+    isLoadingFromUrl: false
 };
 
 // Action types enum
@@ -69,7 +74,11 @@ export enum ActionType {
     CLEAR_STROKE_POINTS = 'CLEAR_STROKE_POINTS',
     ADD_HISTORY_ITEM = 'ADD_HISTORY_ITEM',
     UNDO = 'UNDO',
-    CLEAR_UNDO_HISTORY = 'CLEAR_UNDO_HISTORY'
+    CLEAR_UNDO_HISTORY = 'CLEAR_UNDO_HISTORY',
+    LOAD_STATE_FROM_URL = 'LOAD_STATE_FROM_URL',
+    RESET_TO_INITIAL = 'RESET_TO_INITIAL',
+    REDRAW_FROM_HISTORY = 'REDRAW_FROM_HISTORY',
+    FINISH_URL_LOADING = 'FINISH_URL_LOADING'
 }
 
 // Action type definitions
@@ -89,7 +98,11 @@ export type Action =
     | { type: ActionType.CLEAR_STROKE_POINTS }
     | { type: ActionType.ADD_HISTORY_ITEM, payload: UndoableHistoryItem }
     | { type: ActionType.UNDO }
-    | { type: ActionType.CLEAR_UNDO_HISTORY };
+    | { type: ActionType.CLEAR_UNDO_HISTORY }
+    | { type: ActionType.LOAD_STATE_FROM_URL, payload: SerializableState }
+    | { type: ActionType.RESET_TO_INITIAL }
+    | { type: ActionType.REDRAW_FROM_HISTORY }
+    | { type: ActionType.FINISH_URL_LOADING };
 
 // Reducer function
 export function reducer(state: State, action: Action): State {
@@ -203,6 +216,45 @@ export function reducer(state: State, action: Action): State {
             return {
                 ...state,
                 history: []
+            };
+        case ActionType.LOAD_STATE_FROM_URL:
+            console.log('Reducer - LOAD_STATE_FROM_URL received payload:', {
+                historyLength: action.payload.history?.length || 0,
+                firstHistoryItem: action.payload.history?.[0] || null,
+                folds: action.payload.folds,
+                currentTool: action.payload.currentTool
+            });
+            
+            return {
+                ...state,
+                history: action.payload.history,
+                folds: action.payload.folds,
+                canvasDimensions: action.payload.canvasDimensions,
+                circleRadius: action.payload.circleRadius,
+                lineThickness: action.payload.lineThickness,
+                currentTool: action.payload.currentTool,
+                // Reset transient drawing state
+                isDrawing: false,
+                lineStartPoint: null,
+                currentStrokePoints: [],
+                // Increment redraw trigger to force canvas redraw
+                redrawTrigger: state.redrawTrigger + 1,
+                // Mark that we're loading from URL to prevent history clearing
+                isLoadingFromUrl: true
+            };
+        case ActionType.RESET_TO_INITIAL:
+            return {
+                ...initialState
+            };
+        case ActionType.REDRAW_FROM_HISTORY:
+            return {
+                ...state,
+                redrawTrigger: state.redrawTrigger + 1
+            };
+        case ActionType.FINISH_URL_LOADING:
+            return {
+                ...state,
+                isLoadingFromUrl: true
             };
         default:
             return state;

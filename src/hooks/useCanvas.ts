@@ -578,6 +578,9 @@ export function useCanvas() {
 
   // Function called when initializing or resetting the drawing canvas
   const resetCanvases = useCallback(() => {
+
+    console.log('resetCanvases called - clearing canvases', new Error().stack?.split('\n')[1]);
+    console.trace();
     // Update folded canvas dimensions
     updateFoldedCanvasDimensions();
 
@@ -635,6 +638,7 @@ export function useCanvas() {
 
       for (const historyItem of historyItems) {
         const { action, points } = historyItem;
+        console.log(`drawFromHistory - processing ${action} with ${points.length} points`, points);
         const mode = DrawingModeFactory.getTool(action);
         const args = {
           getState,
@@ -647,12 +651,21 @@ export function useCanvas() {
           drawDiagonalFoldLinesOnFolded,
           isInValidDrawingArea,
         };
+        
+        console.log('drawFromHistory - calling mode.start with point:', points[0]);
         mode.start(points[0], args);
 
-        for (let i = 1; i < points.length - 1; i++) {
+        // Call continue for all points from 1 to n-1 (this ensures drawing happens)
+        for (let i = 1; i < points.length; i++) {
+          console.log('drawFromHistory - calling mode.continue with point:', points[i]);
           mode.continue(points[i], args);
         }
-        mode.end(points[points.length - 1], args);
+        
+        // Always call end with the last point (or first point if only 1 point)
+        const endPoint = points.length > 0 ? points[points.length - 1] : null;
+        console.log('drawFromHistory - calling mode.end with point:', endPoint);
+        const result = mode.end(endPoint, args);
+        console.log('drawFromHistory - mode.end returned:', result);
       }
     },
     [
@@ -703,6 +716,7 @@ export function useCanvas() {
     handleTouchEnd,
     handleTouchCancel,
     undo,
+    drawFromHistory,
   };
 }
 

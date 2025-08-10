@@ -7,6 +7,7 @@ export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;
 
     start(point: Point, context: DrawingModeContext): void {
+        console.log('PaintbrushMode.start called with point:', point);
         const { dispatch, foldedCtx, getFoldedCanvasDimensions } = context;
 
         // Store canvas states for preview
@@ -53,6 +54,7 @@ export class PaintbrushMode implements DrawingMode {
         }
 
         // Draw the stroke
+        console.log('PaintbrushMode - drawing stroke with', stroke.length, 'points, color:', config.lineColor);
         foldedCtx.fillStyle = config.lineColor;
         foldedCtx.beginPath();
 

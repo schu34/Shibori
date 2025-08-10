@@ -1,0 +1,41 @@
+# Page snapshot
+
+```yaml
+- heading "Folded Paper Drawing" [level=1]
+- paragraph: Draw on the right canvas and see the mirrored result on the left canvas. Use the fold buttons to create different symmetry patterns.
+- button "▼ Controls"
+- 'heading "Vertical Folds: 2" [level=3]'
+- button "Fold +"
+- button "Unfold -"
+- 'heading "Horizontal Folds: 1" [level=3]'
+- button "Fold +"
+- button "Unfold -"
+- text: Diagonal Fold
+- 'heading "Diagonal Folds: 0" [level=3]'
+- button "+" [disabled]
+- button "-" [disabled]
+- button "Reset Folds"
+- heading "Drawing Tool:" [level=3]
+- radio "Line Tool"
+- text: Line Tool
+- radio "Paintbrush" [checked]
+- text: Paintbrush
+- heading "Brush Thickness:" [level=3]
+- slider "Brush Thickness:": "20"
+- text: 20 px
+- heading "Share Your Drawing" [level=3]
+- button "Generate Share Link"
+- textbox: http://localhost:5173/?shared=eyJoaXN0b3J5IjpbeyJhY3Rpb24iOiJwYWludGJydXNoIiwicG9pbnRzIjpbeyJ4IjoxODUuNTM2MTU5NjAwOTk3NSwieSI6MzcwLjM3MDk0NzYzMDkyMjczfSx7IngiOjIxNS40NjEzNDY2MzM0MTY0NywieSI6NDMwLjIyMTMyMTY5NTc2MDZ9XX1dLCJmb2xkcyI6eyJ2ZXJ0aWNhbCI6MiwiaG9yaXpvbnRhbCI6MSwiZGlhZ29uYWwiOnsiZW5hYmxlZCI6ZmFsc2UsImNvdW50IjowLCJkaXJlY3Rpb24iOiJ0b3BSaWdodFRvQm90dG9tTGVmdCJ9fSwiY2FudmFzRGltZW5zaW9ucyI6eyJ3aWR0aCI6MTYwMCwiaGVpZ2h0IjoxNjAwfSwiY2lyY2xlUmFkaXVzIjo0MCwibGluZVRoaWNrbmVzcyI6MjAsImN1cnJlbnRUb29sIjoicGFpbnRicnVzaCJ9
+- button "📋"
+- button "✕"
+- paragraph: Share this link to let others view your drawing with the same fold settings.
+- text: "Canvas Width:"
+- spinbutton "Canvas Width:": "1600"
+- text: "Height:"
+- spinbutton "Height:": "1600"
+- heading "Folded Version" [level=3]
+- heading "Unfolded Version" [level=3]
+- button "Clear"
+- button "Undo"
+- button "Download"
+```

@@ -2,6 +2,7 @@ import { FoldControls } from './shibori/FoldControls';
 import { DimensionControls } from './shibori/DimensionControls';
 import { CanvasDisplay } from './shibori/CanvasDisplay';
 import { ToolControls } from './shibori/ToolControls';
+import { ShareControls } from './shibori/ShareControls';
 import { useState, useCallback } from 'react';
 import './ShiboriCanvas.css';
 
@@ -40,6 +41,11 @@ const ShiboriCanvas = () => {
                         {/* Component for drawing tool controls */}
                         <div className="controls-section">
                             <ToolControls />
+                        </div>
+
+                        {/* Component for sharing controls */}
+                        <div className="controls-section">
+                            <ShareControls />
                         </div>
                     </>
                 )}
