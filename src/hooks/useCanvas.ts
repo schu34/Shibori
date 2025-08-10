@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
 import { useAppDispatch } from "./useReduxHooks";
 import { useCanvasRefs } from "./useCanvasRefs";
+import { useCanvasEvents } from "./useCanvasEvents";
 import {
   Point,
   UndoableHistoryItem,
@@ -89,13 +90,6 @@ export function useCanvas() {
     [getState]
   );
 
-  // Helper function to get canvas coordinates from mouse/touch event
-  const getCanvasCoordinates = useCallback(
-    (clientX: number, clientY: number, foldedCanvas: HTMLCanvasElement) => {
-      return CanvasService.getCanvasCoordinates(clientX, clientY, foldedCanvas);
-    },
-    []
-  );
 
 
   // Common start drawing function
@@ -196,130 +190,15 @@ export function useCanvas() {
     ]
   );
 
-  // Handle mouse events for the folded canvas
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-      const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
+  // Helper to check if currently drawing
+  const isDrawing = useCallback(() => getState().isDrawing, [getState]);
 
-      startDrawing(coords.x, coords.y);
-    },
-    [getCanvasCoordinates, startDrawing]
+  // Canvas event handlers
+  const eventHandlers = useCanvasEvents(
+    { foldedCanvasRef, assertCanvasRef, unfoldedCanvasRef, foldedCtxRef, unfoldedCtxRef, getCanvasContext, getFoldedCanvasDimensions, getUnfoldedCanvasDimensions },
+    { startDrawing, continueDrawing, endDrawing, isDrawing }
   );
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-      const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
-
-      continueDrawing(coords.x, coords.y);
-    },
-    [getCanvasCoordinates, continueDrawing]
-  );
-
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-      const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
-
-      endDrawing(coords);
-    },
-    [getCanvasCoordinates, endDrawing]
-  );
-
-  const handleMouseLeave = useCallback(() => {
-    if (getState().isDrawing) {
-      if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
-      endDrawing(null);
-    }
-  }, [
-    getState,
-    dispatch,
-    getFoldedCanvasDimensions,
-    getUnfoldedCanvasDimensions,
-    updateUnfoldedCanvas,
-    drawDiagonalFoldLinesOnFolded,
-    isInValidDrawingArea,
-  ]);
-
-  // Handle touch events for mobile devices
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-        const coords = getCanvasCoordinates(
-          touch.clientX,
-          touch.clientY,
-          foldedCanvas
-        );
-        if (!coords) return;
-
-        startDrawing(coords.x, coords.y);
-      }
-    },
-    [getCanvasCoordinates, startDrawing]
-  );
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-        const coords = getCanvasCoordinates(
-          touch.clientX,
-          touch.clientY,
-          foldedCanvas
-        );
-        if (!coords) return;
-
-        continueDrawing(coords.x, coords.y);
-      }
-    },
-    [getCanvasCoordinates, continueDrawing]
-  );
-
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (
-        getState().isDrawing &&
-        e.changedTouches &&
-        e.changedTouches.length > 0
-      ) {
-        const touch = e.changedTouches[0];
-        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-        const coords = getCanvasCoordinates(
-          touch.clientX,
-          touch.clientY,
-          foldedCanvas
-        );
-        if (coords) {
-          endDrawing(coords);
-        }
-      }
-    },
-    [getState, getCanvasCoordinates, endDrawing]
-  );
-
-  const handleTouchCancel = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
-      endDrawing(null)
-    },
-    [
-      getState,
-      dispatch,
-      getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
-      updateUnfoldedCanvas,
-      drawDiagonalFoldLinesOnFolded,
-      isInValidDrawingArea,
-    ]
-  );
 
   // Function called when initializing or resetting the drawing canvas
   const resetCanvases = useCallback(() => {
@@ -416,14 +295,7 @@ export function useCanvas() {
     updateUnfoldedCanvas,
     resetCanvases,
     downloadUnfoldedCanvas,
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    handleMouseLeave,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    handleTouchCancel,
+    ...eventHandlers,
     undo,
     drawFromHistory,
   };
