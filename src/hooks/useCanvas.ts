@@ -1,8 +1,8 @@
-import { useRef, useCallback, useEffect, RefObject } from "react";
+import { useCallback } from "react";
 import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
 import { useAppDispatch } from "./useReduxHooks";
+import { useCanvasRefs } from "./useCanvasRefs";
 import {
-  CanvasDimensions,
   Point,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
@@ -10,7 +10,7 @@ import { debounce } from "lodash-es";
 import { ActionType } from "../store/shiboriCanvasState";
 import { useStore } from "react-redux";
 import { RootState } from "../store";
-import { CanvasService, CanvasContext } from "../services/CanvasService";
+import { CanvasService } from "../services/CanvasService";
 import { logger } from "../utils/logger";
 
 
@@ -23,46 +23,17 @@ export function useCanvas() {
   };
   const getState = useCallback(() => _getState().shibori, [_getState]);
 
-  // Canvas references
-  const unfoldedCanvasRef = useRef<HTMLCanvasElement>(null);
-  const foldedCanvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Canvas context references - shared across the app
-  const foldedCtxRef = useRef<CanvasRenderingContext2D | null>(null);
-  const unfoldedCtxRef = useRef<CanvasRenderingContext2D | null>(null);
-
-  // Initialize canvas contexts when canvas refs are available
-  useEffect(() => {
-    if (foldedCanvasRef.current) {
-      foldedCtxRef.current = foldedCanvasRef.current.getContext("2d", {
-        willReadFrequently: true,
-      });
-    }
-    if (unfoldedCanvasRef.current) {
-      unfoldedCtxRef.current = unfoldedCanvasRef.current.getContext("2d", {
-        willReadFrequently: true,
-      });
-    }
-  }, []);
-
-  // Helper to get canvas context
-  const getCanvasContext = useCallback((): CanvasContext | null => {
-    const unfoldedCanvas = unfoldedCanvasRef.current;
-    const foldedCanvas = foldedCanvasRef.current;
-    const unfoldedCtx = unfoldedCtxRef.current;
-    const foldedCtx = foldedCtxRef.current;
-
-    if (!unfoldedCanvas || !foldedCanvas || !unfoldedCtx || !foldedCtx) {
-      return null;
-    }
-
-    return {
-      unfoldedCanvas,
-      foldedCanvas,
-      unfoldedCtx,
-      foldedCtx
-    };
-  }, []);
+  // Use the canvas refs hook
+  const {
+    unfoldedCanvasRef,
+    foldedCanvasRef,
+    foldedCtxRef,
+    unfoldedCtxRef,
+    getCanvasContext,
+    getFoldedCanvasDimensions,
+    getUnfoldedCanvasDimensions,
+    assertCanvasRef,
+  } = useCanvasRefs();
 
   // Function to clear both canvases
   const clearCanvases = useCallback((backgroundColor?: string) => {
@@ -126,27 +97,6 @@ export function useCanvas() {
     []
   );
 
-  // Canvas dimension getters
-  const getFoldedCanvasDimensions = useCallback((): CanvasDimensions | null => {
-    const canvas = foldedCanvasRef.current;
-    if (!canvas) return null;
-
-    return {
-      width: canvas.width,
-      height: canvas.height,
-    };
-  }, []);
-
-  const getUnfoldedCanvasDimensions =
-    useCallback((): CanvasDimensions | null => {
-      const canvas = unfoldedCanvasRef.current;
-      if (!canvas) return null;
-
-      return {
-        width: canvas.width,
-        height: canvas.height,
-      };
-    }, []);
 
   // Common start drawing function
   const startDrawing = useCallback(
@@ -479,9 +429,3 @@ export function useCanvas() {
   };
 }
 
-function assertCanvasRef(canvasRef: RefObject<HTMLCanvasElement | null>) {
-  if (!canvasRef.current) {
-    throw new Error("Canvas ref is not set");
-  }
-  return canvasRef.current;
-}
