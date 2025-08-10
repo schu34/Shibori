@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useCanvas } from '../../hooks/useCanvas';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
-import { urlLoadTracker } from '../../App';
 import { useEffectDebugger } from '../../utils/debugging';
+import { logger } from '../../utils/logger';
 
 export const CanvasDisplay: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
@@ -30,13 +30,12 @@ export const CanvasDisplay: React.FC = () => {
     // Initialize canvases when dimensions or folds change
     useEffect(() => {
         // Don't reset canvases during URL loading - let the redraw trigger handle it
-        if (!state.isLoadingFromUrl && !urlLoadTracker.justLoaded && state.redrawTrigger === 0) {
-            console.log('CanvasDisplay - initializing canvases due to dimension/fold change');
+        if (!state.isLoadingFromUrl && state.redrawTrigger === 0) {
+            logger.canvas.operation('initializing canvases due to dimension/fold change');
             resetCanvases();
         } else {
-            console.log('CanvasDisplay - skipping canvas reset during URL loading/redraw', {
+            logger.canvas.operation('skipping canvas reset during URL loading/redraw', {
                 isLoadingFromUrl: state.isLoadingFromUrl,
-                justLoaded: urlLoadTracker.justLoaded,
                 redrawTrigger: state.redrawTrigger
             });
         }
@@ -45,7 +44,10 @@ export const CanvasDisplay: React.FC = () => {
     // Redraw canvas when redraw trigger changes (e.g., when loading from URL)
     useEffect(() => {
         if (state.redrawTrigger > 0 && state.history.length > 0) {
-            console.log('CanvasDisplay - redrawing from history due to redraw trigger');
+            logger.canvas.operation('redrawing from history due to redraw trigger', {
+                redrawTrigger: state.redrawTrigger,
+                historyLength: state.history.length
+            });
             resetCanvases();
             drawFromHistory(state.history);
             updateUnfoldedCanvas();
@@ -87,18 +89,21 @@ export const CanvasDisplay: React.FC = () => {
         }
         
         // Don't clear history during URL loading
-        if (!state.isLoadingFromUrl && !urlLoadTracker.justLoaded) {
-            console.log('CanvasDisplay - clearing undo history, isLoadingFromUrl:', state.isLoadingFromUrl, 'justLoaded:', urlLoadTracker.justLoaded);
+        if (!state.isLoadingFromUrl) {
+            logger.canvas.operation('clearing undo history', { isLoadingFromUrl: state.isLoadingFromUrl });
             dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
         } else {
-            console.log('CanvasDisplay - preserving history during URL load, isLoadingFromUrl:', state.isLoadingFromUrl, 'justLoaded:', urlLoadTracker.justLoaded, 'historyLength:', state.history.length);
+            logger.canvas.operation('preserving history during URL load', {
+                isLoadingFromUrl: state.isLoadingFromUrl,
+                historyLength: state.history.length
+            });
         }
         
         unfoldedCanvasRef.current.width = state.canvasDimensions.width;
         unfoldedCanvasRef.current.height = state.canvasDimensions.height;
         foldedCanvasRef.current.width = state.canvasDimensions.width / 2 ** state.folds.vertical;
         foldedCanvasRef.current.height = state.canvasDimensions.height / 2 ** state.folds.horizontal;
-        console.log('state.canvasDimensions', state.canvasDimensions);
+        logger.canvas.operation('updating canvas dimensions', state.canvasDimensions);
 
         // Reset canvases after dimension changes to ensure navy background is applied
         resetCanvases();
@@ -107,11 +112,13 @@ export const CanvasDisplay: React.FC = () => {
     // Finish URL loading after canvas setup is complete
     useEffect(() => {
         if (state.isLoadingFromUrl && unfoldedCanvasRef.current && foldedCanvasRef.current) {
-            console.log('CanvasDisplay - finishing URL loading after canvas setup, historyLength:', state.history.length);
+            logger.url.load('finishing URL loading after canvas setup', { 
+                historyLength: state.history.length 
+            });
             // Give a brief delay for canvas to be properly initialized
             const timeout = setTimeout(() => {
                 dispatch({ type: ActionType.FINISH_URL_LOADING });
-            }, 100);
+            }, 200); // Slightly longer delay to ensure canvas is ready
             return () => clearTimeout(timeout);
         }
     }, [state.isLoadingFromUrl, unfoldedCanvasRef, foldedCanvasRef, dispatch, state.history.length]);
