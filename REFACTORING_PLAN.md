@@ -35,13 +35,13 @@ This document tracks the progress of refactoring the Shibori React drawing app t
 - [x] **Extract CanvasService** - Move canvas operations to service layer ✅
 - [x] **E2E Test After CanvasService** - Ensure functionality preserved ✅
 
-### Phase 2: Split useCanvas Hook (Planned)
-- [ ] `src/hooks/useCanvasRefs.ts` - Canvas reference management
-- [ ] `src/hooks/useCanvasEvents.ts` - Mouse/touch event handling  
-- [ ] `src/hooks/useCanvasDrawing.ts` - Drawing operations
-- [ ] `src/hooks/useCanvasHistory.ts` - History management
-- [ ] Update main `useCanvas.ts` to orchestrate these hooks
-- [ ] **E2E tests after each extraction**
+### Phase 2: Split useCanvas Hook ✅
+- [x] `src/hooks/useCanvasRefs.ts` - Canvas reference management ✅
+- [x] `src/hooks/useCanvasEvents.ts` - Mouse/touch event handling ✅ 
+- [x] `src/hooks/useCanvasDrawing.ts` - Drawing operations ✅
+- [x] `src/hooks/useCanvasHistory.ts` - History management ✅
+- [x] Update main `useCanvas.ts` to orchestrate these hooks ✅
+- [x] **E2E tests after each extraction** ✅
 
 ### Phase 3: State Management Cleanup (Planned)
 - [ ] Split Redux state into logical slices
@@ -66,7 +66,11 @@ This document tracks the progress of refactoring the Shibori React drawing app t
 - `REFACTORING_PLAN.md` - This tracking document
 - `src/utils/logger.ts` - New centralized logging utility ✅
 - `src/services/CanvasService.ts` - New canvas operations service layer ✅  
-- `src/hooks/useCanvas.ts` - Refactored to use CanvasService ✅
+- `src/hooks/useCanvas.ts` - Heavily refactored, now orchestrates focused hooks ✅
+- `src/hooks/useCanvasRefs.ts` - Canvas reference and context management ✅
+- `src/hooks/useCanvasEvents.ts` - Mouse/touch event handling ✅
+- `src/hooks/useCanvasDrawing.ts` - Drawing operations and canvas updates ✅
+- `src/hooks/useCanvasHistory.ts` - History management and undo functionality ✅
 
 ## Test Results Log
 - **Baseline**: 2024-08-10 - All 5 E2E tests passing ✅
@@ -80,5 +84,22 @@ This document tracks the progress of refactoring the Shibori React drawing app t
   - CanvasService extraction successful - no regressions detected
   - Centralized logging implemented and working
 
+- **After Phase 2**: 2024-08-10 - All 5 E2E tests passing ✅
+  - Drawing functionality preserved (3115 white pixels detected)
+  - Event handling working correctly (mouse/touch)
+  - History and undo functionality preserved  
+  - Canvas mirroring still working (folded → unfolded)
+  - All focused hooks working in harmony
+
 ## Phase 1 Summary
 Successfully extracted all canvas operations into a dedicated service layer while preserving all functionality. The monolithic useCanvas hook has been significantly simplified by delegating canvas operations to the CanvasService. Centralized logging is now in place to improve debugging capabilities.
+
+## Phase 2 Summary  
+Successfully split the monolithic 721-line useCanvas hook into 4 focused hooks:
+1. **useCanvasRefs** - Canvas reference and context management (97 lines)
+2. **useCanvasEvents** - Mouse/touch event handling (134 lines) 
+3. **useCanvasDrawing** - Drawing operations and canvas updates (182 lines)
+4. **useCanvasHistory** - History management and undo (135 lines)
+5. **useCanvas** - Now a lightweight orchestrator (84 lines)
+
+**Total lines reduced from 721 to 84** in the main hook, with clear separation of concerns, improved testability, and maintainability. All functionality preserved with zero regressions.
