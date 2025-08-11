@@ -25,7 +25,8 @@ npm run test:e2e       # Run Playwright E2E tests
 npm run test:e2e:ui    # Run Playwright with UI
 
 # Code Quality
-npm run lint           # ESLint checking
+npm run lint           # ESLint checking  
+npm run build          # TypeScript build checking (IMPORTANT: Always run after changes)
 
 # Playwright E2E Test Commands (IMPORTANT: Use these for /tests directory)
 npm run test:e2e                    # Run all E2E tests

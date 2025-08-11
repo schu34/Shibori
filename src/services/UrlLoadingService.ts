@@ -21,7 +21,7 @@ export class UrlLoadingService {
 
         try {
             // Decode the URL parameter to state
-            const decodedState: SerializableState = decodeStateFromUrl(urlParam);
+            const decodedState: SerializableState | null = decodeStateFromUrl(urlParam);
             
             if (!decodedState) {
                 logger.url.load('failed to decode URL parameter, using default state');

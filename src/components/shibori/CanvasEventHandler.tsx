@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { logger } from '../../utils/logger';
 
 interface CanvasEventHandlerProps {
-    foldedCanvasRef: React.RefObject<HTMLCanvasElement>;
+    foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     onTouchStart: (e: React.TouchEvent<HTMLCanvasElement>) => void;
     onTouchMove: (e: React.TouchEvent<HTMLCanvasElement>) => void;
     onTouchEnd: (e: React.TouchEvent<HTMLCanvasElement>) => void;

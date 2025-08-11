@@ -1,9 +1,9 @@
-import React, { forwardRef } from 'react';
+import React from 'react';
 import { logger } from '../../utils/logger';
 
 interface CanvasRendererProps {
-    foldedCanvasRef: React.RefObject<HTMLCanvasElement>;
-    unfoldedCanvasRef: React.RefObject<HTMLCanvasElement>;
+    foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     canvasDimensions: { width: number; height: number };
     folds: {
         vertical: number;

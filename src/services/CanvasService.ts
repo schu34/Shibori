@@ -96,7 +96,7 @@ export class CanvasService {
   /**
    * Update folded canvas dimensions based on fold state
    */
-  static updateFoldedCanvasDimensions(context: CanvasContext, folds: FoldState): void {
+  static updateFoldedCanvasDimensions(context: CanvasContext, folds: FoldState): CanvasRenderingContext2D | null {
     logger.canvas.operation('updateFoldedCanvasDimensions', folds);
     
     const { foldedCanvas, unfoldedCanvas } = context;
@@ -243,7 +243,7 @@ export class CanvasService {
     x: number, 
     y: number, 
     folds: FoldState, 
-    foldedCanvas: HTMLCanvasElement
+    _foldedCanvas: HTMLCanvasElement
   ): boolean {
     // Only apply restriction if diagonal fold is active (count is 1 and canvas is square)
     if (folds.diagonal.count !== 1 || folds.vertical !== folds.horizontal) {

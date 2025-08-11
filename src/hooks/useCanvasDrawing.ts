@@ -4,7 +4,6 @@ import { useAppDispatch } from "./useReduxHooks";
 import { CanvasRefs } from "./useCanvasRefs";
 import {
   Point,
-  UndoableHistoryItem,
 } from "../types/DrawingMode";
 import { ActionType } from "../store/shiboriCanvasState";
 import { useStore } from "react-redux";

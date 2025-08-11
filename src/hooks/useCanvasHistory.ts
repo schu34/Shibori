@@ -33,32 +33,32 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
     unfoldedCanvasRef,
     foldedCtxRef,
     unfoldedCtxRef,
-    getCanvasContext,
     getFoldedCanvasDimensions,
     getUnfoldedCanvasDimensions,
   } = canvasRefs;
 
+
   // Function to draw fold lines on the unfolded canvas  
-  const drawFoldLines = useCallback(() => {
-    const context = getCanvasContext();
-    if (!context) return;
-    CanvasService.drawFoldLines(context, getState().folds);
-  }, [getState, getCanvasContext]);
+  // const drawFoldLines = useCallback(() => {
+  //   const context = getCanvasContext();
+  //   if (!context.unfoldedCtx || !context.foldedCtx) return;
+  //   CanvasService.drawFoldLines(context, getState().folds);
+  // }, [getState, getCanvasContext]);
 
   // Function called when initializing or resetting the drawing canvas
   const resetCanvases = useCallback(() => {
     logger.canvas.operation('resetCanvases called');
-    const context = getCanvasContext();
+    const context = canvasRefs.getCanvasContext();
     if (!context) return;
     CanvasService.resetCanvases(context, getState().folds);
-  }, [getCanvasContext, getState]);
+  }, [canvasRefs, getState]);
 
   // Function to update the unfolded canvas (for history replay)
   const updateUnfoldedCanvas = useCallback(() => {
-    const context = getCanvasContext();
+    const context = canvasRefs.getCanvasContext();
     if (!context) return;
     CanvasService.updateUnfoldedCanvas(context, getState().folds);
-  }, [getState, getCanvasContext]);
+  }, [getState, canvasRefs]);
 
   // Function to check if a point is in the valid drawing area (for history replay)
   const isInValidDrawingArea = useCallback(
@@ -72,10 +72,10 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
 
   // Function to draw diagonal fold lines (for history replay)
   const drawDiagonalFoldLinesOnFolded = useCallback(() => {
-    const context = getCanvasContext();
+    const context = canvasRefs.getCanvasContext();
     if (!context) return;
     CanvasService.drawDiagonalFoldLinesOnFolded(context, getState().folds);
-  }, [getState, getCanvasContext]);
+  }, [getState, canvasRefs]);
 
   // Function to replay drawing operations from history
   const drawFromHistory = useCallback(
@@ -114,7 +114,7 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
         }
         
         // Always call end with the last point (or first point if only 1 point)
-        const endPoint = points.length > 0 ? points[points.length - 1] : null;
+        const endPoint = points.length > 0 ? points[points.length - 1] : { x: 0, y: 0 };
         logger.canvas.event('mode.end', endPoint);
         const result = mode.end(endPoint, args);
         logger.canvas.operation('mode.end result', result);

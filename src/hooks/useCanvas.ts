@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { useAppDispatch } from "./useReduxHooks";
 import { useCanvasRefs } from "./useCanvasRefs";
 import { useCanvasEvents } from "./useCanvasEvents";
 import { useCanvasDrawing } from "./useCanvasDrawing";
@@ -7,11 +6,7 @@ import { useCanvasHistory } from "./useCanvasHistory";
 import { useStore } from "react-redux";
 import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
-import { logger } from "../utils/logger";
-
-
 export function useCanvas() {
-  const dispatch = useAppDispatch();
 
   //slightly cursed, no real need for the `shibori` namespace tbh but I don't feel like refactoring
   const { getState: _getState } = useStore<RootState>() as {
@@ -25,17 +20,12 @@ export function useCanvas() {
     unfoldedCanvasRef,
     foldedCanvasRef,
     foldedCtxRef,
-    unfoldedCtxRef,
     getCanvasContext,
   } = canvasRefs;
 
   // Use the canvas drawing hook
   const drawingOps = useCanvasDrawing(canvasRefs);
   const {
-    startDrawing,
-    continueDrawing,
-    endDrawing,
-    isDrawing,
     updateUnfoldedCanvas,
   } = drawingOps;
 
@@ -65,10 +55,7 @@ export function useCanvas() {
   const updateFoldedCanvasDimensions = useCallback(() => {
     const context = getCanvasContext();
     if (!context) return;
-    const newCtx = CanvasService.updateFoldedCanvasDimensions(context, getState().folds);
-    if (newCtx) {
-      foldedCtxRef.current = newCtx;
-    }
+    CanvasService.updateFoldedCanvasDimensions(context, getState().folds);
   }, [getState, getCanvasContext, foldedCtxRef]);
 
 

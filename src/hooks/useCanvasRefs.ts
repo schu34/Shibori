@@ -3,10 +3,14 @@ import { CanvasContext } from "../services/CanvasService";
 import { logger } from "../utils/logger";
 
 export interface CanvasRefs {
-  unfoldedCanvasRef: RefObject<HTMLCanvasElement>;
-  foldedCanvasRef: RefObject<HTMLCanvasElement>;
+  unfoldedCanvasRef: RefObject<HTMLCanvasElement | null>;
+  foldedCanvasRef: RefObject<HTMLCanvasElement | null>;
   foldedCtxRef: RefObject<CanvasRenderingContext2D | null>;
   unfoldedCtxRef: RefObject<CanvasRenderingContext2D | null>;
+  getCanvasContext: () => CanvasContext | null;
+  getFoldedCanvasDimensions: () => CanvasDimensions | null;
+  getUnfoldedCanvasDimensions: () => CanvasDimensions | null;
+  assertCanvasRef: (canvasRef: RefObject<HTMLCanvasElement | null>) => HTMLCanvasElement;
 }
 
 export interface CanvasDimensions {

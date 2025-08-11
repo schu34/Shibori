@@ -1,5 +1,5 @@
 import { State } from './shiboriCanvasState';
-import { DrawingTool, DiagonalDirection } from '../types';
+import { DrawingTool } from '../types';
 import { logger } from '../utils/logger';
 
 /**

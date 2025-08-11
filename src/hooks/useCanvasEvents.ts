@@ -75,7 +75,7 @@ export function useCanvasEvents(
 
   const handleMouseLeave = useCallback(() => {
     if (isDrawing()) {
-      logger.canvas.event("mouseLeave", { drawing: true });
+      logger.canvas.event("mouseLeave", { x: 0, y: 0 });
       endDrawing(null);
     }
   }, [isDrawing, endDrawing]);

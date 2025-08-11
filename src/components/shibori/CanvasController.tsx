@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
+import { useEffectDebugger } from '../../utils/debugging';
 import { logger } from '../../utils/logger';
 
 interface CanvasControllerProps {
-    unfoldedCanvasRef: React.RefObject<HTMLCanvasElement>;
-    foldedCanvasRef: React.RefObject<HTMLCanvasElement>;
+    unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     resetCanvases: () => void;
     drawFromHistory: (history: any[]) => void;
     updateUnfoldedCanvas: () => void;
@@ -53,7 +54,7 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
     }, [state.redrawTrigger, state.history, resetCanvases, drawFromHistory, updateUnfoldedCanvas]);
 
     // Handle canvas dimension updates and history management
-    useEffect(() => {
+    useEffectDebugger(() => {
         if (!unfoldedCanvasRef.current || !foldedCanvasRef.current) {
             return;
         }
@@ -85,8 +86,6 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         state.folds.vertical, 
         state.folds.horizontal, 
         state.folds.diagonal, 
-        resetCanvases, 
-        dispatch, 
         state.isLoadingFromUrl
     ]);
 
