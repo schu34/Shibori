@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useDispatch } from 'react-redux'
 import ShiboriCanvas from './components/ShiboriCanvas'
-import { getSharedStateFromCurrentUrl, clearSharedParamFromUrl } from './utils/urlStateUtils'
-import { ActionType } from './store/shiboriCanvasState'
+import { UrlLoadingService } from './services/UrlLoadingService'
 import { logger } from './utils/logger'
 import './App.css'
 
@@ -17,28 +16,31 @@ function App() {
       return
     }
 
-    // Check for shared state in URL when app loads
-    const sharedState = getSharedStateFromCurrentUrl()
+    // Check for shared state parameter in URL when app loads
+    const sharedParam = UrlLoadingService.getSharedParameterFromUrl(window.location)
     
-    logger.url.load('Checking for shared state in URL', { found: !!sharedState })
+    logger.url.load('Checking for shared state in URL', { found: !!sharedParam })
     
-    if (sharedState) {
-      logger.url.load('Loading shared state from URL', { 
-        historyLength: sharedState.history?.length || 0,
-        folds: sharedState.folds,
-        tool: sharedState.currentTool 
-      })
+    if (sharedParam && UrlLoadingService.validateUrlParameter(sharedParam)) {
+      logger.url.load('Loading shared state from URL via UrlLoadingService')
       
-      // Load the shared state into Redux (this sets isLoadingFromUrl: true)
-      dispatch({ type: ActionType.LOAD_STATE_FROM_URL, payload: sharedState })
-      
-      // Clean up URL to remove the shared parameter after a brief delay
-      setTimeout(() => {
-        clearSharedParamFromUrl()
-        logger.url.load('Cleaned up URL parameter')
-      }, 500);
+      // Load the shared state using the service
+      UrlLoadingService.loadStateFromUrl(sharedParam, dispatch)
+        .then(() => {
+          logger.url.load('Successfully loaded state from URL')
+          // Clean up URL parameter after successful loading
+          setTimeout(() => {
+            UrlLoadingService.cleanupUrlParameter(window.location)
+            logger.url.load('URL cleanup completed')
+          }, 500);
+        })
+        .catch((error) => {
+          logger.error('Failed to load state from URL', error, {
+            component: 'App'
+          })
+        });
     } else {
-      logger.url.load('No shared state found in URL')
+      logger.url.load('No valid shared state found in URL')
     }
 
     // Mark as processed so we don't run this again
