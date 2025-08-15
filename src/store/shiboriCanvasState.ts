@@ -1,5 +1,8 @@
 import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
+import { SerializableState } from '../utils/urlStateUtils';
+import { sanitizeState, validateState } from './stateValidation';
+import { logger } from '../utils/logger';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
@@ -25,6 +28,8 @@ export interface State {
         width: number;
         height: number;
     };
+    redrawTrigger: number; // Used to trigger canvas redraws
+    isLoadingFromUrl: boolean; // Flag to prevent history clearing during URL loads
 }
 
 // Initial state
@@ -49,7 +54,9 @@ export const initialState: State = {
         width: 1600,
         height: 1600
     },
-    history: []
+    history: [],
+    redrawTrigger: 0,
+    isLoadingFromUrl: false
 };
 
 // Action types enum
@@ -69,7 +76,11 @@ export enum ActionType {
     CLEAR_STROKE_POINTS = 'CLEAR_STROKE_POINTS',
     ADD_HISTORY_ITEM = 'ADD_HISTORY_ITEM',
     UNDO = 'UNDO',
-    CLEAR_UNDO_HISTORY = 'CLEAR_UNDO_HISTORY'
+    CLEAR_UNDO_HISTORY = 'CLEAR_UNDO_HISTORY',
+    LOAD_STATE_FROM_URL = 'LOAD_STATE_FROM_URL',
+    RESET_TO_INITIAL = 'RESET_TO_INITIAL',
+    REDRAW_FROM_HISTORY = 'REDRAW_FROM_HISTORY',
+    FINISH_URL_LOADING = 'FINISH_URL_LOADING'
 }
 
 // Action type definitions
@@ -89,35 +100,59 @@ export type Action =
     | { type: ActionType.CLEAR_STROKE_POINTS }
     | { type: ActionType.ADD_HISTORY_ITEM, payload: UndoableHistoryItem }
     | { type: ActionType.UNDO }
-    | { type: ActionType.CLEAR_UNDO_HISTORY };
+    | { type: ActionType.CLEAR_UNDO_HISTORY }
+    | { type: ActionType.LOAD_STATE_FROM_URL, payload: SerializableState }
+    | { type: ActionType.RESET_TO_INITIAL }
+    | { type: ActionType.REDRAW_FROM_HISTORY }
+    | { type: ActionType.FINISH_URL_LOADING };
 
-// Reducer function
+// Reducer function with state validation
 export function reducer(state: State, action: Action): State {
+    // Validate incoming state
+    if (!validateState(state)) {
+        logger.warn('Invalid state detected, sanitizing', {
+            component: 'Reducer',
+            data: { action: action.type }
+        });
+        state = sanitizeState(state);
+    }
+
+    let newState: State;
+    
     switch (action.type) {
         case ActionType.SET_CIRCLE_RADIUS:
-            return { ...state, circleRadius: action.payload };
+            newState = { ...state, circleRadius: Math.max(1, Math.min(200, action.payload)) };
+            break;
         case ActionType.SET_LINE_THICKNESS:
-            return { ...state, lineThickness: action.payload };
+            newState = { ...state, lineThickness: Math.max(1, Math.min(100, action.payload)) };
+            break;
         case ActionType.SET_CURRENT_TOOL:
-            return { ...state, currentTool: action.payload };
+            newState = { ...state, currentTool: action.payload };
+            break;
         case ActionType.SET_IS_DRAWING:
-            return { ...state, isDrawing: action.payload };
+            newState = { ...state, isDrawing: action.payload };
+            break;
         case ActionType.SET_LINE_START_POINT:
-            return { ...state, lineStartPoint: action.payload };
+            newState = { ...state, lineStartPoint: action.payload };
+            break;
         case ActionType.ADD_STROKE_POINT:
-            return { ...state, currentStrokePoints: [...state.currentStrokePoints, action.payload] };
+            newState = { ...state, currentStrokePoints: [...state.currentStrokePoints, action.payload] };
+            break;
         case ActionType.CLEAR_STROKE_POINTS:
-            return { ...state, currentStrokePoints: [] };
+            newState = { ...state, currentStrokePoints: [] };
+            break;
         case ActionType.UPDATE_FOLD: {
+            const maxFolds = state.config?.maxFolds || 3;
+            const clampedValue = Math.max(0, Math.min(maxFolds, action.payload.value));
             const newFolds = {
                 ...state.folds,
-                [action.payload.axis]: action.payload.value
+                [action.payload.axis]: clampedValue
             };
 
             // Check if canvas is still square after this update
             const isSquare =
-                (action.payload.axis === 'vertical' && action.payload.value === state.folds.horizontal) ||
-                (action.payload.axis === 'horizontal' && action.payload.value === state.folds.vertical);
+                (action.payload.axis === 'vertical' && clampedValue === state.folds.horizontal) ||
+                (action.payload.axis === 'horizontal' && clampedValue === state.folds.vertical);
 
             // If not square, reset diagonal folds
             if (!isSquare) {
@@ -128,17 +163,18 @@ export function reducer(state: State, action: Action): State {
                 };
             }
 
-            return {
+            newState = {
                 ...state,
                 folds: newFolds
             };
+            break;
         }
         case ActionType.TOGGLE_DIAGONAL_FOLD: {
             // Don't enable diagonal folds if canvas isn't square
             const isSquare = state.folds.vertical === state.folds.horizontal;
             const canEnable = action.payload && isSquare;
 
-            return {
+            newState = {
                 ...state,
                 folds: {
                     ...state.folds,
@@ -150,12 +186,13 @@ export function reducer(state: State, action: Action): State {
                     }
                 }
             };
+            break;
         }
         case ActionType.UPDATE_DIAGONAL_FOLD_COUNT: {
             // Enforce only one diagonal fold
-            const newCount = action.payload > 1 ? 1 : action.payload;
+            const newCount = Math.max(0, Math.min(1, action.payload));
 
-            return {
+            newState = {
                 ...state,
                 folds: {
                     ...state.folds,
@@ -165,9 +202,10 @@ export function reducer(state: State, action: Action): State {
                     }
                 },
             };
+            break;
         }
         case ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION:
-            return {
+            newState = {
                 ...state,
                 folds: {
                     ...state.folds,
@@ -177,34 +215,103 @@ export function reducer(state: State, action: Action): State {
                     }
                 },
             };
+            break;
         case ActionType.RESET_FOLDS:
-            return {
+            newState = {
                 ...state,
                 folds: {
                     ...initialState.folds
                 },
             };
+            break;
         case ActionType.SET_CANVAS_DIMENSIONS:
-            return {
+            // Validate and clamp canvas dimensions
+            const clampedWidth = Math.max(100, Math.min(3200, action.payload.width));
+            const clampedHeight = Math.max(100, Math.min(3200, action.payload.height));
+            newState = {
                 ...state,
-                canvasDimensions: action.payload
+                canvasDimensions: {
+                    width: clampedWidth,
+                    height: clampedHeight
+                }
             };
+            break;
         case ActionType.ADD_HISTORY_ITEM:
-            return {
+            newState = {
                 ...state,
                 history: [...state.history, action.payload]
             };
+            break;
         case ActionType.UNDO:
-            return {
+            newState = {
                 ...state,
                 history: state.history.slice(0, -1)
             };
+            break;
         case ActionType.CLEAR_UNDO_HISTORY:
-            return {
+            newState = {
                 ...state,
                 history: []
             };
+            break;
+        case ActionType.LOAD_STATE_FROM_URL:
+            logger.redux.action('LOAD_STATE_FROM_URL', {
+                historyLength: action.payload.history?.length || 0,
+                firstHistoryItem: action.payload.history?.[0] || null,
+                folds: action.payload.folds,
+                currentTool: action.payload.currentTool
+            });
+            
+            newState = {
+                ...state,
+                history: action.payload.history || [],
+                folds: action.payload.folds,
+                canvasDimensions: action.payload.canvasDimensions,
+                circleRadius: Math.max(1, Math.min(200, action.payload.circleRadius || state.circleRadius)),
+                lineThickness: Math.max(1, Math.min(100, action.payload.lineThickness || state.lineThickness)),
+                currentTool: action.payload.currentTool || state.currentTool,
+                // Reset transient drawing state
+                isDrawing: false,
+                lineStartPoint: null,
+                currentStrokePoints: [],
+                // Increment redraw trigger to force canvas redraw
+                redrawTrigger: state.redrawTrigger + 1,
+                // Mark that we're loading from URL to prevent history clearing
+                isLoadingFromUrl: true
+            };
+            break;
+        case ActionType.RESET_TO_INITIAL:
+            newState = {
+                ...initialState
+            };
+            break;
+        case ActionType.REDRAW_FROM_HISTORY:
+            newState = {
+                ...state,
+                redrawTrigger: state.redrawTrigger + 1
+            };
+            break;
+        case ActionType.FINISH_URL_LOADING:
+            newState = {
+                ...state,
+                isLoadingFromUrl: false
+            };
+            break;
         default:
-            return state;
+            newState = state;
+            break;
     }
+
+    // Validate the new state before returning
+    const validatedState = sanitizeState(newState);
+    
+    // Log state changes in development
+    if (process.env.NODE_ENV === 'development' && newState !== state) {
+        logger.redux.stateChange('State updated', {
+            action: action.type,
+            hasChanges: true
+        });
+    }
+    
+    return validatedState;
 } 
