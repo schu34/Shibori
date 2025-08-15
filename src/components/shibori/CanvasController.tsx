@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
-import { useEffectDebugger } from '../../utils/debugging';
 import { logger } from '../../utils/logger';
 import { CanvasService } from '../../services/CanvasService';
 
@@ -43,7 +42,8 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
                 redrawTrigger: state.redrawTrigger
             });
         }
-    }, [state.canvasDimensions, state.folds, resetCanvases, state.isLoadingFromUrl, state.redrawTrigger]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.canvasDimensions, state.folds, state.isLoadingFromUrl, state.redrawTrigger]);
 
     // Redraw canvas when redraw trigger changes (e.g., when loading from URL)
     useEffect(() => {
@@ -56,20 +56,31 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
             drawFromHistory(state.history);
             updateUnfoldedCanvas();
         }
-    }, [state.redrawTrigger, state.history, resetCanvases, drawFromHistory, updateUnfoldedCanvas]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps  
+    }, [state.redrawTrigger, state.history]);
 
-    // Only reset canvases when the actual canvas structure changes, not drawing state
-    useEffectDebugger(() => {
+    // Only reset canvases when actual structural changes occur (dimensions or folds)
+    useEffect(() => {
         if (!unfoldedCanvasRef.current || !foldedCanvasRef.current) {
             return;
         }
         
-        logger.canvas.operation('CanvasController: canvas structural change, resetting');
-        
-        // Clear undo history for structural changes (unless loading from URL)
-        if (!state.isLoadingFromUrl) {
-            dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
+        // Skip resets during active drawing to prevent clearing the canvas
+        if (state.isDrawing) {
+            logger.canvas.operation('CanvasController: skipping reset during active drawing');
+            return;
         }
+        
+        // Skip resets during URL loading - the redraw trigger handles this
+        if (state.isLoadingFromUrl) {
+            logger.canvas.operation('CanvasController: skipping reset during URL loading');
+            return;
+        }
+        
+        logger.canvas.operation('CanvasController: structural change detected, resetting canvas');
+        
+        // Clear undo history for structural changes
+        dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
         
         // Update canvas dimensions using CanvasService
         unfoldedCanvasRef.current.width = state.canvasDimensions.width;
@@ -106,20 +117,19 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
             }
         }
 
-        // Reset canvases after dimension changes
+        // Reset canvases after structural changes
         resetCanvases();
     }, [
+        // Only include dependencies that represent actual structural changes
         state.canvasDimensions.width,
         state.canvasDimensions.height, 
-        unfoldedCanvasRef, 
-        foldedCanvasRef, 
         state.folds.vertical, 
         state.folds.horizontal, 
         state.folds.diagonal.count,
         state.folds.diagonal.enabled,
-        state.folds.diagonal.direction,
-        state.isLoadingFromUrl
-        // NOTE: Removed state.isDrawing and checks to prevent interference with drawing
+        state.folds.diagonal.direction
+        // Removed: unfoldedCanvasRef, foldedCanvasRef, state.isLoadingFromUrl
+        // These can change during normal operations and don't represent structural changes
     ]);
 
     // Finish URL loading after canvas setup is complete
