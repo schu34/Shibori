@@ -64,12 +64,6 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
             return;
         }
         
-        // Only reset if we're not currently drawing (to avoid clearing during drawing operations)
-        if (state.isDrawing) {
-            logger.canvas.operation('CanvasController: skipping reset during drawing');
-            return;
-        }
-        
         logger.canvas.operation('CanvasController: canvas structural change, resetting');
         
         // Clear undo history for structural changes (unless loading from URL)
@@ -124,8 +118,8 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         state.folds.diagonal.count,
         state.folds.diagonal.enabled,
         state.folds.diagonal.direction,
-        state.isLoadingFromUrl,
-        state.isDrawing
+        state.isLoadingFromUrl
+        // NOTE: Removed state.isDrawing and checks to prevent interference with drawing
     ]);
 
     // Finish URL loading after canvas setup is complete

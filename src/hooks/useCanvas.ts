@@ -62,7 +62,7 @@ export function useCanvas() {
 
 
 
-  // Canvas event handlers - extract only the drawing callbacks needed
+  // Canvas event handlers - extract only the drawing callbacks needed  
   const drawingCallbacks = {
     startDrawing: drawingOps.startDrawing,
     continueDrawing: drawingOps.continueDrawing,

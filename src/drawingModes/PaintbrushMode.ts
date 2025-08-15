@@ -7,7 +7,6 @@ export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;
 
     start(point: Point, context: DrawingModeContext): void {
-        console.log('PaintbrushMode.start called with point:', point);
         const { dispatch, foldedCtx, getFoldedCanvasDimensions } = context;
 
         // Store canvas states for preview
