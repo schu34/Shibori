@@ -3,10 +3,13 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
 import { useEffectDebugger } from '../../utils/debugging';
 import { logger } from '../../utils/logger';
+import { CanvasService } from '../../services/CanvasService';
 
 interface CanvasControllerProps {
     unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    foldedCtxRef: React.RefObject<CanvasRenderingContext2D | null>;
+    unfoldedCtxRef: React.RefObject<CanvasRenderingContext2D | null>;
     resetCanvases: () => void;
     drawFromHistory: (history: any[]) => void;
     updateUnfoldedCanvas: () => void;
@@ -19,6 +22,8 @@ interface CanvasControllerProps {
 export const CanvasController: React.FC<CanvasControllerProps> = ({
     unfoldedCanvasRef,
     foldedCanvasRef,
+    foldedCtxRef,
+    unfoldedCtxRef,
     resetCanvases,
     drawFromHistory,
     updateUnfoldedCanvas
@@ -53,40 +58,74 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         }
     }, [state.redrawTrigger, state.history, resetCanvases, drawFromHistory, updateUnfoldedCanvas]);
 
-    // Handle canvas dimension updates and history management
+    // Only reset canvases when the actual canvas structure changes, not drawing state
     useEffectDebugger(() => {
         if (!unfoldedCanvasRef.current || !foldedCanvasRef.current) {
             return;
         }
         
-        // Don't clear history during URL loading
-        if (!state.isLoadingFromUrl) {
-            logger.canvas.operation('clearing undo history', { isLoadingFromUrl: state.isLoadingFromUrl });
-            dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
-        } else {
-            logger.canvas.operation('preserving history during URL load', {
-                isLoadingFromUrl: state.isLoadingFromUrl,
-                historyLength: state.history.length
-            });
+        // Only reset if we're not currently drawing (to avoid clearing during drawing operations)
+        if (state.isDrawing) {
+            logger.canvas.operation('CanvasController: skipping reset during drawing');
+            return;
         }
         
-        // Update canvas dimensions
+        logger.canvas.operation('CanvasController: canvas structural change, resetting');
+        
+        // Clear undo history for structural changes (unless loading from URL)
+        if (!state.isLoadingFromUrl) {
+            dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
+        }
+        
+        // Update canvas dimensions using CanvasService
         unfoldedCanvasRef.current.width = state.canvasDimensions.width;
         unfoldedCanvasRef.current.height = state.canvasDimensions.height;
-        foldedCanvasRef.current.width = state.canvasDimensions.width / 2 ** state.folds.vertical;
-        foldedCanvasRef.current.height = state.canvasDimensions.height / 2 ** state.folds.horizontal;
-        logger.canvas.operation('updating canvas dimensions', state.canvasDimensions);
+        
+        // Re-initialize unfolded context after dimension change
+        if (unfoldedCanvasRef.current) {
+            const ctx = unfoldedCanvasRef.current.getContext("2d", {
+                willReadFrequently: true,
+            });
+            unfoldedCtxRef.current = ctx;
+            logger.canvas.operation("re-initialized unfolded canvas context after dimension change");
+        }
 
-        // Reset canvases after dimension changes to ensure navy background is applied
+        // Use CanvasService to properly handle folded canvas dimensions and context
+        if (foldedCanvasRef.current && unfoldedCanvasRef.current && unfoldedCtxRef.current) {
+            // Create temporary context for the service call
+            const tempFoldedCtx = foldedCanvasRef.current.getContext("2d", {
+                willReadFrequently: true,
+            });
+            
+            if (tempFoldedCtx) {
+                const context = {
+                    foldedCanvas: foldedCanvasRef.current,
+                    unfoldedCanvas: unfoldedCanvasRef.current,
+                    foldedCtx: tempFoldedCtx,
+                    unfoldedCtx: unfoldedCtxRef.current
+                };
+                const newFoldedCtx = CanvasService.updateFoldedCanvasDimensions(context, state.folds);
+                if (newFoldedCtx) {
+                    foldedCtxRef.current = newFoldedCtx;
+                    logger.canvas.operation("updated folded canvas dimensions via CanvasService");
+                }
+            }
+        }
+
+        // Reset canvases after dimension changes
         resetCanvases();
     }, [
-        state.canvasDimensions, 
+        state.canvasDimensions.width,
+        state.canvasDimensions.height, 
         unfoldedCanvasRef, 
         foldedCanvasRef, 
         state.folds.vertical, 
         state.folds.horizontal, 
-        state.folds.diagonal, 
-        state.isLoadingFromUrl
+        state.folds.diagonal.count,
+        state.folds.diagonal.enabled,
+        state.folds.diagonal.direction,
+        state.isLoadingFromUrl,
+        state.isDrawing
     ]);
 
     // Finish URL loading after canvas setup is complete

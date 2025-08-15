@@ -33,7 +33,7 @@ export function useCanvasRefs() {
 
   // Initialize canvas contexts when canvas refs are available
   useEffect(() => {
-    if (foldedCanvasRef.current) {
+    if (foldedCanvasRef.current && !foldedCtxRef.current) {
       const ctx = foldedCanvasRef.current.getContext("2d", {
         willReadFrequently: true,
       });
@@ -41,14 +41,14 @@ export function useCanvasRefs() {
       logger.canvas.operation("initialized folded canvas context");
     }
     
-    if (unfoldedCanvasRef.current) {
+    if (unfoldedCanvasRef.current && !unfoldedCtxRef.current) {
       const ctx = unfoldedCanvasRef.current.getContext("2d", {
         willReadFrequently: true,
       });
       unfoldedCtxRef.current = ctx;
       logger.canvas.operation("initialized unfolded canvas context");
     }
-  }, []);
+  });
 
   // Helper to get complete canvas context - used by CanvasService
   const getCanvasContext = useCallback((): CanvasContext | null => {

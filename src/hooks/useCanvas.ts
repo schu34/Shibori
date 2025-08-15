@@ -20,6 +20,7 @@ export function useCanvas() {
     unfoldedCanvasRef,
     foldedCanvasRef,
     foldedCtxRef,
+    unfoldedCtxRef,
     getCanvasContext,
   } = canvasRefs;
 
@@ -61,8 +62,14 @@ export function useCanvas() {
 
 
 
-  // Canvas event handlers
-  const eventHandlers = useCanvasEvents(canvasRefs, drawingOps);
+  // Canvas event handlers - extract only the drawing callbacks needed
+  const drawingCallbacks = {
+    startDrawing: drawingOps.startDrawing,
+    continueDrawing: drawingOps.continueDrawing,
+    endDrawing: drawingOps.endDrawing,
+    isDrawing: drawingOps.isDrawing,
+  };
+  const eventHandlers = useCanvasEvents(canvasRefs, drawingCallbacks);
 
 
   // Function to download the unfolded canvas as an image
@@ -75,6 +82,8 @@ export function useCanvas() {
   return {
     unfoldedCanvasRef,
     foldedCanvasRef,
+    foldedCtxRef,
+    unfoldedCtxRef,
     clearCanvases,
     updateFoldedCanvasDimensions,
     drawFoldLines,

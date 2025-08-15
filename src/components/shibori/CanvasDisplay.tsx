@@ -17,6 +17,8 @@ export const CanvasDisplay: React.FC = () => {
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
+        foldedCtxRef,
+        unfoldedCtxRef,
         resetCanvases,
         handleMouseDown,
         handleMouseMove,
@@ -43,6 +45,8 @@ export const CanvasDisplay: React.FC = () => {
             <CanvasController
                 unfoldedCanvasRef={unfoldedCanvasRef}
                 foldedCanvasRef={foldedCanvasRef}
+                foldedCtxRef={foldedCtxRef}
+                unfoldedCtxRef={unfoldedCtxRef}
                 resetCanvases={resetCanvases}
                 drawFromHistory={drawFromHistory}
                 updateUnfoldedCanvas={updateUnfoldedCanvas}

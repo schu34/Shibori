@@ -54,7 +54,6 @@ export class PaintbrushMode implements DrawingMode {
         }
 
         // Draw the stroke
-        console.log('PaintbrushMode - drawing stroke with', stroke.length, 'points, color:', config.lineColor);
         foldedCtx.fillStyle = config.lineColor;
         foldedCtx.beginPath();
 

@@ -110,12 +110,12 @@ This document tracks the progress of refactoring the Shibori React drawing app t
   - State validation and sanitization active
   - Better error handling and debugging capabilities
 
-- **After Phase 4**: 2024-08-10 - All 5 E2E tests passing ✅
-  - Drawing functionality preserved (3115 white pixels detected)
+- **After Phase 4**: 2024-08-11 - 3/5 E2E tests passing ⚠️
+  - **ISSUE**: 2 drawing-related tests failing (0 white pixels instead of 3115)
   - Component responsibility separation successful
-  - CanvasDisplay split into 3 focused components
+  - CanvasDisplay split into 3 focused components (57% size reduction)
   - URL loading extracted to dedicated service
-  - Improved testability and maintainability
+  - Architecture improvements achieved but drawing functionality needs resolution
 
 ## Phase 1 Summary
 Successfully extracted all canvas operations into a dedicated service layer while preserving all functionality. The monolithic useCanvas hook has been significantly simplified by delegating canvas operations to the CanvasService. Centralized logging is now in place to improve debugging capabilities.
@@ -171,5 +171,22 @@ Successfully completed the final phase of component responsibility separation:
 ### Final Architecture:
 - **Original CanvasDisplay**: 174 lines → **New CanvasDisplay**: 74 lines (-57% reduction)
 - **Total new focused files**: 4 components + 1 service
-- **Zero functionality loss**: All E2E tests continue to pass
-- **Same performance**: Drawing still produces identical pixel counts
+- **Architecture success**: Clean separation of concerns achieved
+- **Known issue**: 2 drawing tests failing - likely canvas context lifecycle timing issue
+
+### Outstanding Issues:
+After Phase 4 refactoring, 2 E2E tests are failing related to drawing functionality:
+- `can draw on the folded canvas` - 0 white pixels detected instead of ~3115
+- `drawing updates both folded and unfolded canvas` - No mirroring occurring
+
+**Root cause analysis attempted:**
+1. Canvas context initialization timing after component separation
+2. Event handler connection between new component architecture
+3. Canvas dimension changes resetting contexts
+4. Drawing mode execution flow through new service layer
+
+**Architectural value delivered despite issue:**
+- Clean service-oriented architecture
+- Better separation of concerns
+- Improved testability and maintainability
+- Significant code complexity reduction

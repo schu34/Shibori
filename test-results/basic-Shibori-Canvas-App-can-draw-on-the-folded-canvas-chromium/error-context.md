@@ -24,7 +24,7 @@
 - slider "Brush Thickness:": "20"
 - text: 20 px
 - heading "Share Your Drawing" [level=3]
-- button "Generate Share Link"
+- paragraph: Create some drawings to generate a shareable link
 - text: "Canvas Width:"
 - spinbutton "Canvas Width:": "1600"
 - text: "Height:"
