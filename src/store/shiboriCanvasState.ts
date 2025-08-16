@@ -45,7 +45,7 @@ export const initialState: State = {
         vertical: 1,
         horizontal: 1,
         diagonal: {
-            enabled: false,
+            enabled: true,
             count: 1,
             direction: DiagonalDirection.TopRightToBottomLeft
         }
@@ -117,6 +117,19 @@ export function reducer(state: State, action: Action): State {
         state = sanitizeState(state);
     }
 
+    // Debug all actions that could affect history
+    if (action.type === ActionType.LOAD_STATE_FROM_URL || 
+        action.type === ActionType.CLEAR_UNDO_HISTORY ||
+        action.type === ActionType.UNDO ||
+        action.type === ActionType.ADD_HISTORY_ITEM ||
+        state.history.length > 0) {
+        logger.redux.action(`REDUCER: ${action.type}`, {
+            inputHistoryLength: state.history.length,
+            isLoadingFromUrl: state.isLoadingFromUrl,
+            redrawTrigger: state.redrawTrigger
+        });
+    }
+
     let newState: State;
     
     switch (action.type) {
@@ -149,19 +162,27 @@ export function reducer(state: State, action: Action): State {
                 [action.payload.axis]: clampedValue
             };
 
-            // Check if canvas is still square after this update
-            const isSquare =
-                (action.payload.axis === 'vertical' && clampedValue === state.folds.horizontal) ||
-                (action.payload.axis === 'horizontal' && clampedValue === state.folds.vertical);
+            // Check if canvas will be square after this update
+            const newVertical = action.payload.axis === 'vertical' ? clampedValue : state.folds.vertical;
+            const newHorizontal = action.payload.axis === 'horizontal' ? clampedValue : state.folds.horizontal;
+            const isSquare = newVertical === newHorizontal;
 
-            // If not square, reset diagonal folds
+            // If not square, disable diagonal folds; if becoming square, restore default diagonal state
             if (!isSquare) {
                 newFolds.diagonal = {
                     ...state.folds.diagonal,
                     enabled: false,
                     count: 0
                 };
+            } else if (isSquare && !state.folds.diagonal.enabled) {
+                // If canvas becomes square and diagonal folding was disabled, restore it to default state
+                newFolds.diagonal = {
+                    ...state.folds.diagonal,
+                    enabled: true,
+                    count: 1
+                };
             }
+            // Keep diagonal folds unchanged if canvas was already square
 
             newState = {
                 ...state,
@@ -198,7 +219,9 @@ export function reducer(state: State, action: Action): State {
                     ...state.folds,
                     diagonal: {
                         ...state.folds.diagonal,
-                        count: newCount
+                        count: newCount,
+                        // Auto-enable diagonal folding when count > 0, disable when count = 0
+                        enabled: newCount > 0
                     }
                 },
             };
@@ -249,10 +272,25 @@ export function reducer(state: State, action: Action): State {
             };
             break;
         case ActionType.CLEAR_UNDO_HISTORY:
-            newState = {
-                ...state,
-                history: []
-            };
+            logger.redux.action('CLEAR_UNDO_HISTORY', {
+                currentHistoryLength: state.history.length,
+                isLoadingFromUrl: state.isLoadingFromUrl,
+                redrawTrigger: state.redrawTrigger
+            });
+            
+            // Don't clear history during URL loading to preserve loaded history
+            if (state.isLoadingFromUrl && state.history.length > 0) {
+                logger.redux.action('PREVENTING history clear during URL loading', {
+                    historyLength: state.history.length,
+                    isLoadingFromUrl: state.isLoadingFromUrl
+                });
+                newState = state; // No change
+            } else {
+                newState = {
+                    ...state,
+                    history: []
+                };
+            }
             break;
         case ActionType.LOAD_STATE_FROM_URL:
             logger.redux.action('LOAD_STATE_FROM_URL', {
@@ -279,6 +317,12 @@ export function reducer(state: State, action: Action): State {
                 // Mark that we're loading from URL to prevent history clearing
                 isLoadingFromUrl: true
             };
+            
+            logger.redux.action('LOAD_STATE_FROM_URL result', {
+                resultHistoryLength: newState.history.length,
+                resultRedrawTrigger: newState.redrawTrigger,
+                resultIsLoadingFromUrl: newState.isLoadingFromUrl
+            });
             break;
         case ActionType.RESET_TO_INITIAL:
             newState = {
