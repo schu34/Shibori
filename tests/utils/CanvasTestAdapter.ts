@@ -135,12 +135,48 @@ export abstract class CanvasTestAdapter {
  * @returns The appropriate adapter instance
  */
 export function getCanvasAdapter(canvas: HTMLCanvasElement): CanvasTestAdapter {
-  // Try WebGL adapter first (when implemented)
-  // For now, always return Canvas2D adapter
+  // Lazy imports to avoid circular dependencies
+  const { Canvas2DTestAdapter } = require('./Canvas2DTestAdapter');
+  const { WebGLTestAdapter } = require('./WebGLTestAdapter');
   
-  // Lazy import to avoid circular dependencies
-  // We'll replace this with proper imports when the module system is stable
-  const Canvas2DTestAdapter = require('./Canvas2DTestAdapter').Canvas2DTestAdapter;
+  // Try WebGL adapter first if canvas has WebGL context
+  const webglAdapter = new WebGLTestAdapter();
+  if (webglAdapter.supports(canvas)) {
+    return webglAdapter;
+  }
+  
+  // Fallback to Canvas 2D adapter
+  const canvas2dAdapter = new Canvas2DTestAdapter();
+  if (canvas2dAdapter.supports(canvas)) {
+    return canvas2dAdapter;
+  }
+  
+  // Default to Canvas 2D adapter if no context is detected
+  return canvas2dAdapter;
+}
+
+/**
+ * Factory function with explicit adapter type preference
+ * @param canvas The canvas element to get an adapter for
+ * @param preferredType Preferred adapter type ('webgl' or '2d')
+ * @returns The appropriate adapter instance
+ */
+export function getCanvasAdapterWithPreference(
+  canvas: HTMLCanvasElement, 
+  preferredType: 'webgl' | '2d' = 'webgl'
+): CanvasTestAdapter {
+  // Lazy imports to avoid circular dependencies
+  const { Canvas2DTestAdapter } = require('./Canvas2DTestAdapter');
+  const { WebGLTestAdapter } = require('./WebGLTestAdapter');
+  
+  if (preferredType === 'webgl') {
+    const webglAdapter = new WebGLTestAdapter();
+    if (webglAdapter.supports(canvas)) {
+      return webglAdapter;
+    }
+  }
+  
+  // Fallback or explicit Canvas 2D preference
   return new Canvas2DTestAdapter();
 }
 

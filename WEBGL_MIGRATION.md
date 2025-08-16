@@ -14,11 +14,11 @@ Migrating the shibori drawing app from Canvas 2D API to WebGL for improved perfo
 
 ### Phase 1: Setup Planning & Test Infrastructure ✅
 - [x] Create `WEBGL_MIGRATION.md` planning document in repo root
-- [ ] Create abstract `CanvasTestAdapter` interface in `tests/utils/`
-- [ ] Implement `Canvas2DTestAdapter` wrapping existing test logic
-- [ ] Update `canvasHelpers.ts` to use adapter pattern
-- [ ] Verify all existing tests still pass with adapter layer
-- [ ] **Commit**: "Add canvas test adapter infrastructure"
+- [x] Create abstract `CanvasTestAdapter` interface in `tests/utils/`
+- [x] Implement `Canvas2DTestAdapter` wrapping existing test logic
+- [x] Update `canvasHelpers.ts` to use adapter pattern
+- [x] Verify all existing tests still pass with adapter layer
+- [x] **Commit**: "Add canvas test adapter infrastructure"
 
 ### Phase 2: WebGL Test Compatibility
 - [ ] Implement `WebGLTestAdapter` with `gl.readPixels()` support
@@ -169,5 +169,5 @@ interface CanvasTestAdapter {
 ---
 
 **Last Updated**: 2025-08-16
-**Status**: Phase 1 - In Progress
-**Current Task**: Creating test adapter infrastructure
+**Status**: Phase 1 - Complete ✅
+**Current Task**: Ready for Phase 2 - WebGL Test Compatibility
