@@ -34,16 +34,21 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
     useEffect(() => {
         // Don't reset canvases during URL loading - let the redraw trigger handle it
         if (!state.isLoadingFromUrl && state.redrawTrigger === 0) {
-            logger.canvas.operation('initializing canvases due to dimension/fold change');
+            logger.canvas.operation('initializing canvases due to dimension/fold change', {
+                historyLength: state.history.length,
+                isLoadingFromUrl: state.isLoadingFromUrl,
+                redrawTrigger: state.redrawTrigger
+            });
             resetCanvases();
         } else {
             logger.canvas.operation('skipping canvas reset during URL loading/redraw', {
                 isLoadingFromUrl: state.isLoadingFromUrl,
-                redrawTrigger: state.redrawTrigger
+                redrawTrigger: state.redrawTrigger,
+                historyLength: state.history.length
             });
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.canvasDimensions, state.folds, state.isLoadingFromUrl, state.redrawTrigger]);
+    }, [state.canvasDimensions, state.isLoadingFromUrl, state.redrawTrigger]);
 
     // Redraw canvas when redraw trigger changes (e.g., when loading from URL)
     useEffect(() => {
@@ -73,14 +78,35 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         
         // Skip resets during URL loading - the redraw trigger handles this
         if (state.isLoadingFromUrl) {
-            logger.canvas.operation('CanvasController: skipping reset during URL loading');
+            logger.canvas.operation('CanvasController: skipping reset during URL loading', {
+                historyLength: state.history.length,
+                redrawTrigger: state.redrawTrigger
+            });
             return;
         }
         
         logger.canvas.operation('CanvasController: structural change detected, resetting canvas');
         
-        // Clear undo history for structural changes
-        dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
+        // Clear undo history for structural changes, but NOT during URL loading
+        // URL loading should preserve its loaded history
+        const shouldClearHistory = !state.isLoadingFromUrl && state.redrawTrigger === 0;
+        logger.canvas.operation('history clearing decision', {
+            shouldClearHistory,
+            isLoadingFromUrl: state.isLoadingFromUrl,
+            redrawTrigger: state.redrawTrigger,
+            historyLength: state.history.length
+        });
+        
+        if (shouldClearHistory) {
+            logger.canvas.operation('clearing undo history for structural change');
+            dispatch({ type: ActionType.CLEAR_UNDO_HISTORY });
+        } else {
+            logger.canvas.operation('preserving history during URL loading/redraw', {
+                isLoadingFromUrl: state.isLoadingFromUrl,
+                redrawTrigger: state.redrawTrigger,
+                historyLength: state.history.length
+            });
+        }
         
         // Update canvas dimensions using CanvasService
         unfoldedCanvasRef.current.width = state.canvasDimensions.width;
@@ -117,8 +143,17 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
             }
         }
 
-        // Reset canvases after structural changes
-        resetCanvases();
+        // Reset canvases after structural changes, but not if we just loaded from URL
+        // and have drawing history to preserve
+        if (state.redrawTrigger === 0 || state.history.length === 0) {
+            logger.canvas.operation('resetting canvases for structural change');
+            resetCanvases();
+        } else {
+            logger.canvas.operation('skipping canvas reset to preserve loaded drawing', {
+                redrawTrigger: state.redrawTrigger,
+                historyLength: state.history.length
+            });
+        }
     }, [
         // Only include dependencies that represent actual structural changes
         state.canvasDimensions.width,
@@ -127,8 +162,10 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         state.folds.horizontal, 
         state.folds.diagonal.count,
         state.folds.diagonal.enabled,
-        state.folds.diagonal.direction
-        // Removed: unfoldedCanvasRef, foldedCanvasRef, state.isLoadingFromUrl
+        state.folds.diagonal.direction,
+        // Include isLoadingFromUrl so effect can react when URL loading finishes
+        state.isLoadingFromUrl
+        // Removed: unfoldedCanvasRef, foldedCanvasRef
         // These can change during normal operations and don't represent structural changes
     ]);
 
@@ -141,6 +178,14 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
             // Give a brief delay for canvas to be properly initialized
             const timeout = setTimeout(() => {
                 dispatch({ type: ActionType.FINISH_URL_LOADING });
+                // Force one more redraw after URL loading completes to ensure drawing appears
+                // This works around timing issues with the automatic redraw during loading
+                if (state.history.length > 0) {
+                    setTimeout(() => {
+                        logger.url.load('triggering final redraw after URL loading completes');
+                        dispatch({ type: ActionType.REDRAW_FROM_HISTORY });
+                    }, 100);
+                }
             }, 200); // Slightly longer delay to ensure canvas is ready
             return () => clearTimeout(timeout);
         }

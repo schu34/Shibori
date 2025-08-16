@@ -40,7 +40,11 @@ function App() {
           })
         });
     } else {
-      logger.url.load('No valid shared state found in URL')
+      if (sharedParam) {
+        logger.url.load('Invalid shared parameter found, ignoring and using default state')
+      } else {
+        logger.url.load('No shared state found in URL')
+      }
     }
 
     // Mark as processed so we don't run this again

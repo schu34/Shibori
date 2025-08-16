@@ -137,6 +137,14 @@ export function sanitizeState(state: State): State {
 
     // Ensure arrays
     if (!Array.isArray(sanitized.history)) {
+        logger.warn('History was not an array, resetting to empty', {
+            component: 'StateValidation',
+            data: { 
+                historyType: typeof sanitized.history,
+                historyValue: sanitized.history,
+                isLoadingFromUrl: sanitized.isLoadingFromUrl 
+            }
+        });
         sanitized.history = [];
     }
     if (!Array.isArray(sanitized.currentStrokePoints)) {

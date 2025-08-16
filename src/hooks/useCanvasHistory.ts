@@ -47,10 +47,15 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
 
   // Function called when initializing or resetting the drawing canvas
   const resetCanvases = useCallback(() => {
-    logger.canvas.operation('resetCanvases called');
+    const currentState = getState();
+    logger.canvas.operation('resetCanvases called', {
+      historyLength: currentState.history.length,
+      isLoadingFromUrl: currentState.isLoadingFromUrl,
+      redrawTrigger: currentState.redrawTrigger
+    });
     const context = canvasRefs.getCanvasContext();
     if (!context) return;
-    CanvasService.resetCanvases(context, getState().folds);
+    CanvasService.resetCanvases(context, currentState.folds);
   }, [canvasRefs, getState]);
 
   // Function to update the unfolded canvas (for history replay)

@@ -65,10 +65,12 @@ export class CanvasService {
     const width = unfoldedCanvas.width;
     const height = unfoldedCanvas.height;
 
-    unfoldedCtx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-    unfoldedCtx.lineWidth = 1;
+
+    unfoldedCtx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    unfoldedCtx.lineWidth = 2;
 
     // Draw vertical fold lines
+    let verticalLinesDrawn = 0;
     for (let i = 1; i <= folds.vertical; i++) {
       const segments = Math.pow(2, i);
       for (let j = 1; j < segments; j++) {
@@ -77,6 +79,7 @@ export class CanvasService {
         unfoldedCtx.moveTo(x, 0);
         unfoldedCtx.lineTo(x, height);
         unfoldedCtx.stroke();
+        verticalLinesDrawn++;
       }
     }
 
@@ -91,6 +94,26 @@ export class CanvasService {
         unfoldedCtx.stroke();
       }
     }
+
+    // Draw diagonal fold lines if enabled and canvas is square
+    if (folds.diagonal.enabled && folds.diagonal.count === 1 && folds.vertical === folds.horizontal) {
+      unfoldedCtx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      unfoldedCtx.lineWidth = 2;
+      unfoldedCtx.setLineDash([5, 3]); // Make diagonal lines dashed
+
+      // Draw the main diagonal fold line
+      unfoldedCtx.beginPath();
+      if (folds.diagonal.direction === 'topRightToBottomLeft') {
+        unfoldedCtx.moveTo(width, 0);
+        unfoldedCtx.lineTo(0, height);
+      } else {
+        unfoldedCtx.moveTo(0, 0);
+        unfoldedCtx.lineTo(width, height);
+      }
+      unfoldedCtx.stroke();
+      unfoldedCtx.setLineDash([]); // Reset line style
+    }
+    
   }
 
   /**
@@ -124,8 +147,8 @@ export class CanvasService {
    * Draw diagonal fold lines on the folded canvas
    */
   static drawDiagonalFoldLinesOnFolded(context: CanvasContext, folds: FoldState): void {
-    // Only draw if diagonal folds are exactly one fold, and canvas is square
-    if (folds.diagonal.count !== 1 || folds.vertical !== folds.horizontal) {
+    // Only draw if diagonal folds are enabled, exactly one fold, and canvas is square
+    if (!folds.diagonal.enabled || folds.diagonal.count !== 1 || folds.vertical !== folds.horizontal) {
       return;
     }
 
@@ -135,8 +158,8 @@ export class CanvasService {
     const width = foldedCanvas.width;
     const height = foldedCanvas.height;
 
-    foldedCtx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-    foldedCtx.lineWidth = 1;
+    foldedCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    foldedCtx.lineWidth = 3;
     foldedCtx.setLineDash([5, 3]); // Make diagonal lines dashed
 
     // Draw the diagonal fold line (top-left to bottom-right)
