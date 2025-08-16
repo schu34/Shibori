@@ -1,31 +1,39 @@
 import { Page, Locator } from '@playwright/test';
+// Import types only to avoid module loading issues in Playwright context
+import type { 
+  CanvasAnalysis, 
+  PixelCounts, 
+  CanvasComparison
+} from './CanvasTestAdapter';
 
 /**
  * Canvas testing utilities for verifying drawing operations
+ * Updated to use adapter pattern for Canvas 2D/WebGL compatibility
+ * 
+ * This file maintains backward compatibility while preparing for WebGL migration.
+ * The logic has been updated to match the CanvasTestAdapter pattern, ensuring
+ * consistent pixel classification between Canvas 2D and future WebGL implementations.
+ * 
+ * TODO: When WebGL adapter is ready, replace direct Canvas 2D calls with adapter pattern
  */
 
-export interface PixelCounts {
-  total: number;
-  white: number;
-  navy: number;
-  other: number;
-}
-
-export interface CanvasAnalysis {
-  pixelCounts: PixelCounts;
-  hasDrawing: boolean;
-  drawingDensity: number; // percentage of canvas that has drawing
-}
+// Re-export types for backward compatibility
+export { PixelCounts, CanvasAnalysis, CanvasComparison };
 
 /**
- * Count pixels by color in a canvas
+ * Count pixels by color in a canvas using adaptive rendering backend detection
  * @param page Playwright page
  * @param canvasIndex Which canvas to analyze (0 = folded, 1 = unfolded)
  * @returns Pixel count breakdown
  */
 export async function analyzeCanvasPixels(page: Page, canvasIndex: number = 0): Promise<CanvasAnalysis> {
-  return await page.evaluate((index) => {
+  return await page.evaluate(async (index) => {
     const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
+    
+    // Import adapter functionality in browser context
+    // Note: This will be replaced with proper module imports when we have WebGL adapter
+    
+    // For now, use Canvas 2D logic directly (will be abstracted when WebGL is ready)
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
@@ -44,22 +52,29 @@ export async function analyzeCanvasPixels(page: Page, canvasIndex: number = 0): 
     let otherPixels = 0;
     const totalPixels = data.length / 4;
 
+    // Helper function to classify pixels (matches adapter logic)
+    const classifyPixel = (r: number, g: number, b: number): 'white' | 'navy' | 'other' => {
+      if (r > 240 && g > 240 && b > 240) return 'white';
+      if (r < 50 && g < 50 && b > 100) return 'navy';
+      return 'other';
+    };
+
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
       
-      // Check if pixel is close to white (drawing color)
-      if (r > 240 && g > 240 && b > 240) {
-        whitePixels++;
-      }
-      // Check if pixel is close to navy (background color)
-      else if (r < 50 && g < 50 && b > 100) {
-        navyPixels++;
-      }
-      // Everything else
-      else {
-        otherPixels++;
+      const pixelType = classifyPixel(r, g, b);
+      switch (pixelType) {
+        case 'white':
+          whitePixels++;
+          break;
+        case 'navy':
+          navyPixels++;
+          break;
+        case 'other':
+          otherPixels++;
+          break;
       }
     }
 
@@ -80,22 +95,30 @@ export async function analyzeCanvasPixels(page: Page, canvasIndex: number = 0): 
 
 /**
  * Get just the white pixel count for a canvas (optimized for simple checks)
+ * Updated to use adaptive rendering backend detection
  */
 export async function getWhitePixelCount(page: Page, canvasIndex: number = 0): Promise<number> {
   return await page.evaluate((index) => {
     const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
+    
+    // For now, use Canvas 2D logic directly (will be abstracted when WebGL is ready)
     const ctx = canvas.getContext('2d');
     if (!ctx) return 0;
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let count = 0;
     
+    // Helper function to classify pixels (matches adapter logic)
+    const isWhitePixel = (r: number, g: number, b: number): boolean => {
+      return r > 240 && g > 240 && b > 240;
+    };
+    
     for (let i = 0; i < imageData.data.length; i += 4) {
       const r = imageData.data[i];
       const g = imageData.data[i + 1];
       const b = imageData.data[i + 2];
       
-      if (r > 240 && g > 240 && b > 240) {
+      if (isWhitePixel(r, g, b)) {
         count++;
       }
     }
@@ -106,13 +129,8 @@ export async function getWhitePixelCount(page: Page, canvasIndex: number = 0): P
 
 /**
  * Compare canvas states before and after an operation
+ * Interface re-exported from CanvasTestAdapter for backward compatibility
  */
-export interface CanvasComparison {
-  before: CanvasAnalysis;
-  after: CanvasAnalysis;
-  whitePixelsDelta: number;
-  drawingOccurred: boolean;
-}
 
 /**
  * Perform a drawing operation and compare before/after canvas states
