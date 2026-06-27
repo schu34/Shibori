@@ -1,4 +1,4 @@
-# CLAUDE.md - Shibori React Drawing App
+# AGENTS.md - Shibori React Drawing App
 
 ## Project Overview
 This is a React-based digital shibori (Japanese tie-dye) drawing application that allows users to draw on a folded canvas and see the symmetric patterns created on an unfolded canvas. The app includes shareable links functionality to save and restore drawing sessions.

@@ -15,6 +15,7 @@ export interface DrawingModeContext {
     dispatch: React.Dispatch<Action>;
     foldedCtx: CanvasRenderingContext2D
     unfoldedCtx: CanvasRenderingContext2D
+    foldedCanvas?: HTMLCanvasElement;
     getFoldedCanvasDimensions: () => CanvasDimensions | null;
     getUnfoldedCanvasDimensions: () => CanvasDimensions | null;
     updateUnfoldedCanvas: () => void;

@@ -162,21 +162,37 @@ export class CanvasService {
     foldedCtx.lineWidth = 3;
     foldedCtx.setLineDash([5, 3]); // Make diagonal lines dashed
 
-    // Draw the diagonal fold line (top-left to bottom-right)
     foldedCtx.beginPath();
-    foldedCtx.moveTo(0, 0);
-    foldedCtx.lineTo(width, height);
+    if (folds.diagonal.direction === 'topRightToBottomLeft') {
+      foldedCtx.moveTo(width, 0);
+      foldedCtx.lineTo(0, height);
+    } else {
+      foldedCtx.moveTo(0, 0);
+      foldedCtx.lineTo(width, height);
+    }
     foldedCtx.stroke();
     foldedCtx.setLineDash([]); // Reset line style
 
     // Add indicators at each end
     foldedCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
     foldedCtx.beginPath();
-    foldedCtx.arc(0, 0, 3, 0, Math.PI * 2);
+    foldedCtx.arc(
+      folds.diagonal.direction === 'topRightToBottomLeft' ? width : 0,
+      0,
+      3,
+      0,
+      Math.PI * 2
+    );
     foldedCtx.fill();
 
     foldedCtx.beginPath();
-    foldedCtx.arc(width, height, 3, 0, Math.PI * 2);
+    foldedCtx.arc(
+      folds.diagonal.direction === 'topRightToBottomLeft' ? 0 : width,
+      height,
+      3,
+      0,
+      Math.PI * 2
+    );
     foldedCtx.fill();
   }
 
@@ -201,7 +217,9 @@ export class CanvasService {
     // Create the other pattern variations we'll need based on horizontal and vertical folds
     const getOriginal = cachedLazy(() => {
       if (folds.diagonal.count === 1) {
-        return ImageUtils.mirrorDiagonalTopLeftToBottomRight(originalImage);
+        return folds.diagonal.direction === 'topRightToBottomLeft'
+          ? ImageUtils.mirrorDiagonalTopRightToBottomLeft(originalImage)
+          : ImageUtils.mirrorDiagonalTopLeftToBottomRight(originalImage);
       }
       return originalImage;
     });
@@ -271,6 +289,10 @@ export class CanvasService {
     // Only apply restriction if diagonal fold is active (count is 1 and canvas is square)
     if (folds.diagonal.count !== 1 || folds.vertical !== folds.horizontal) {
       return true;
+    }
+
+    if (folds.diagonal.direction === 'topRightToBottomLeft') {
+      return x + y > _foldedCanvas.width;
     }
 
     return y < x;

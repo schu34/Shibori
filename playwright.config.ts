@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
+ * Shibori Canvas Testing Configuration
+ * Supports both Canvas 2D and WebGL testing modes
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
@@ -25,12 +27,58 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects for major browsers with Canvas 2D and WebGL support */
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: 'chromium-canvas2d',
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Force Canvas 2D mode for baseline testing
+        extraHTTPHeaders: {
+          'X-Shibori-Test-Mode': 'canvas2d'
+        }
+      },
+      testDir: './tests',
     },
+    {
+      name: 'chromium-webgl',
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Enable WebGL features and force WebGL mode
+        launchOptions: {
+          args: [
+            '--enable-webgl',
+            '--enable-webgl2-compute-context',
+            '--enable-webgl-draft-extensions',
+            '--enable-accelerated-2d-canvas',
+            '--disable-web-security', // For testing purposes
+          ]
+        },
+        extraHTTPHeaders: {
+          'X-Shibori-Test-Mode': 'webgl'
+        }
+      },
+      testDir: './tests',
+    },
+    // Dual-mode project for compatibility testing
+    ...(process.env.SHIBORI_TEST_DUAL_MODE === 'true' ? [{
+      name: 'chromium-dual-mode',
+      use: { 
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: [
+            '--enable-webgl',
+            '--enable-webgl2-compute-context',
+            '--enable-webgl-draft-extensions',
+            '--enable-accelerated-2d-canvas',
+          ]
+        },
+        extraHTTPHeaders: {
+          'X-Shibori-Test-Mode': 'dual'
+        }
+      },
+      testDir: './tests/dual-mode',
+    }] : []),
   ],
 
   /* Run your local dev server before starting the tests */

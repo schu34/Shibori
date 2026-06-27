@@ -4,6 +4,7 @@ import { useAppSelector } from '../../hooks/useReduxHooks';
 import { CanvasRenderer } from './CanvasRenderer';
 import { CanvasEventHandler } from './CanvasEventHandler';
 import { CanvasController } from './CanvasController';
+import { WebGLStatus } from './WebGLStatus';
 import { logger } from '../../utils/logger';
 
 /**
@@ -59,6 +60,16 @@ export const CanvasDisplay: React.FC = () => {
                 onTouchEnd={handleTouchEnd}
                 onTouchCancel={handleTouchCancel}
             />
+            
+            {/* WebGL Status indicator */}
+            <div style={{ 
+                position: 'absolute', 
+                top: '10px', 
+                right: '10px', 
+                zIndex: 1000 
+            }}>
+                <WebGLStatus compact={true} />
+            </div>
             
             <CanvasRenderer
                 foldedCanvasRef={foldedCanvasRef}

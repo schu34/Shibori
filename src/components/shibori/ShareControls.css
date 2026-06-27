@@ -4,18 +4,33 @@
     border: 1px solid #ddd;
     border-radius: 8px;
     background-color: #f9f9f9;
+    /* Prevent overlap with other control sections */
+    position: relative;
+    z-index: 1;
+    /* Ensure this doesn't extend beyond its container */
+    box-sizing: border-box;
+    /* Prevent pointer event blocking on other controls */
+    pointer-events: none;
+    /* Force container to not intercept clicks */
+    isolation: isolate;
 }
 
 .share-controls h3 {
     margin: 0 0 10px 0;
     font-size: 16px;
     color: #333;
+    /* Re-enable pointer events for interactive content */
+    pointer-events: auto;
 }
 
 .share-message {
     color: #666;
     font-style: italic;
     margin: 10px 0;
+    /* Prevent blocking clicks on other elements when no content */
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
 }
 
 .generate-link-btn {
@@ -27,6 +42,8 @@
     cursor: pointer;
     font-size: 14px;
     transition: background-color 0.2s;
+    /* Re-enable pointer events for button */
+    pointer-events: auto;
 }
 
 .generate-link-btn:hover:not(:disabled) {
@@ -60,6 +77,8 @@
     font-family: monospace;
     font-size: 12px;
     background-color: #f8f9fa;
+    /* Re-enable pointer events for input */
+    pointer-events: auto;
 }
 
 .copy-btn, .close-btn {
@@ -70,6 +89,8 @@
     cursor: pointer;
     font-size: 14px;
     transition: background-color 0.2s;
+    /* Re-enable pointer events for buttons */
+    pointer-events: auto;
 }
 
 .copy-btn:hover, .close-btn:hover {

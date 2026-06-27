@@ -28,6 +28,8 @@ export function useCanvas() {
   const drawingOps = useCanvasDrawing(canvasRefs);
   const {
     updateUnfoldedCanvas,
+    isUsingWebGL,
+    getWebGLInfo,
   } = drawingOps;
 
   // Use the canvas history hook
@@ -90,6 +92,8 @@ export function useCanvas() {
     updateUnfoldedCanvas,
     resetCanvases,
     downloadUnfoldedCanvas,
+    isUsingWebGL,
+    getWebGLInfo,
     ...eventHandlers,
     undo,
     drawFromHistory,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ToolSelector } from './ToolSelector';
 import { SizeControl } from './SizeControl';
+import { WebGLControls } from './WebGLControls';
 import { useAppSelector } from '../../hooks/useReduxHooks';
 
 export const ToolControls: React.FC = () => {
@@ -15,6 +16,7 @@ export const ToolControls: React.FC = () => {
                 tool={state.currentTool}
                 value={state.lineThickness}
             />
+            <WebGLControls />
         </div>
     );
 }; 
