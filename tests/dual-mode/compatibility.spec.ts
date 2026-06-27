@@ -16,7 +16,7 @@ test.describe('Canvas 2D vs WebGL Compatibility', () => {
     await page.goto('/');
     
     // Wait for app to fully load
-    await expect(page.locator('h1')).toContainText('Folded Paper Drawing');
+    await expect(page.locator('h1')).toContainText('Shibori Folding');
     await page.waitForTimeout(1000);
     
     const testRunner = new DualModeTestRunner(page, getToleranceThreshold());
@@ -41,7 +41,7 @@ test.describe('Canvas 2D vs WebGL Compatibility', () => {
 
   test('drawing operation compatibility', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1')).toContainText('Folded Paper Drawing');
+    await expect(page.locator('h1')).toContainText('Shibori Folding');
     await page.waitForTimeout(1000);
     
     const testRunner = new DualModeTestRunner(page, getToleranceThreshold());
@@ -78,7 +78,7 @@ test.describe('Canvas 2D vs WebGL Compatibility', () => {
 
   test('comprehensive compatibility test suite', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1')).toContainText('Folded Paper Drawing');
+    await expect(page.locator('h1')).toContainText('Shibori Folding');
     await page.waitForTimeout(1000);
     
     const testRunner = new DualModeTestRunner(page, getToleranceThreshold());

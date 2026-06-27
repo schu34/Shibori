@@ -74,58 +74,77 @@ export const FoldControls: React.FC = () => {
     return (
         <div className="fold-controls-layout">
             <div className="fold-controls-group">
-                <h3>Vertical Folds: {state.folds.vertical}</h3>
-                <div className="fold-buttons">
-                    <button
-                        onClick={() => handleFoldButtonClick(true)}
-                        disabled={state.folds.vertical >= state.config.maxFolds}>
-                        Fold +
-                    </button>
-                    <button
-                        onClick={() => handleUnfoldButtonClick(true)}
-                        disabled={state.folds.vertical <= 0}>
-                        Unfold -
-                    </button>
+                <h3>Folds</h3>
+                <div className="fold-control-row">
+                    <span className="fold-row-label">Vertical Folds: {state.folds.vertical}</span>
+                    <div className="fold-buttons">
+                        <button
+                            className="fold-step-button"
+                            onClick={() => handleUnfoldButtonClick(true)}
+                            disabled={state.folds.vertical <= 0}
+                            title="Decrease vertical folds">
+                            <span aria-hidden="true">-</span>
+                            <span className="visually-hidden">Unfold -</span>
+                        </button>
+                        <button
+                            className="fold-step-button"
+                            onClick={() => handleFoldButtonClick(true)}
+                            disabled={state.folds.vertical >= state.config.maxFolds}
+                            title="Increase vertical folds">
+                            <span aria-hidden="true">+</span>
+                            <span className="visually-hidden">Fold +</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div className="fold-controls-group">
-                <h3>Horizontal Folds: {state.folds.horizontal}</h3>
-                <div className="fold-buttons">
-                    <button
-                        onClick={() => handleFoldButtonClick(false)}
-                        disabled={state.folds.horizontal >= state.config.maxFolds}>
-                        Fold +
-                    </button>
-                    <button
-                        onClick={() => handleUnfoldButtonClick(false)}
-                        disabled={state.folds.horizontal <= 0}>
-                        Unfold -
-                    </button>
+                <div className="fold-control-row">
+                    <span className="fold-row-label">Horizontal Folds: {state.folds.horizontal}</span>
+                    <div className="fold-buttons">
+                        <button
+                            className="fold-step-button"
+                            onClick={() => handleUnfoldButtonClick(false)}
+                            disabled={state.folds.horizontal <= 0}
+                            title="Decrease horizontal folds">
+                            <span aria-hidden="true">-</span>
+                            <span className="visually-hidden">Unfold -</span>
+                        </button>
+                        <button
+                            className="fold-step-button"
+                            onClick={() => handleFoldButtonClick(false)}
+                            disabled={state.folds.horizontal >= state.config.maxFolds}
+                            title="Increase horizontal folds">
+                            <span aria-hidden="true">+</span>
+                            <span className="visually-hidden">Fold +</span>
+                        </button>
+                    </div>
                 </div>
+
+                <div className="fold-control-row">
+                    <span className="fold-row-label">Diagonal Folds: {state.folds.diagonal.count}</span>
+                    <div className="fold-buttons">
+                        <button
+                            className="fold-step-button"
+                            onClick={handleDiagonalFoldDecrease}
+                            disabled={state.folds.diagonal.count <= 0}
+                            title="Decrease diagonal folds">
+                            <span aria-hidden="true">-</span>
+                            <span className="visually-hidden">Unfold -</span>
+                        </button>
+                        <button
+                            className="fold-step-button"
+                            onClick={handleDiagonalFoldIncrease}
+                            disabled={state.folds.diagonal.count >= 1 || !isDiagonalFoldAllowed()}
+                            title="Increase diagonal folds">
+                            <span aria-hidden="true">+</span>
+                            <span className="visually-hidden">Fold +</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button className="reset-folds-button" onClick={handleResetButtonClick}>
+                    Reset Folds
+                </button>
             </div>
-
-            <div className="diagonal-fold-controls">
-                <span>Diagonal Fold</span>
-                <>
-                    <h3>Diagonal Folds: {state.folds.diagonal.count}</h3>
-                    <button
-                        onClick={handleDiagonalFoldIncrease}
-                        disabled={state.folds.diagonal.count >= 1 || !isDiagonalFoldAllowed()}>
-                        +
-                    </button>
-                    <button
-                        onClick={handleDiagonalFoldDecrease}
-                        disabled={state.folds.diagonal.count <= 0}>
-                        -
-                    </button>
-                </>
-
-            </div>
-
-            <button onClick={handleResetButtonClick}>
-                Reset Folds
-            </button>
         </div>
     );
 }; 

@@ -50,11 +50,11 @@ export const ShareControls: React.FC = () => {
 
     return (
         <div className="share-controls">
-            <h3>Share Your Drawing</h3>
+            <h3>Share Pattern</h3>
             
             {!hasContent && (
                 <p className="share-message">
-                    Create some drawings to generate a shareable link
+                    Draw a pattern to generate a shareable link.
                 </p>
             )}
 

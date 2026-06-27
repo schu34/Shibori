@@ -1,21 +1,32 @@
 .shibori-app {
     margin: 0 auto;
-    padding: 20px;
+    max-width: 1280px;
+    padding: 24px;
     font-family: Arial, sans-serif;
-    background-color: #f0f8ff;
+    background-color: #edf6ff;
     border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
+}
+
+.app-header {
+    max-width: 760px;
+    margin: 0 auto 22px;
+    text-align: center;
 }
 
 h1 {
-    text-align: center;
-    color: #000000;
+    margin: 0;
+    color: #172033;
+    font-size: 2.3rem;
+    line-height: 1.1;
+    letter-spacing: 0;
 }
 
 .description {
-    text-align: center;
-    margin-bottom: 20px;
-    color: #000000;
+    margin: 10px 0 0;
+    color: #40566f;
+    font-size: 1rem;
+    line-height: 1.5;
 }
 
 .button-container {
@@ -55,9 +66,6 @@ h1 {
 }
 
 .fold-controls-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     margin-bottom: 0;
 }
 
@@ -87,8 +95,36 @@ h1 {
 
 .fold-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
+    justify-content: center;
+}
+
+.fold-controls-layout .fold-step-button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    box-sizing: border-box;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.reset-folds-button {
+    align-self: flex-start;
+    margin-top: 2px;
+    grid-column: 1 / -1;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .dimension-controls {
@@ -118,36 +154,42 @@ h1 {
 
 .canvas-container {
     display: flex;
-    justify-content: space-around;
-    align-items: center;
+    justify-content: center;
+    align-items: flex-start;
     margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 20px;
-    padding: 15px;
-    background-color: #f0f8ff;
+    padding: 16px;
+    background-color: #ffffff;
+    border: 1px solid #c9dbef;
     border-radius: 8px;
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
-    min-height: 450px;
+    box-shadow: none;
     overscroll-behavior: none;
 }
 
 .canvas-wrapper {
+    flex: 1 1 520px;
+    min-width: 0;
+    max-width: 800px;
     text-align: center;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    padding: 10px;
-    background-color: #f0f8ff;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    background-color: transparent;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    min-height: 400px;
-    width: 800px;
 }
 
 .canvas-wrapper h3 {
-    margin-bottom: 10px;
-    color: #000000;
+    margin: 0 0 10px;
+    color: #172033;
+    font-size: 15px;
+    line-height: 1.2;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
 }
 
 .canvas-header {
@@ -158,9 +200,14 @@ h1 {
     margin-bottom: 10px;
 }
 
+.canvas-header h3 {
+    margin: 0;
+}
+
 .canvas-actions {
     display: flex;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .download-button {
@@ -201,12 +248,11 @@ canvas {
     -ms-user-select: none;
     user-select: none;
     /* Control the display size of the higher resolution canvas */
-    max-width: min(800px, 95vw);
+    max-width: 100%;
     /* min-width: 800px; */
     width: 100%;
     /* Keep the display size the same as before */
     height: auto;
-    max-height: min(800px, calc(95vw));
 
 }
 
@@ -321,10 +367,11 @@ input[type="range"]:focus {
     margin-bottom: 20px;
     flex-wrap: wrap;
     position: relative;
-    background-color: #f0f8ff;
+    background-color: #ffffff;
+    border: 1px solid #c9dbef;
     border-radius: 8px;
-    padding: 15px;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    padding: 48px 15px 15px;
+    box-shadow: none;
 }
 
 .controls-toggle {
@@ -352,16 +399,11 @@ input[type="range"]:focus {
     flex: 1;
     min-width: 300px;
     transition: all 0.3s ease;
-    /* Remove position: relative that was causing stacking issues */
     z-index: auto;
-    /* Ensure no overlap between sections */
-    margin-bottom: 10px;
-    /* Ensure pointer events work correctly */
     pointer-events: auto;
 }
 
 .fold-controls-group,
-.diagonal-fold-controls,
 .tool-controls-group {
     background-color: #ffffff;
     border: 1px solid #b9cde8;
@@ -371,8 +413,13 @@ input[type="range"]:focus {
     margin-bottom: 0;
 }
 
+.fold-controls-group {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
 .fold-controls-group h3,
-.diagonal-fold-controls h3,
 .tool-controls-group h3 {
     margin-top: 0;
     margin-bottom: 12px;
@@ -380,17 +427,29 @@ input[type="range"]:focus {
     color: #000000;
 }
 
-.diagonal-fold-controls span {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    color: #172033;
+.fold-controls-group h3 {
+    grid-column: 1 / -1;
 }
 
-.diagonal-fold-controls button {
-    min-width: 42px;
-    margin-right: 8px;
+.fold-control-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    background-color: #f7fbff;
+    border: 1px solid #dce8f6;
+    border-radius: 6px;
+}
+
+.fold-row-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #172033;
+    text-align: center;
+    overflow-wrap: anywhere;
 }
 
 .tool-controls-group .slider-container {
@@ -410,6 +469,14 @@ input[type="range"]:focus {
 }
 
 @media (max-width: 768px) {
+    .shibori-app {
+        padding: 16px;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
     .canvas-container {
         flex-direction: column;
         padding: 10px;
@@ -417,7 +484,6 @@ input[type="range"]:focus {
 
     .canvas-wrapper {
         width: 100%;
-        min-height: 300px;
     }
 
     .canvas-header {
@@ -459,9 +525,12 @@ input[type="range"]:focus {
     }
 
     .fold-controls-group,
-    .diagonal-fold-controls,
     .tool-controls-group {
         padding: 10px;
+    }
+
+    .fold-controls-group {
+        grid-template-columns: 1fr;
     }
 
     .button-container {

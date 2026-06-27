@@ -37,17 +37,14 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         folds: { vertical: folds.vertical, horizontal: folds.horizontal }
     });
 
-    const foldedWidth = canvasDimensions.width / 2 ** folds.vertical;
-    const foldedHeight = canvasDimensions.height / 2 ** folds.horizontal;
-
     return (
         <div className="canvas-container">
             <div className="canvas-wrapper">
                 <h3>Folded Version</h3>
                 <canvas
                     ref={foldedCanvasRef}
-                    width={foldedWidth}
-                    height={foldedHeight}
+                    width={canvasDimensions.width}
+                    height={canvasDimensions.height}
                     onMouseDown={onMouseDown}
                     onMouseMove={onMouseMove}
                     onMouseUp={onMouseUp}

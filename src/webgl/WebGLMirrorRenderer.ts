@@ -249,18 +249,27 @@ export class WebGLMirrorRenderer {
     const cellWidth = targetWidth / gridWidth;
     const cellHeight = targetHeight / gridHeight;
 
+    const sourceCellTexture = this.mirror({
+      sourceTexture: config.sourceTexture,
+      operation: 'none',
+      sourceWidth,
+      sourceHeight,
+      targetWidth: cellWidth,
+      targetHeight: cellHeight
+    });
+
     // Apply diagonal mirroring first if needed
-    let workingTexture = config.sourceTexture;
+    let workingTexture = sourceCellTexture;
     if (folds.diagonal.enabled && folds.diagonal.count === 1) {
       const diagonalOp = folds.diagonal.direction === 'topRightToBottomLeft' 
         ? 'diagonal-anti' 
         : 'diagonal-main';
       
       workingTexture = this.mirror({
-        sourceTexture: config.sourceTexture,
+        sourceTexture: sourceCellTexture,
         operation: diagonalOp,
-        sourceWidth,
-        sourceHeight,
+        sourceWidth: cellWidth,
+        sourceHeight: cellHeight,
         targetWidth: cellWidth,
         targetHeight: cellHeight,
         includeOriginal: true
@@ -328,9 +337,10 @@ export class WebGLMirrorRenderer {
     }
 
     // Clean up intermediate textures
-    if (workingTexture !== config.sourceTexture) {
+    if (workingTexture !== sourceCellTexture) {
       this.gl.deleteTexture(workingTexture);
     }
+    this.gl.deleteTexture(sourceCellTexture);
     this.gl.deleteTexture(horizontalFlipped);
     this.gl.deleteTexture(verticalFlipped);
     this.gl.deleteTexture(bothFlipped);

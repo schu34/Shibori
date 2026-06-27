@@ -15,11 +15,12 @@ const ShiboriCanvas = () => {
 
     return (
         <div className="shibori-app">
-            <h1>Folded Paper Drawing</h1>
-            <p className="description">
-                Draw on the right canvas and see the mirrored result on the left canvas.
-                Use the fold buttons to create different symmetry patterns.
-            </p>
+            <header className="app-header">
+                <h1>Shibori Folding</h1>
+                <p className="description">
+                    Draw on the folded canvas and watch the unfolded shibori pattern update in real time.
+                </p>
+            </header>
 
             {/* Controls container for fold and tool controls */}
             <div className="controls-container">
