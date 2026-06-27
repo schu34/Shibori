@@ -48,20 +48,21 @@ export const WebGLControls: React.FC = () => {
             onClick={togglePerformance}
             title={showPerformance ? "Hide performance" : "Show performance"}
           >
-            📊
+            Perf
           </button>
           <button 
             className="details-toggle"
             onClick={toggleDetails}
             title={showDetails ? "Hide details" : "Show details"}
           >
-            {showDetails ? "−" : "+"}
+            {showDetails ? "Less" : "Info"}
           </button>
         </div>
       </div>
 
+      <WebGLStatus compact={true} />
+
       <div className="rendering-mode-selector">
-        <label className="mode-label">Mode:</label>
         <div className="mode-buttons">
           <button
             className={`mode-button ${currentMode === 'auto' ? 'active' : ''}`}

@@ -47,6 +47,50 @@ h1 {
     cursor: not-allowed;
 }
 
+.tool-controls-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.fold-controls-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 0;
+}
+
+.fold-controls-layout button {
+    padding: 8px 16px;
+    background-color: #3a7bdb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fold-controls-layout button:hover {
+    background-color: #2c60b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.fold-controls-layout button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.fold-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .dimension-controls {
     display: flex;
     justify-content: center;
@@ -317,20 +361,36 @@ input[type="range"]:focus {
 }
 
 .fold-controls-group,
+.diagonal-fold-controls,
 .tool-controls-group {
-    background-color: #e6f2ff;
+    background-color: #ffffff;
+    border: 1px solid #b9cde8;
     padding: 15px;
     border-radius: 8px;
-    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 15px;
+    box-shadow: none;
+    margin-bottom: 0;
 }
 
 .fold-controls-group h3,
+.diagonal-fold-controls h3,
 .tool-controls-group h3 {
     margin-top: 0;
     margin-bottom: 12px;
     font-size: 16px;
     color: #000000;
+}
+
+.diagonal-fold-controls span {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #172033;
+}
+
+.diagonal-fold-controls button {
+    min-width: 42px;
+    margin-right: 8px;
 }
 
 .tool-controls-group .slider-container {
@@ -399,6 +459,7 @@ input[type="range"]:focus {
     }
 
     .fold-controls-group,
+    .diagonal-fold-controls,
     .tool-controls-group {
         padding: 10px;
     }
@@ -410,6 +471,10 @@ input[type="range"]:focus {
 
     .button-container button {
         width: 100%;
+    }
+
+    .tool-controls-layout {
+        gap: 10px;
     }
 
     .dimension-input {

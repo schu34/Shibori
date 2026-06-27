@@ -8,7 +8,7 @@ export const ToolControls: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
 
     return (
-        <div className="button-container">
+        <div className="tool-controls-layout">
             <ToolSelector
                 currentTool={state.currentTool}
             />
