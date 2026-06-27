@@ -44,7 +44,7 @@ export const WebGLStatus: React.FC<WebGLStatusProps> = ({
     return (
       <div className={`webgl-status compact ${statusClass}`}>
         <span className="status-indicator" title={webglInfo || 'WebGL not available'}>
-          {webglAvailable ? (initializationFailed ? '⚠️' : '🚀') : '🎨'} {statusText}
+          <span className="status-dot" aria-hidden="true" /> {statusText}
         </span>
       </div>
     );
@@ -54,7 +54,7 @@ export const WebGLStatus: React.FC<WebGLStatusProps> = ({
     <div className={`webgl-status ${statusClass}`}>
       <div className="status-header">
         <span className="status-indicator">
-          {webglAvailable ? (initializationFailed ? '⚠️' : '🚀') : '🎨'}
+          <span className="status-dot" aria-hidden="true" />
         </span>
         <span className="status-text">{statusText}</span>
       </div>

@@ -72,7 +72,7 @@ export const FoldControls: React.FC = () => {
     }, [state.folds.vertical, state.folds.horizontal]);
 
     return (
-        <div className="button-container">
+        <div className="fold-controls-layout">
             <div className="fold-controls-group">
                 <h3>Vertical Folds: {state.folds.vertical}</h3>
                 <div className="fold-buttons">

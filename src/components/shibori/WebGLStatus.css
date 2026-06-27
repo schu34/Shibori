@@ -1,176 +1,122 @@
 /* WebGL Status Component Styles */
 
 .webgl-status {
-  background: rgba(255, 255, 255, 0.9);
+  background: #f7fbff;
+  border: 1px solid #d4e2f9;
   border-radius: 8px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 8px 10px;
   font-size: 12px;
-  border: 2px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.webgl-status.webgl-enabled {
-  border-color: #4caf50;
-  background: rgba(76, 175, 80, 0.1);
-}
-
-.webgl-status.webgl-disabled {
-  border-color: #ff9800;
-  background: rgba(255, 152, 0, 0.1);
-}
-
-.webgl-status.webgl-warning {
-  border-color: #f44336;
-  background: rgba(244, 67, 54, 0.1);
+  color: #26384f;
 }
 
 .webgl-status.compact {
+  display: inline-flex;
+  width: fit-content;
   padding: 4px 8px;
+  border-radius: 999px;
   font-size: 11px;
+  line-height: 1.2;
 }
 
-.status-header {
+.webgl-status.webgl-enabled {
+  border-color: #a9d6b2;
+  background: #f3fbf5;
+}
+
+.webgl-status.webgl-disabled {
+  border-color: #e7c993;
+  background: #fff9ed;
+}
+
+.webgl-status.webgl-warning {
+  border-color: #dfa6a2;
+  background: #fff4f3;
+}
+
+.status-header,
+.status-indicator {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
 }
 
-.status-indicator {
-  font-size: 14px;
-  display: flex;
-  align-items: center;
+.status-header {
+  font-weight: 700;
 }
 
-.webgl-status.compact .status-indicator {
-  font-size: 12px;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #3a7bdb;
+}
+
+.webgl-enabled .status-dot {
+  background: #2f9e44;
+}
+
+.webgl-warning .status-dot {
+  background: #d94841;
+}
+
+.webgl-disabled .status-dot {
+  background: #d9901f;
 }
 
 .status-text {
-  color: #333;
-}
-
-.webgl-enabled .status-text {
-  color: #2e7d32;
-}
-
-.webgl-warning .status-text {
-  color: #c62828;
-}
-
-.webgl-disabled .status-text {
-  color: #e65100;
+  color: #26384f;
 }
 
 .status-details {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid #dce8f6;
 }
 
 .detail-item {
-  display: flex;
-  justify-content: space-between;
-  margin: 2px 0;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  margin: 4px 0;
 }
 
 .detail-label {
-  font-weight: 500;
-  color: #666;
+  font-weight: 700;
+  color: #4f6178;
 }
 
 .detail-value {
-  color: #333;
+  min-width: 0;
+  color: #26384f;
   font-family: monospace;
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .status-message {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  text-align: center;
+  border-top: 1px solid #dce8f6;
 }
 
 .status-message small {
-  color: #666;
-  font-style: italic;
+  color: #5e6f84;
+  font-style: normal;
 }
 
-/* Animation for status changes */
-.webgl-status {
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .webgl-status {
     font-size: 11px;
-    padding: 6px 10px;
+    padding: 6px 8px;
   }
-  
+
   .webgl-status.compact {
     font-size: 10px;
-    padding: 3px 6px;
   }
-  
-  .detail-value {
-    font-size: 10px;
-  }
-}
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .webgl-status {
-    background: rgba(32, 32, 32, 0.9);
-    color: #e0e0e0;
-  }
-  
-  .webgl-status.webgl-enabled {
-    background: rgba(76, 175, 80, 0.2);
-  }
-  
-  .webgl-status.webgl-disabled {
-    background: rgba(255, 152, 0, 0.2);
-  }
-  
-  .webgl-status.webgl-warning {
-    background: rgba(244, 67, 54, 0.2);
-  }
-  
-  .status-text {
-    color: #e0e0e0;
-  }
-  
-  .webgl-enabled .status-text {
-    color: #81c784;
-  }
-  
-  .webgl-disabled .status-text {
-    color: #ffb74d;
-  }
-  
-  .detail-label {
-    color: #bbb;
-  }
-  
-  .detail-value {
-    color: #e0e0e0;
-  }
-  
-  .status-message small {
-    color: #bbb;
+  .detail-item {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
