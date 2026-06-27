@@ -53,30 +53,17 @@ describe('FoldControls Component', () => {
     test('renders fold buttons', () => {
         renderWithRedux(<FoldControls />);
 
-        // Find the groups and check their headings
-        const foldGroups = screen.getAllByRole('heading');
-        const verticalHeading = foldGroups.find(h => h.textContent?.includes('Vertical Folds'));
-        const horizontalHeading = foldGroups.find(h => h.textContent?.includes('Horizontal Folds'));
-
-        expect(verticalHeading).toBeInTheDocument();
-        expect(horizontalHeading).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Folds' })).toBeInTheDocument();
+        expect(screen.getByText('Vertical Folds: 2')).toBeInTheDocument();
+        expect(screen.getByText('Horizontal Folds: 1')).toBeInTheDocument();
         expect(screen.getByText('Reset Folds')).toBeInTheDocument();
-
-        // Check fold values
-        expect(verticalHeading?.textContent).toContain('2');
-        expect(horizontalHeading?.textContent).toContain('1');
     });
 
     test('vertical fold button dispatches correct action', () => {
         renderWithRedux(<FoldControls />);
 
-        // Find the vertical fold group and its first button
-        const foldGroups = screen.getAllByRole('heading');
-        const verticalHeading = foldGroups.find(h => h.textContent?.includes('Vertical Folds'));
-        const verticalGroup = verticalHeading?.closest('.fold-controls-group');
-
-        // Find the fold button within the group
-        const foldButton = within(verticalGroup as HTMLElement).getByText('Fold +');
+        const verticalRow = screen.getByText('Vertical Folds: 2').closest('.fold-control-row');
+        const foldButton = within(verticalRow as HTMLElement).getByRole('button', { name: 'Fold +' });
         fireEvent.click(foldButton);
 
         expect(mockDispatch).toHaveBeenCalledWith({
@@ -113,16 +100,11 @@ describe('FoldControls Component', () => {
 
         renderWithRedux(<FoldControls />);
 
-        // Find the vertical fold group and check its content
-        const foldGroups = screen.getAllByRole('heading');
-        const verticalHeading = foldGroups.find(h => h.textContent?.includes('Vertical Folds'));
-        const verticalGroup = verticalHeading?.closest('.fold-controls-group');
-
         // Check that the value is 3 in the UI and the fold button is disabled
-        expect(verticalHeading?.textContent).toContain('3');
+        expect(screen.getByText('Vertical Folds: 3')).toBeInTheDocument();
 
-        // Find the fold button within the group
-        const foldButton = within(verticalGroup as HTMLElement).getByText('Fold +');
+        const verticalRow = screen.getByText('Vertical Folds: 3').closest('.fold-control-row');
+        const foldButton = within(verticalRow as HTMLElement).getByRole('button', { name: 'Fold +' });
         expect(foldButton).toBeDisabled();
     });
 }); 

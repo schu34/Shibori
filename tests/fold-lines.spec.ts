@@ -6,7 +6,7 @@ test.describe('Fold Lines Rendering', () => {
     await page.goto('/');
     
     // Wait for app to load
-    await expect(page.locator('h1')).toContainText('Folded Paper Drawing');
+    await expect(page.locator('h1')).toContainText('Shibori Folding');
     await expect(page.locator('canvas').first()).toBeVisible();
     
     // Check initial state - should have diagonal fold lines

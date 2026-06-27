@@ -12,7 +12,7 @@ test.describe('Shibori Canvas App', () => {
     await page.goto('/');
 
     // Wait for the app to load
-    await expect(page.locator('h1')).toContainText('Folded Paper Drawing');
+    await expect(page.locator('h1')).toContainText('Shibori Folding');
 
     // Check that both canvas elements are present
     const canvases = page.locator('canvas');

@@ -7,6 +7,8 @@ jest.mock('../hooks/useCanvas', () => ({
     useCanvas: () => ({
         unfoldedCanvasRef: { current: null },
         foldedCanvasRef: { current: null },
+        foldedCtxRef: { current: null },
+        unfoldedCtxRef: { current: null },
         resetCanvases: jest.fn(),
         handleMouseDown: jest.fn(),
         handleMouseMove: jest.fn(),
@@ -38,5 +40,15 @@ describe('CanvasDisplay Component', () => {
         // Check if titles are rendered
         expect(container.textContent).toContain('Unfolded Version');
         expect(container.textContent).toContain('Folded Version');
+    });
+
+    test('keeps folded canvas backing store at full canvas resolution', () => {
+        const { container } = renderWithRedux(<CanvasDisplay />);
+        const [foldedCanvas, unfoldedCanvas] = Array.from(container.querySelectorAll('canvas'));
+
+        expect(foldedCanvas).toHaveAttribute('width', '1600');
+        expect(foldedCanvas).toHaveAttribute('height', '1600');
+        expect(unfoldedCanvas).toHaveAttribute('width', '1600');
+        expect(unfoldedCanvas).toHaveAttribute('height', '1600');
     });
 }); 

@@ -117,18 +117,19 @@ export class CanvasService {
   }
 
   /**
-   * Update folded canvas dimensions based on fold state
+   * Keep the folded drawing canvas at full resolution.
+   *
+   * Fold count affects the mirror cell size, not the folded canvas backing
+   * store. This keeps input strokes high-resolution while allowing the mirror
+   * step to downsample into each unfolded cell.
    */
   static updateFoldedCanvasDimensions(context: CanvasContext, folds: FoldState): CanvasRenderingContext2D | null {
     logger.canvas.operation('updateFoldedCanvasDimensions', folds);
     
     const { foldedCanvas, unfoldedCanvas } = context;
     
-    const foldedWidth = unfoldedCanvas.width / Math.pow(2, folds.vertical);
-    const foldedHeight = unfoldedCanvas.height / Math.pow(2, folds.horizontal);
-
-    foldedCanvas.width = foldedWidth;
-    foldedCanvas.height = foldedHeight;
+    foldedCanvas.width = unfoldedCanvas.width;
+    foldedCanvas.height = unfoldedCanvas.height;
 
     // Re-initialize context after canvas resize
     const newFoldedCtx = foldedCanvas.getContext("2d", {
@@ -137,7 +138,7 @@ export class CanvasService {
 
     if (newFoldedCtx) {
       newFoldedCtx.fillStyle = BACKGROUND_COLOR;
-      newFoldedCtx.fillRect(0, 0, foldedWidth, foldedHeight);
+      newFoldedCtx.fillRect(0, 0, foldedCanvas.width, foldedCanvas.height);
     }
 
     return newFoldedCtx;
@@ -202,17 +203,36 @@ export class CanvasService {
   static updateUnfoldedCanvas(context: CanvasContext, folds: FoldState): void {
     logger.canvas.render('updateUnfoldedCanvas started');
     
-    const { foldedCtx, unfoldedCtx, foldedCanvas, unfoldedCanvas } = context;
+    const { unfoldedCtx, foldedCanvas, unfoldedCanvas } = context;
 
     // Clear the unfolded canvas and apply navy background
     unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
     unfoldedCtx.fillStyle = BACKGROUND_COLOR;
     unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
 
-    // Get the original image data from the folded canvas
-    const originalImage = foldedCtx.getImageData(
-      0, 0, foldedCanvas.width, foldedCanvas.height
+    // Calculate the total grid size based on folds
+    const gridWidth = Math.pow(2, folds.vertical);
+    const gridHeight = Math.pow(2, folds.horizontal);
+
+    // Determine each cell's dimensions and downsample the full-resolution
+    // folded canvas into that cell size before creating mirrored variations.
+    const cellWidth = Math.max(1, Math.floor(unfoldedCanvas.width / gridWidth));
+    const cellHeight = Math.max(1, Math.floor(unfoldedCanvas.height / gridHeight));
+    const sourceCanvas = CanvasService.createDownsampledFoldedCell(
+      foldedCanvas,
+      cellWidth,
+      cellHeight
     );
+    const sourceCtx = sourceCanvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+
+    if (!sourceCtx) {
+      logger.error('Failed to create downsampled folded canvas context');
+      return;
+    }
+
+    const originalImage = sourceCtx.getImageData(0, 0, cellWidth, cellHeight);
 
     // Create the other pattern variations we'll need based on horizontal and vertical folds
     const getOriginal = cachedLazy(() => {
@@ -235,14 +255,6 @@ export class CanvasService {
     const getBothFlipped = cachedLazy(() =>
       ImageUtils.flipVertical(getHorizontalFlipped())
     );
-
-    // Calculate the total grid size based on folds
-    const gridWidth = Math.pow(2, folds.vertical);
-    const gridHeight = Math.pow(2, folds.horizontal);
-
-    // Determine each cell's dimensions
-    const cellWidth = originalImage.width;
-    const cellHeight = originalImage.height;
 
     // For each cell in the grid, determine which pattern to use
     for (let row = 0; row < gridHeight; row++) {
@@ -275,6 +287,38 @@ export class CanvasService {
     CanvasService.drawFoldLines(context, folds);
     
     logger.canvas.render('updateUnfoldedCanvas completed');
+  }
+
+  private static createDownsampledFoldedCell(
+    foldedCanvas: HTMLCanvasElement,
+    cellWidth: number,
+    cellHeight: number
+  ): HTMLCanvasElement {
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = cellWidth;
+    sourceCanvas.height = cellHeight;
+
+    const sourceCtx = sourceCanvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+
+    if (sourceCtx) {
+      sourceCtx.imageSmoothingEnabled = true;
+      sourceCtx.imageSmoothingQuality = "high";
+      sourceCtx.drawImage(
+        foldedCanvas,
+        0,
+        0,
+        foldedCanvas.width,
+        foldedCanvas.height,
+        0,
+        0,
+        cellWidth,
+        cellHeight
+      );
+    }
+
+    return sourceCanvas;
   }
 
   /**

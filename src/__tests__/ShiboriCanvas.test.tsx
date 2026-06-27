@@ -24,7 +24,7 @@ describe('ShiboriCanvas Component', () => {
         renderWithRedux(<ShiboriCanvas />);
 
         // Check if the component renders its title
-        expect(screen.getByText('Folded Paper Drawing')).toBeInTheDocument();
+        expect(screen.getByText('Shibori Folding')).toBeInTheDocument();
 
         // Check if all child components are rendered
         expect(screen.getByTestId('mock-fold-controls')).toBeInTheDocument();

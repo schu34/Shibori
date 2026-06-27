@@ -240,7 +240,7 @@ test.describe('Shareable Links', () => {
     await page.goto('/?shared=invalid-data');
 
     // App should still load normally (fallback to default state)
-    await expect(page.locator('h1')).toContainText('Folded Paper Drawing');
+    await expect(page.locator('h1')).toContainText('Shibori Folding');
     await expect(page.locator('canvas').first()).toBeVisible();
 
     // Canvas should show default fold lines but no user drawings
