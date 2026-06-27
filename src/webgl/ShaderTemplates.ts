@@ -141,6 +141,7 @@ uniform sampler2D u_sourceTexture;
 uniform vec2 u_resolution;
 uniform int u_mirrorMode;
 uniform vec2 u_mirrorOrigin;
+uniform int u_includeOriginal;
 
 varying vec2 v_texCoord;
 
@@ -148,14 +149,21 @@ vec2 mirrorCoordinate(vec2 coord, int mode, vec2 origin) {
     vec2 mirroredCoord = coord;
     
     if (mode == 1) {
-        mirroredCoord.x = 2.0 * origin.x - coord.x;
+        // Horizontal flip
+        mirroredCoord.x = 1.0 - coord.x;
     } else if (mode == 2) {
-        mirroredCoord.y = 2.0 * origin.y - coord.y;
+        // Vertical flip
+        mirroredCoord.y = 1.0 - coord.y;
     } else if (mode == 3) {
-        mirroredCoord.x = 2.0 * origin.x - coord.x;
-        mirroredCoord.y = 2.0 * origin.y - coord.y;
+        // Both horizontal and vertical flip
+        mirroredCoord.x = 1.0 - coord.x;
+        mirroredCoord.y = 1.0 - coord.y;
     } else if (mode == 4) {
+        // Diagonal main (top-left to bottom-right)
         mirroredCoord = vec2(coord.y, coord.x);
+    } else if (mode == 5) {
+        // Diagonal anti (top-right to bottom-left)
+        mirroredCoord = vec2(1.0 - coord.y, 1.0 - coord.x);
     }
     
     return mirroredCoord;
@@ -166,14 +174,20 @@ void main() {
     vec4 color = vec4(0.0);
     
     if (u_mirrorMode == 0) {
+        // No mirroring - direct copy
         color = texture2D(u_sourceTexture, coord);
     } else {
-        vec4 originalColor = texture2D(u_sourceTexture, coord);
+        // Apply mirroring transformation
         vec2 mirroredCoord = mirrorCoordinate(coord, u_mirrorMode, u_mirrorOrigin);
         mirroredCoord = clamp(mirroredCoord, 0.0, 1.0);
         vec4 mirroredColor = texture2D(u_sourceTexture, mirroredCoord);
-        color = originalColor + mirroredColor;
-        color = min(color, 1.0);
+
+        if (u_includeOriginal == 1) {
+            vec4 originalColor = texture2D(u_sourceTexture, coord);
+            color = max(originalColor, mirroredColor);
+        } else {
+            color = mirroredColor;
+        }
     }
     
     gl_FragColor = color;
@@ -221,7 +235,7 @@ export const SHADER_TEMPLATES = {
     fragment: BRUSH_FRAGMENT_SHADER
   },
   mirror: {
-    vertex: BASIC_VERTEX_SHADER, // Uses basic vertex shader
+    vertex: COPY_VERTEX_SHADER,
     fragment: MIRROR_FRAGMENT_SHADER
   },
   copy: {

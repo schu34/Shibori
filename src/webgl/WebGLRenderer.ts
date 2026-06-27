@@ -1,10 +1,12 @@
 /**
  * WebGL Renderer for Shibori Canvas Drawing
  * Handles WebGL context management, rendering operations, and fallback logic
+ * Uses ShaderCache for optimized shader compilation
  */
 
 import { ShaderProgram } from './ShaderProgram';
 import { BufferManager } from './BufferManager';
+import { ShaderCache } from './ShaderCache';
 
 export interface WebGLRendererOptions {
   /** Canvas element to render to */
@@ -38,10 +40,12 @@ export class WebGLRenderer {
   private renderState: RenderState;
   private debug: boolean;
   private contextLost: boolean = false;
+  private shaderCache: ShaderCache;
 
   constructor(options: WebGLRendererOptions) {
     this.canvas = options.canvas;
     this.debug = options.debug || false;
+    this.shaderCache = ShaderCache.getInstance();
     
     // Initialize default render state
     this.renderState = {
@@ -81,8 +85,8 @@ export class WebGLRenderer {
 
     // Fallback to WebGL1 if WebGL2 failed or wasn't preferred
     if (!this.gl) {
-      this.gl = this.canvas.getContext('webgl', defaultAttributes) || 
-                this.canvas.getContext('experimental-webgl', defaultAttributes);
+      this.gl = this.canvas.getContext('webgl', defaultAttributes) as WebGLRenderingContext || 
+                this.canvas.getContext('experimental-webgl', defaultAttributes) as WebGLRenderingContext;
       if (this.gl) {
         this.isWebGL2 = false;
         this.log('WebGL1 context initialized successfully');
@@ -101,6 +105,9 @@ export class WebGLRenderer {
 
     // Configure initial WebGL state
     this.configureInitialState();
+
+    // Pre-compile common shaders
+    this.precompileCommonShaders();
   }
 
   /**
@@ -196,9 +203,9 @@ export class WebGLRenderer {
       throw new Error('WebGL context not available');
     }
 
-    const program = new ShaderProgram(this.gl, vertexSource, fragmentSource, this.debug);
+    const program = new ShaderProgram(this.gl, vertexSource, fragmentSource, this.debug, name);
     this.shaderPrograms.set(name, program);
-    this.log(`Shader program "${name}" added successfully`);
+    this.log(`Shader program "${name}" added successfully (from cache: ${program.isFromCache()})`);
     return program;
   }
 
@@ -271,6 +278,92 @@ export class WebGLRenderer {
   }
 
   /**
+   * Pre-compile common shaders for the Shibori app
+   */
+  private precompileCommonShaders(): void {
+    if (!this.gl) return;
+
+    const commonShaders = [
+      {
+        name: 'basic-vertex',
+        vertex: `
+          attribute vec2 a_position;
+          void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+          }
+        `,
+        fragment: `
+          precision mediump float;
+          uniform vec4 u_color;
+          void main() {
+            gl_FragColor = u_color;
+          }
+        `
+      },
+      {
+        name: 'texture-copy',
+        vertex: `
+          attribute vec2 a_position;
+          attribute vec2 a_texCoord;
+          varying vec2 v_texCoord;
+          void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texCoord = a_texCoord;
+          }
+        `,
+        fragment: `
+          precision mediump float;
+          uniform sampler2D u_texture;
+          varying vec2 v_texCoord;
+          void main() {
+            gl_FragColor = texture2D(u_texture, v_texCoord);
+          }
+        `
+      },
+      {
+        name: 'mirror-horizontal',
+        vertex: `
+          attribute vec2 a_position;
+          attribute vec2 a_texCoord;
+          varying vec2 v_texCoord;
+          void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texCoord = a_texCoord;
+          }
+        `,
+        fragment: `
+          precision mediump float;
+          uniform sampler2D u_texture;
+          varying vec2 v_texCoord;
+          void main() {
+            vec2 coord = v_texCoord;
+            if (coord.x > 0.5) {
+              coord.x = 1.0 - coord.x;
+            }
+            gl_FragColor = texture2D(u_texture, coord);
+          }
+        `
+      }
+    ];
+
+    this.shaderCache.precompileShaders(this.gl, commonShaders);
+  }
+
+  /**
+   * Get shader cache statistics
+   */
+  public getCacheStats(): string {
+    return this.shaderCache.getDebugInfo();
+  }
+
+  /**
+   * Clear shader cache
+   */
+  public clearShaderCache(): void {
+    this.shaderCache.clearCache(this.gl || undefined);
+  }
+
+  /**
    * Dispose of all resources
    */
   public dispose(): void {
@@ -285,6 +378,9 @@ export class WebGLRenderer {
       this.bufferManager.dispose();
       this.bufferManager = null;
     }
+
+    // Clear shader cache
+    this.shaderCache.clearCache(this.gl || undefined);
 
     // Clear context reference
     this.gl = null;

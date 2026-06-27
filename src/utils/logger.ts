@@ -7,7 +7,7 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = import.meta.env.DEV;
+  private isDevelopment = isDevelopmentEnvironment();
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString().slice(11, 23); // HH:mm:ss.sss
@@ -184,6 +184,13 @@ class Logger {
       }
     }
   };
+}
+
+function isDevelopmentEnvironment(): boolean {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
+    return process.env.NODE_ENV === 'development';
+  }
+  return false;
 }
 
 export const logger = new Logger();

@@ -57,18 +57,43 @@ export const ImageUtils = {
 
     // Flip image diagonally from top-left to bottom-right
     mirrorDiagonalTopLeftToBottomRight(imageData: ImageData): ImageData {
-        const { width, height } = imageData;
+        const { width, height, data } = imageData;
+        const result = new ImageData(new Uint8ClampedArray(data), width, height);
 
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
+                if (!this.shouldMirrorPixel(imageData, x, y)) continue;
                 this.copyPixel(
                     imageData, x, y,
-                    imageData, y, x
+                    result, y, x
                 );
             }
         }
 
-        return imageData;
+        return result;
+    },
+
+    // Mirror image diagonally across the top-right to bottom-left axis
+    mirrorDiagonalTopRightToBottomLeft(imageData: ImageData): ImageData {
+        const { width, height, data } = imageData;
+        const result = new ImageData(new Uint8ClampedArray(data), width, height);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (!this.shouldMirrorPixel(imageData, x, y)) continue;
+                this.copyPixel(
+                    imageData, x, y,
+                    result, width - y - 1, height - x - 1
+                );
+            }
+        }
+
+        return result;
+    },
+
+    shouldMirrorPixel(imageData: ImageData, x: number, y: number): boolean {
+        const [r, g, b, a] = this.getPixel(imageData, x, y);
+        return a > 0 && !(r === 0 && g === 0 && b === 128);
     },
 
     // Flip image diagonally from top-right to bottom-left

@@ -36,28 +36,41 @@ Migrating the shibori drawing app from Canvas 2D API to WebGL for improved perfo
 - [x] Add basic vertex and fragment shader templates
 - [x] **Commit**: "Add WebGL core infrastructure and utilities"
 
-### Phase 4: Drawing System Migration
-- [ ] Convert paintbrush drawing from Canvas 2D to WebGL shaders
+### Phase 4: Drawing System Migration 
+- [x] Convert paintbrush drawing from Canvas 2D to WebGL shaders
+- [x] Replace `perfect-freehand` with WebGL-based stroke rendering
+- [x] Create `WebGLStrokeRenderer` for GPU-accelerated brush strokes
+- [x] Implement `WebGLPaintbrushMode` with Canvas 2D integration
+- [x] Update `DrawingModeFactory` to support WebGL/Canvas 2D selection
 - [ ] Migrate line drawing to WebGL vertex buffers
 - [ ] Update circle drawing with WebGL rendering
-- [ ] Replace `perfect-freehand` with WebGL-based stroke rendering
 - [ ] Implement texture-based drawing state management
 - [ ] **Commit**: "Migrate drawing tools to WebGL implementation"
 
-### Phase 5: Mirroring/Folding with Shaders
-- [ ] Convert `ImageUtils` flip operations to fragment shaders
-- [ ] Implement real-time symmetric pattern generation in WebGL
-- [ ] Replace `CanvasService.updateUnfoldedCanvas()` with shader-based mirroring
-- [ ] Optimize texture management for fold operations
-- [ ] Add diagonal fold shader implementations
+### Phase 5: Mirroring/Folding with Shaders ✅
+- [x] Convert `ImageUtils` flip operations to fragment shaders
+- [x] Implement real-time symmetric pattern generation in WebGL
+- [x] Create `WebGLMirrorRenderer` for GPU-accelerated mirroring
+- [x] Implement enhanced mirror fragment shader with diagonal support
+- [x] Replace `CanvasService.updateUnfoldedCanvas()` with shader-based mirroring
+- [x] Create `WebGLCanvasService` with Canvas 2D integration
+- [x] Optimize texture management for fold operations
+- [x] Add diagonal fold shader implementations
+- [x] Implement render-to-texture pipeline for complex mirroring
 - [ ] **Commit**: "Replace image manipulation with WebGL shaders"
 
-### Phase 6: Integration & Cleanup
-- [ ] Update React components to use WebGL renderer
-- [ ] Ensure Redux state compatibility with WebGL
+### Phase 6: Integration & Cleanup 🔄
+- [x] Update React components to use WebGL renderer
+- [x] Create `WebGLStatus` component for rendering mode display
+- [x] Create `WebGLControls` component for mode selection
+- [x] Update `CanvasDisplay` with WebGL status indicator
+- [x] Ensure Redux state compatibility with WebGL
+- [x] Update canvas hooks to support WebGL modes
+- [x] Integrate WebGL mirroring with Canvas 2D fallback
+- [x] Update drawing mode factory for WebGL compatibility
+- [x] Run full test suite and fix any regressions
+- [ ] Fix WebGL drawing integration issues found in tests
 - [ ] Test download functionality with WebGL canvas
-- [ ] Run full test suite and fix any regressions
-- [ ] Update drawing mode factory for WebGL compatibility
 - [ ] **Commit**: "Complete WebGL integration and testing"
 
 ### Phase 7: Performance & Polish
@@ -169,5 +182,5 @@ interface CanvasTestAdapter {
 ---
 
 **Last Updated**: 2025-08-16
-**Status**: Phase 3 - In Progress 🔄
-**Current Task**: Creating WebGL core infrastructure classes
+**Status**: Phase 6 - Near Complete 🔄
+**Current Task**: Integration & Cleanup (UI Complete - Fixing Drawing Integration)

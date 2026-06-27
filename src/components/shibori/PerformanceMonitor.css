@@ -1,0 +1,264 @@
+/* Performance Monitor Component Styles */
+
+.performance-monitor {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+}
+
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.monitor-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.monitor-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.start-btn, .stop-btn, .benchmark-btn {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.start-btn {
+  background: #4caf50;
+  color: white;
+  border-color: #45a049;
+}
+
+.start-btn:hover {
+  background: #45a049;
+}
+
+.stop-btn {
+  background: #f44336;
+  color: white;
+  border-color: #da190b;
+}
+
+.stop-btn:hover {
+  background: #da190b;
+}
+
+.benchmark-btn {
+  background: #2196f3;
+  color: white;
+  border-color: #1976d2;
+}
+
+.benchmark-btn:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.benchmark-btn:disabled {
+  background: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.current-metrics, .benchmark-results, .system-info {
+  margin: 12px 0;
+  padding: 12px;
+  background: #f8f8f8;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.current-metrics h4, .benchmark-results h4, .system-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.metric-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.metric-value {
+  font-weight: 600;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.metric-value.webgl {
+  color: #4caf50;
+}
+
+.metric-value.canvas2d {
+  color: #ff9800;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mode-comparison {
+  background: white;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.mode-comparison h5 {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  color: #333;
+}
+
+.benchmark-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+}
+
+.speedup-display {
+  text-align: center;
+  padding: 8px;
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11px;
+}
+
+.info-item span:first-child {
+  font-weight: 500;
+  color: #666;
+}
+
+.info-item span:last-child {
+  font-weight: 600;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.gpu-info {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webgl {
+  color: #4caf50 !important;
+}
+
+.canvas2d {
+  color: #ff9800 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .performance-monitor {
+    padding: 12px;
+    font-size: 11px;
+  }
+  
+  .monitor-controls {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .gpu-info {
+    max-width: 120px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .performance-monitor {
+    background: rgba(32, 32, 32, 0.95);
+    border-color: #555;
+    color: #e0e0e0;
+  }
+  
+  .monitor-header {
+    border-color: #555;
+  }
+  
+  .monitor-header h3 {
+    color: #e0e0e0;
+  }
+  
+  .current-metrics, .benchmark-results, .system-info {
+    background: #2a2a2a;
+    border-color: #555;
+  }
+  
+  .current-metrics h4, .benchmark-results h4, .system-info h4 {
+    color: #bbb;
+  }
+  
+  .metric-label {
+    color: #bbb;
+  }
+  
+  .mode-comparison {
+    background: #1a1a1a;
+    border-color: #444;
+  }
+  
+  .mode-comparison h5 {
+    color: #e0e0e0;
+  }
+  
+  .info-item span:first-child {
+    color: #bbb;
+  }
+}

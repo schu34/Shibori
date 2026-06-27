@@ -32,6 +32,19 @@ export {
 export { WebGLCapabilities } from './WebGLCapabilities';
 export type { WebGLCapabilityInfo, FeatureSupport } from './WebGLCapabilities';
 
+// Stroke rendering
+export { WebGLStrokeRenderer } from './WebGLStrokeRenderer';
+export type { StrokeConfig, StrokePoint } from './WebGLStrokeRenderer';
+
+// Mirror rendering
+export { WebGLMirrorRenderer } from './WebGLMirrorRenderer';
+export type { MirrorOperation, MirrorConfig, GridMirrorConfig } from './WebGLMirrorRenderer';
+
+// Import for utilities
+import { WebGLCapabilities } from './WebGLCapabilities';
+import type { WebGLCapabilityInfo } from './WebGLCapabilities';
+import type { WebGLRenderer } from './WebGLRenderer';
+
 // Utility functions
 export const WebGLUtils = {
   /**

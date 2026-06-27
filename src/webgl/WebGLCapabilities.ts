@@ -104,7 +104,8 @@ export class WebGLCapabilities {
     // Fallback to WebGL1
     if (!gl) {
       try {
-        gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        gl = canvas.getContext('webgl') as WebGLRenderingContext || 
+             canvas.getContext('experimental-webgl') as WebGLRenderingContext;
       } catch (error) {
         // WebGL not supported
       }
@@ -176,7 +177,7 @@ export class WebGLCapabilities {
    * Check if floating point textures are supported
    */
   private checkFloatTextureSupport(
-    gl: WebGLRenderingContext | WebGL2RenderingContext,
+    _gl: WebGLRenderingContext | WebGL2RenderingContext,
     extensions: string[],
     isWebGL2: boolean
   ): boolean {
@@ -190,7 +191,7 @@ export class WebGLCapabilities {
    * Check if half-float textures are supported
    */
   private checkHalfFloatTextureSupport(
-    gl: WebGLRenderingContext | WebGL2RenderingContext,
+    _gl: WebGLRenderingContext | WebGL2RenderingContext,
     extensions: string[],
     isWebGL2: boolean
   ): boolean {

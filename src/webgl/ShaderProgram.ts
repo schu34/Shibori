@@ -1,7 +1,10 @@
 /**
  * WebGL Shader Program Management
  * Handles shader compilation, program linking, and uniform/attribute management
+ * Uses ShaderCache for optimized compilation performance
  */
+
+import { ShaderCache, CachedProgram } from './ShaderCache';
 
 export interface ShaderProgramInfo {
   /** Program name for debugging */
@@ -34,8 +37,6 @@ export interface AttributeInfo {
 export class ShaderProgram {
   private gl: WebGLRenderingContext | WebGL2RenderingContext;
   private program: WebGLProgram | null = null;
-  private vertexShader: WebGLShader | null = null;
-  private fragmentShader: WebGLShader | null = null;
   private vertexSource: string;
   private fragmentSource: string;
   private uniformLocations: Map<string, WebGLUniformLocation> = new Map();
@@ -44,6 +45,8 @@ export class ShaderProgram {
   private attributeInfo: Map<string, AttributeInfo> = new Map();
   private debug: boolean;
   private name: string;
+  private shaderCache: ShaderCache;
+  private cachedProgram: CachedProgram | null = null;
 
   constructor(
     gl: WebGLRenderingContext | WebGL2RenderingContext,
@@ -57,74 +60,39 @@ export class ShaderProgram {
     this.fragmentSource = fragmentSource;
     this.debug = debug;
     this.name = name;
+    this.shaderCache = ShaderCache.getInstance();
 
     this.compile();
   }
 
   /**
-   * Compile shaders and link program
+   * Compile shaders and link program using cache
    */
   private compile(): void {
     try {
-      // Compile vertex shader
-      this.vertexShader = this.compileShader(this.vertexSource, this.gl.VERTEX_SHADER);
-      if (!this.vertexShader) {
-        throw new Error('Failed to compile vertex shader');
-      }
+      // Use shader cache for optimized compilation
+      this.cachedProgram = this.shaderCache.linkProgram(
+        this.gl,
+        this.vertexSource,
+        this.fragmentSource
+      );
 
-      // Compile fragment shader
-      this.fragmentShader = this.compileShader(this.fragmentSource, this.gl.FRAGMENT_SHADER);
-      if (!this.fragmentShader) {
-        throw new Error('Failed to compile fragment shader');
-      }
+      this.program = this.cachedProgram.program;
+      
+      // Use cached uniform and attribute locations
+      this.uniformLocations = new Map(this.cachedProgram.uniformLocations);
+      this.attributeLocations = new Map(this.cachedProgram.attributeLocations);
 
-      // Create and link program
-      this.program = this.gl.createProgram();
-      if (!this.program) {
-        throw new Error('Failed to create shader program');
-      }
-
-      this.gl.attachShader(this.program, this.vertexShader);
-      this.gl.attachShader(this.program, this.fragmentShader);
-      this.gl.linkProgram(this.program);
-
-      // Check for linking errors
-      if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) {
-        const error = this.gl.getProgramInfoLog(this.program);
-        throw new Error(`Shader program linking failed: ${error}`);
-      }
-
-      // Cache uniform and attribute information
+      // Still need to cache the detailed info for our API
       this.cacheUniformsAndAttributes();
 
-      this.log(`Shader program "${this.name}" compiled successfully`);
+      this.log(`Shader program "${this.name}" compiled successfully (cached: ${this.shaderCache.hasProgram(this.vertexSource, this.fragmentSource)})`);
     } catch (error) {
       this.cleanup();
       throw error;
     }
   }
 
-  /**
-   * Compile a single shader
-   */
-  private compileShader(source: string, type: number): WebGLShader | null {
-    const shader = this.gl.createShader(type);
-    if (!shader) {
-      throw new Error('Failed to create shader');
-    }
-
-    this.gl.shaderSource(shader, source);
-    this.gl.compileShader(shader);
-
-    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-      const error = this.gl.getShaderInfoLog(shader);
-      const shaderType = type === this.gl.VERTEX_SHADER ? 'vertex' : 'fragment';
-      this.gl.deleteShader(shader);
-      throw new Error(`${shaderType} shader compilation failed: ${error}\n\nSource:\n${source}`);
-    }
-
-    return shader;
-  }
 
   /**
    * Cache uniform and attribute locations and info
@@ -367,27 +335,19 @@ export class ShaderProgram {
    */
   public recompile(): void {
     this.cleanup();
+    // Clear cache entry to force recompilation
+    this.shaderCache.clearCache(this.gl);
     this.compile();
   }
 
   /**
-   * Clean up shader resources
+   * Clean up shader resources (cache handles actual WebGL cleanup)
    */
   private cleanup(): void {
-    if (this.vertexShader) {
-      this.gl.deleteShader(this.vertexShader);
-      this.vertexShader = null;
-    }
-
-    if (this.fragmentShader) {
-      this.gl.deleteShader(this.fragmentShader);
-      this.fragmentShader = null;
-    }
-
-    if (this.program) {
-      this.gl.deleteProgram(this.program);
-      this.program = null;
-    }
+    // Note: We don't delete shaders/programs here as they're managed by the cache
+    // The cache will handle cleanup when appropriate
+    this.program = null;
+    this.cachedProgram = null;
 
     this.uniformLocations.clear();
     this.attributeLocations.clear();
@@ -417,6 +377,20 @@ export class ShaderProgram {
    */
   public getProgram(): WebGLProgram | null {
     return this.program;
+  }
+
+  /**
+   * Get shader cache statistics
+   */
+  public getCacheStats(): string {
+    return this.shaderCache.getDebugInfo();
+  }
+
+  /**
+   * Check if this program was loaded from cache
+   */
+  public isFromCache(): boolean {
+    return this.shaderCache.hasProgram(this.vertexSource, this.fragmentSource);
   }
 
   /**

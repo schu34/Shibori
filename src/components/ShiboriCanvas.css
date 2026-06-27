@@ -308,6 +308,12 @@ input[type="range"]:focus {
     flex: 1;
     min-width: 300px;
     transition: all 0.3s ease;
+    /* Remove position: relative that was causing stacking issues */
+    z-index: auto;
+    /* Ensure no overlap between sections */
+    margin-bottom: 10px;
+    /* Ensure pointer events work correctly */
+    pointer-events: auto;
 }
 
 .fold-controls-group,
