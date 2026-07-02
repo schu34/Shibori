@@ -192,6 +192,36 @@ h1 {
     align-items: center;
 }
 
+.folded-canvas-frame {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+}
+
+.diagonal-invalid-region {
+    position: absolute;
+    inset: 1px;
+    border-radius: 6px;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(
+            135deg,
+            rgba(16, 28, 44, 0.18) 0,
+            rgba(16, 28, 44, 0.18) 6px,
+            rgba(255, 255, 255, 0.16) 6px,
+            rgba(255, 255, 255, 0.16) 12px
+        ),
+        rgba(7, 18, 34, 0.24);
+}
+
+.invalid-region-top-left {
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.invalid-region-bottom-left {
+    clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
 .canvas-header {
     display: flex;
     align-items: center;
@@ -274,8 +304,9 @@ canvas {
 }
 
 .radio-group {
-    display: flex;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 10px 14px;
     margin-top: 12px;
 }
 
@@ -287,6 +318,9 @@ canvas {
     font-weight: 500;
     color: #000;
     transition: transform 0.2s;
+    min-width: 0;
+    padding: 4px 0;
+    line-height: 1.2;
 }
 
 .radio-group label:hover {
@@ -363,6 +397,7 @@ input[type="range"]:focus {
 .controls-container {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 20px;
     margin-bottom: 20px;
     flex-wrap: wrap;
@@ -401,6 +436,7 @@ input[type="range"]:focus {
     transition: all 0.3s ease;
     z-index: auto;
     pointer-events: auto;
+    align-self: flex-start;
 }
 
 .fold-controls-group,
@@ -510,7 +546,7 @@ input[type="range"]:focus {
     }
 
     .radio-group {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         gap: 10px;
     }
 

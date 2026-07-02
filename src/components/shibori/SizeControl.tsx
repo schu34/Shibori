@@ -22,15 +22,24 @@ export const SizeControl: React.FC<SizeControlProps> = ({ tool, value }) => {
                 return {
                     label: 'Line Thickness:',
                     min: 1,
-                    max: 20,
+                    max: 40,
                     id: 'lineThicknessSlider'
                 };
             case DrawingTool.Paintbrush:
                 return {
                     label: 'Brush Thickness:',
                     min: 1,
-                    max: 20,
+                    max: 40,
                     id: 'brushThicknessSlider'
+                };
+            case DrawingTool.Rectangle:
+            case DrawingTool.Square:
+            case DrawingTool.Circle:
+                return {
+                    label: 'Outline Thickness:',
+                    min: 1,
+                    max: 40,
+                    id: 'shapeThicknessSlider'
                 };
         }
     };

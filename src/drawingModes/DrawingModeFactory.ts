@@ -1,7 +1,10 @@
 import { DrawingTool } from '../types';
 import { DrawingMode } from '../types/DrawingMode';
+import { CircleMode } from './CircleMode';
 import { LineMode } from './LineMode';
 import { PaintbrushMode } from './PaintbrushMode';
+import { RectangleMode } from './RectangleMode';
+import { SquareMode } from './SquareMode';
 
 export type RenderingMode = 'canvas2d' | 'webgl' | 'auto';
 
@@ -58,6 +61,15 @@ export class DrawingModeFactory {
                 
             case DrawingTool.Paintbrush:
                 return new PaintbrushMode();
+
+            case DrawingTool.Rectangle:
+                return new RectangleMode();
+
+            case DrawingTool.Square:
+                return new SquareMode();
+
+            case DrawingTool.Circle:
+                return new CircleMode();
                 
             default:
                 // asserts that this switch is exhaustive

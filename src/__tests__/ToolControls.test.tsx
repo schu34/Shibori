@@ -5,7 +5,7 @@ import { renderWithRedux } from '../testUtils';
 import * as reduxHooks from '../hooks/useReduxHooks';
 import { ToolControls } from '../components/shibori/ToolControls';
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool, DiagonalDirection } from '../types';
+import { DrawingTool, ShapeFillMode, DiagonalDirection } from '../types';
 
 describe('ToolControls Component', () => {
     const mockState: State = {
@@ -27,6 +27,7 @@ describe('ToolControls Component', () => {
         },
         circleRadius: 20,
         lineThickness: 2,
+        shapeFillMode: ShapeFillMode.Filled,
         currentTool: DrawingTool.Paintbrush,
         isDrawing: false,
         lineStartPoint: null,
@@ -56,6 +57,9 @@ describe('ToolControls Component', () => {
 
         expect(screen.getByText('Drawing Tool:')).toBeInTheDocument();
         expect(screen.getByText('Line Tool')).toBeInTheDocument();
+        expect(screen.getByText('Rectangle')).toBeInTheDocument();
+        expect(screen.getByText('Square')).toBeInTheDocument();
+        expect(screen.getByText('Circle')).toBeInTheDocument();
     });
 
     test('shows line controls when line tool is selected', () => {
@@ -81,6 +85,21 @@ describe('ToolControls Component', () => {
         expect(screen.getByText(/px$/)).toBeInTheDocument();
     });
 
+    test('shows fill mode controls when a shape tool is selected', () => {
+        const rectangleToolState = {
+            ...mockState,
+            currentTool: DrawingTool.Rectangle
+        };
+
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => rectangleToolState);
+
+        renderWithRedux(<ToolControls />);
+
+        expect(screen.getByText('Shape Fill:')).toBeInTheDocument();
+        expect(screen.getByLabelText('Filled')).toBeChecked();
+        expect(screen.getByLabelText('Outline')).not.toBeChecked();
+    });
+
     test('changing tool dispatches SET_CURRENT_TOOL action', () => {
         renderWithRedux(<ToolControls />);
 
@@ -91,6 +110,35 @@ describe('ToolControls Component', () => {
         expect(mockDispatch).toHaveBeenCalledWith({
             type: 'SET_CURRENT_TOOL',
             payload: DrawingTool.Line
+        });
+    });
+
+    test('changing to a shape tool dispatches SET_CURRENT_TOOL action', () => {
+        renderWithRedux(<ToolControls />);
+
+        fireEvent.click(screen.getByLabelText('Rectangle'));
+
+        expect(mockDispatch).toHaveBeenCalledWith({
+            type: 'SET_CURRENT_TOOL',
+            payload: DrawingTool.Rectangle
+        });
+    });
+
+    test('changing fill mode dispatches SET_SHAPE_FILL_MODE action', () => {
+        const rectangleToolState = {
+            ...mockState,
+            currentTool: DrawingTool.Rectangle
+        };
+
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => rectangleToolState);
+
+        renderWithRedux(<ToolControls />);
+
+        fireEvent.click(screen.getByLabelText('Outline'));
+
+        expect(mockDispatch).toHaveBeenCalledWith({
+            type: 'SET_SHAPE_FILL_MODE',
+            payload: ShapeFillMode.Outline
         });
     });
 

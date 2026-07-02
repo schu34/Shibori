@@ -38,6 +38,36 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool }) => {
                     />
                     Paintbrush
                 </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="drawingTool"
+                        value={DrawingTool.Rectangle}
+                        checked={currentTool === DrawingTool.Rectangle}
+                        onChange={() => handleToolChange(DrawingTool.Rectangle)}
+                    />
+                    Rectangle
+                </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="drawingTool"
+                        value={DrawingTool.Square}
+                        checked={currentTool === DrawingTool.Square}
+                        onChange={() => handleToolChange(DrawingTool.Square)}
+                    />
+                    Square
+                </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="drawingTool"
+                        value={DrawingTool.Circle}
+                        checked={currentTool === DrawingTool.Circle}
+                        onChange={() => handleToolChange(DrawingTool.Circle)}
+                    />
+                    Circle
+                </label>
             </div>
         </div>
     );

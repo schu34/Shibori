@@ -1,4 +1,4 @@
-import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
+import { AppConfig, DrawingTool, ShapeFillMode, FoldState, DiagonalDirection } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
 import { SerializableState } from '../utils/urlStateUtils';
 import { sanitizeState, validateState } from './stateValidation';
@@ -18,6 +18,7 @@ export interface State {
     config: AppConfig;
     circleRadius: number;
     lineThickness: number;
+    shapeFillMode: ShapeFillMode;
     currentTool: DrawingTool;
     isDrawing: boolean;
     lineStartPoint: { x: number; y: number } | null;
@@ -37,6 +38,7 @@ export const initialState: State = {
     config: DEFAULT_CONFIG,
     circleRadius: DEFAULT_CONFIG.defaultCircleRadius,
     lineThickness: DEFAULT_CONFIG.defaultLineThickness,
+    shapeFillMode: ShapeFillMode.Filled,
     currentTool: DrawingTool.Paintbrush,
     isDrawing: false,
     lineStartPoint: null,
@@ -63,6 +65,7 @@ export const initialState: State = {
 export enum ActionType {
     SET_CIRCLE_RADIUS = 'SET_CIRCLE_RADIUS',
     SET_LINE_THICKNESS = 'SET_LINE_THICKNESS',
+    SET_SHAPE_FILL_MODE = 'SET_SHAPE_FILL_MODE',
     SET_CURRENT_TOOL = 'SET_CURRENT_TOOL',
     SET_IS_DRAWING = 'SET_IS_DRAWING',
     SET_LINE_START_POINT = 'SET_LINE_START_POINT',
@@ -87,6 +90,7 @@ export enum ActionType {
 export type Action =
     | { type: ActionType.SET_CIRCLE_RADIUS, payload: number }
     | { type: ActionType.SET_LINE_THICKNESS, payload: number }
+    | { type: ActionType.SET_SHAPE_FILL_MODE, payload: ShapeFillMode }
     | { type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool }
     | { type: ActionType.SET_IS_DRAWING, payload: boolean }
     | { type: ActionType.SET_LINE_START_POINT, payload: { x: number; y: number } | null }
@@ -138,6 +142,9 @@ export function reducer(state: State, action: Action): State {
             break;
         case ActionType.SET_LINE_THICKNESS:
             newState = { ...state, lineThickness: Math.max(1, Math.min(100, action.payload)) };
+            break;
+        case ActionType.SET_SHAPE_FILL_MODE:
+            newState = { ...state, shapeFillMode: action.payload };
             break;
         case ActionType.SET_CURRENT_TOOL:
             newState = { ...state, currentTool: action.payload };
@@ -307,6 +314,7 @@ export function reducer(state: State, action: Action): State {
                 canvasDimensions: action.payload.canvasDimensions,
                 circleRadius: Math.max(1, Math.min(200, action.payload.circleRadius || state.circleRadius)),
                 lineThickness: Math.max(1, Math.min(100, action.payload.lineThickness || state.lineThickness)),
+                shapeFillMode: action.payload.shapeFillMode || state.shapeFillMode,
                 currentTool: action.payload.currentTool || state.currentTool,
                 // Reset transient drawing state
                 isDrawing: false,

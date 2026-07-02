@@ -31,6 +31,7 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
 
   const {
     unfoldedCanvasRef,
+    foldedCanvasRef,
     foldedCtxRef,
     unfoldedCtxRef,
     getFoldedCanvasDimensions,
@@ -102,6 +103,8 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
           dispatch,
           foldedCtx,
           unfoldedCtx,
+          foldedCanvas: foldedCanvasRef.current || undefined,
+          historyItem,
           getFoldedCanvasDimensions,
           getUnfoldedCanvasDimensions,
           updateUnfoldedCanvas,
@@ -131,6 +134,7 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
       unfoldedCanvasRef,
       unfoldedCtxRef,
       foldedCtxRef,
+      foldedCanvasRef,
       getFoldedCanvasDimensions,
       getUnfoldedCanvasDimensions,
       updateUnfoldedCanvas,

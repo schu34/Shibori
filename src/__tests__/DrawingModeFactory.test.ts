@@ -49,6 +49,16 @@ describe('DrawingModeFactory', () => {
       expect(mode.constructor.name).toMatch(/LineMode/);
     });
 
+    test.each([
+      [DrawingTool.Rectangle, 'RectangleMode'],
+      [DrawingTool.Square, 'SquareMode'],
+      [DrawingTool.Circle, 'CircleMode'],
+    ])('should return %s mode', (tool, expectedModeName) => {
+      const mode = DrawingModeFactory.getTool(tool);
+      expect(mode).toBeDefined();
+      expect(mode.constructor.name).toBe(expectedModeName);
+    });
+
     test('should throw error for unknown tool', () => {
       expect(() => {
         DrawingModeFactory.getTool('unknown' as DrawingTool);

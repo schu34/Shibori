@@ -10,6 +10,7 @@ import { WebGLRenderer } from '../webgl/WebGLRenderer';
 import { WebGLStrokeRenderer, StrokeConfig, StrokePoint } from '../webgl/WebGLStrokeRenderer';
 import { WebGLCapabilities } from '../webgl/WebGLCapabilities';
 import { PaintbrushMode } from './PaintbrushMode';
+import { CanvasService } from '../services/CanvasService';
 
 export interface WebGLPaintbrushContext extends DrawingModeContext {
   /** WebGL renderer instance */
@@ -201,11 +202,10 @@ export class WebGLPaintbrushMode implements DrawingMode {
       return this.fallbackMode.continue(point, context);
     }
 
-    const { getState, dispatch, isInValidDrawingArea, drawDiagonalFoldLinesOnFolded } = context;
+    const { getState, dispatch, drawDiagonalFoldLinesOnFolded } = context;
 
     const { isDrawing } = getState();
     if (!isDrawing) return false;
-    if (!isInValidDrawingArea(point.x, point.y)) return false;
 
     dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
 
@@ -238,7 +238,7 @@ export class WebGLPaintbrushMode implements DrawingMode {
    * Copy WebGL rendered content to Canvas 2D context
    */
   private copyWebGLToCanvas2D(context: WebGLPaintbrushContext): void {
-    const { foldedCtx, getFoldedCanvasDimensions } = context;
+    const { foldedCtx, foldedCanvas, getFoldedCanvasDimensions, getState } = context;
     
     if (!foldedCtx || !this.webglRenderer) return;
 
@@ -251,7 +251,12 @@ export class WebGLPaintbrushMode implements DrawingMode {
     // Get WebGL canvas and draw it onto the 2D canvas
     const webglCanvas = this.webglRenderer.getContext()?.canvas;
     if (webglCanvas) {
+      foldedCtx.save();
+      if (foldedCanvas) {
+        CanvasService.clipToDrawableRegion(foldedCtx, foldedCanvas, getState().folds);
+      }
       foldedCtx.drawImage(webglCanvas, 0, 0, dimensions.width, dimensions.height);
+      foldedCtx.restore();
     }
   }
 

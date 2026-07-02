@@ -1,5 +1,5 @@
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool, FoldState } from '../types';
+import { DrawingTool, ShapeFillMode, FoldState } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
 
 // Interface for the subset of state we want to encode in URLs
@@ -12,6 +12,7 @@ export interface SerializableState {
     };
     circleRadius: number;
     lineThickness: number;
+    shapeFillMode?: ShapeFillMode;
     currentTool: DrawingTool;
 }
 
@@ -23,6 +24,7 @@ export function extractSerializableState(state: State): SerializableState {
         canvasDimensions: state.canvasDimensions,
         circleRadius: state.circleRadius,
         lineThickness: state.lineThickness,
+        shapeFillMode: state.shapeFillMode,
         currentTool: state.currentTool,
     };
 }
@@ -80,6 +82,8 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
     if (!candidate.canvasDimensions || typeof candidate.canvasDimensions !== 'object') return false;
     if (typeof candidate.circleRadius !== 'number') return false;
     if (typeof candidate.lineThickness !== 'number') return false;
+    if (candidate.shapeFillMode !== undefined &&
+        !Object.values(ShapeFillMode).includes(candidate.shapeFillMode as ShapeFillMode)) return false;
     if (!Object.values(DrawingTool).includes(candidate.currentTool as DrawingTool)) return false;
     
     // Validate folds structure
@@ -112,6 +116,10 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
         const historyItem = item as Record<string, unknown>;
         if (!Object.values(DrawingTool).includes(historyItem.action as DrawingTool) ||
             !Array.isArray(historyItem.points)) {
+            return false;
+        }
+        if (historyItem.shapeFillMode !== undefined &&
+            !Object.values(ShapeFillMode).includes(historyItem.shapeFillMode as ShapeFillMode)) {
             return false;
         }
         

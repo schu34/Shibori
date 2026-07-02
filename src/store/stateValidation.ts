@@ -1,5 +1,5 @@
 import { State } from './shiboriCanvasState';
-import { DrawingTool } from '../types';
+import { DrawingTool, ShapeFillMode } from '../types';
 import { logger } from '../utils/logger';
 
 /**
@@ -57,6 +57,9 @@ export function validateState(state: State): boolean {
     }
     if (typeof state.lineThickness !== 'number' || state.lineThickness <= 0) {
         errors.push('Invalid line thickness');
+    }
+    if (!Object.values(ShapeFillMode).includes(state.shapeFillMode)) {
+        errors.push('Invalid shape fill mode');
     }
 
     // Validate history
@@ -122,6 +125,9 @@ export function sanitizeState(state: State): State {
     // Sanitize tool settings
     sanitized.circleRadius = Math.max(1, Math.min(200, sanitized.circleRadius || 40));
     sanitized.lineThickness = Math.max(1, Math.min(100, sanitized.lineThickness || 20));
+    if (!Object.values(ShapeFillMode).includes(sanitized.shapeFillMode)) {
+        sanitized.shapeFillMode = ShapeFillMode.Filled;
+    }
 
     // Ensure valid tool
     if (!Object.values(DrawingTool).includes(sanitized.currentTool)) {

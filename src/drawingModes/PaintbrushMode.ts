@@ -2,6 +2,7 @@ import { DrawingMode, Point, DrawingModeContext, UndoableHistoryItem } from '../
 import { ActionType } from '../store/shiboriCanvasState';
 import { getStroke } from 'perfect-freehand';
 import { DrawingTool } from '../types';
+import { CanvasService } from '../services/CanvasService';
 
 export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;
@@ -23,11 +24,10 @@ export class PaintbrushMode implements DrawingMode {
     }
 
     continue(point: Point, context: DrawingModeContext): boolean {
-        const { getState, dispatch, isInValidDrawingArea, foldedCtx, drawDiagonalFoldLinesOnFolded } = context;
+        const { getState, dispatch, foldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
 
-        const { isDrawing, lineThickness, config } = getState();
+        const { isDrawing, folds, lineThickness, config } = getState();
         if (!isDrawing) return false;
-        if (!isInValidDrawingArea(point.x, point.y)) return false;
 
         dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
 
@@ -53,6 +53,10 @@ export class PaintbrushMode implements DrawingMode {
         }
 
         // Draw the stroke
+        foldedCtx.save();
+        if (foldedCanvas) {
+            CanvasService.clipToDrawableRegion(foldedCtx, foldedCanvas, folds);
+        }
         foldedCtx.fillStyle = config.lineColor;
         foldedCtx.beginPath();
 
@@ -68,6 +72,7 @@ export class PaintbrushMode implements DrawingMode {
 
         foldedCtx.closePath();
         foldedCtx.fill();
+        foldedCtx.restore();
 
         drawDiagonalFoldLinesOnFolded();
 

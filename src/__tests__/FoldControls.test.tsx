@@ -5,7 +5,7 @@ import { renderWithRedux } from '../testUtils';
 import * as reduxHooks from '../hooks/useReduxHooks';
 import { FoldControls } from '../components/shibori/FoldControls';
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool, DiagonalDirection } from '../types';
+import { DrawingTool, ShapeFillMode, DiagonalDirection } from '../types';
 
 describe('FoldControls Component', () => {
     const mockState: State = {
@@ -27,6 +27,7 @@ describe('FoldControls Component', () => {
         },
         circleRadius: 20,
         lineThickness: 2,
+        shapeFillMode: ShapeFillMode.Filled,
         currentTool: DrawingTool.Circle,
         isDrawing: false,
         lineStartPoint: null,

@@ -1,15 +1,12 @@
 import React from 'react';
 import { logger } from '../../utils/logger';
+import { DiagonalDirection, FoldState } from '../../types';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     canvasDimensions: { width: number; height: number };
-    folds: {
-        vertical: number;
-        horizontal: number;
-        diagonal: { enabled: boolean; count: number; direction: any };
-    };
+    folds: FoldState;
     onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
@@ -37,19 +34,32 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         folds: { vertical: folds.vertical, horizontal: folds.horizontal }
     });
 
+    const showDiagonalMask = folds.diagonal.enabled && folds.diagonal.count === 1 && folds.vertical === folds.horizontal;
+    const invalidMaskClass = folds.diagonal.direction === DiagonalDirection.TopRightToBottomLeft
+        ? 'invalid-region-top-left'
+        : 'invalid-region-bottom-left';
+
     return (
         <div className="canvas-container">
             <div className="canvas-wrapper">
                 <h3>Folded Version</h3>
-                <canvas
-                    ref={foldedCanvasRef}
-                    width={canvasDimensions.width}
-                    height={canvasDimensions.height}
-                    onMouseDown={onMouseDown}
-                    onMouseMove={onMouseMove}
-                    onMouseUp={onMouseUp}
-                    onMouseLeave={onMouseLeave}
-                />
+                <div className="folded-canvas-frame">
+                    <canvas
+                        ref={foldedCanvasRef}
+                        width={canvasDimensions.width}
+                        height={canvasDimensions.height}
+                        onMouseDown={onMouseDown}
+                        onMouseMove={onMouseMove}
+                        onMouseUp={onMouseUp}
+                        onMouseLeave={onMouseLeave}
+                    />
+                    {showDiagonalMask && (
+                        <div
+                            className={`diagonal-invalid-region ${invalidMaskClass}`}
+                            aria-hidden="true"
+                        />
+                    )}
+                </div>
             </div>
             <div className="canvas-wrapper">
                 <div className="canvas-header">

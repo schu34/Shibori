@@ -6,6 +6,7 @@ import {
 } from "../types/DrawingMode";
 import { ActionType } from "../store/shiboriCanvasState";
 import { DrawingTool } from "../types";
+import { CanvasService } from "../services/CanvasService";
 
 export class LineMode implements DrawingMode {
   private originalFoldedCanvasState: ImageData | null = null;
@@ -56,19 +57,11 @@ export class LineMode implements DrawingMode {
       foldedCtx,
       unfoldedCtx,
       drawDiagonalFoldLinesOnFolded,
-      isInValidDrawingArea,
+      foldedCanvas,
     } = context;
 
-    const { isDrawing, lineStartPoint, config, lineThickness } = getState();
+    const { isDrawing, lineStartPoint, config, folds, lineThickness } = getState();
     if (!isDrawing || !lineStartPoint) return false;
-
-    const endValid = isInValidDrawingArea(point.x, point.y);
-
-    if(!endValid) {
-      this.end(null, context);
-      this.cancel(context)
-      return false;
-    }
 
     // Restore original states
     if (this.originalFoldedCanvasState) {
@@ -79,6 +72,10 @@ export class LineMode implements DrawingMode {
     }
 
     // Draw preview line
+    foldedCtx.save();
+    if (foldedCanvas) {
+      CanvasService.clipToDrawableRegion(foldedCtx, foldedCanvas, folds);
+    }
     foldedCtx.beginPath();
     foldedCtx.moveTo(lineStartPoint.x, lineStartPoint.y);
     foldedCtx.lineTo(point.x, point.y);
@@ -86,7 +83,7 @@ export class LineMode implements DrawingMode {
     foldedCtx.lineWidth = lineThickness;
     foldedCtx.globalAlpha = 0.6;
     foldedCtx.stroke();
-    foldedCtx.globalAlpha = 1.0;
+    foldedCtx.restore();
 
     drawDiagonalFoldLinesOnFolded();
     this.lastPoint = point;
@@ -101,31 +98,29 @@ export class LineMode implements DrawingMode {
       getState,
       dispatch,
       foldedCtx,
-      isInValidDrawingArea,
+      foldedCanvas,
       drawDiagonalFoldLinesOnFolded,
     } = context;
 
-    const { isDrawing, lineStartPoint, config, lineThickness } = getState();
+    const { isDrawing, lineStartPoint, config, folds, lineThickness } = getState();
     if (!isDrawing || !lineStartPoint || !this.lastPoint) return null;
 
     if (point) {
       this.lastPoint = point;
     }
 
-    const startValid = isInValidDrawingArea(lineStartPoint.x, lineStartPoint.y);
-    const endValid = isInValidDrawingArea(this.lastPoint.x, this.lastPoint.y);
-
-    if (!startValid && !endValid) {
-      return null;
-    }
-
     // Draw final line
+    foldedCtx.save();
+    if (foldedCanvas) {
+      CanvasService.clipToDrawableRegion(foldedCtx, foldedCanvas, folds);
+    }
     foldedCtx.beginPath();
     foldedCtx.moveTo(lineStartPoint.x, lineStartPoint.y);
     foldedCtx.lineTo(this.lastPoint.x, this.lastPoint.y);
     foldedCtx.strokeStyle = config.lineColor;
     foldedCtx.lineWidth = lineThickness;
     foldedCtx.stroke();
+    foldedCtx.restore();
 
     drawDiagonalFoldLinesOnFolded();
 

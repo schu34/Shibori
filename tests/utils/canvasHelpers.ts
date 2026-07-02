@@ -199,13 +199,30 @@ export async function drawOnCanvas(
 /**
  * Ensure a drawing tool is selected
  */
-export async function selectDrawingTool(page: Page, tool: 'paintbrush' | 'line'): Promise<void> {
-  await page.locator(`input[value="${tool}"]`).check();
+export async function selectDrawingTool(
+  page: Page,
+  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle'
+): Promise<void> {
+  const toolInput = page.locator(`input[value="${tool}"]`);
+  await toolInput.check();
   
   // Verify selection worked
-  const isSelected = await page.locator(`input[value="${tool}"]`).isChecked();
+  const isSelected = await toolInput.isChecked();
   if (!isSelected) {
     throw new Error(`Failed to select ${tool} tool`);
+  }
+}
+
+export async function selectShapeFillMode(
+  page: Page,
+  fillMode: 'filled' | 'outline'
+): Promise<void> {
+  const fillModeInput = page.locator(`input[name="shapeFillMode"][value="${fillMode}"]`);
+  await fillModeInput.check();
+
+  const isSelected = await fillModeInput.isChecked();
+  if (!isSelected) {
+    throw new Error(`Failed to select ${fillMode} fill mode`);
   }
 }
 

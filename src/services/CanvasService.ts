@@ -197,6 +197,47 @@ export class CanvasService {
     foldedCtx.fill();
   }
 
+  static isDiagonalFoldActive(folds: FoldState): boolean {
+    return folds.diagonal.enabled && folds.diagonal.count === 1 && folds.vertical === folds.horizontal;
+  }
+
+  static traceDrawableRegionPath(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    folds: FoldState
+  ): void {
+    ctx.beginPath();
+
+    if (!CanvasService.isDiagonalFoldActive(folds)) {
+      ctx.rect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    if (folds.diagonal.direction === 'topRightToBottomLeft') {
+      ctx.moveTo(width, 0);
+      ctx.lineTo(width, height);
+      ctx.lineTo(0, height);
+    } else {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(width, 0);
+      ctx.lineTo(width, height);
+    }
+
+    ctx.closePath();
+  }
+
+  static clipToDrawableRegion(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    folds: FoldState
+  ): void {
+    CanvasService.traceDrawableRegionPath(ctx, canvas, folds);
+    ctx.clip();
+  }
+
   /**
    * Update the unfolded canvas by mirroring the folded canvas
    */
@@ -331,7 +372,7 @@ export class CanvasService {
     _foldedCanvas: HTMLCanvasElement
   ): boolean {
     // Only apply restriction if diagonal fold is active (count is 1 and canvas is square)
-    if (folds.diagonal.count !== 1 || folds.vertical !== folds.horizontal) {
+    if (!CanvasService.isDiagonalFoldActive(folds)) {
       return true;
     }
 

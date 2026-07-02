@@ -22,5 +22,13 @@ export interface FoldState {
 
 export enum DrawingTool {
     Line = 'line',
-    Paintbrush = 'paintbrush'
+    Paintbrush = 'paintbrush',
+    Rectangle = 'rectangle',
+    Square = 'square',
+    Circle = 'circle'
 } 
+
+export enum ShapeFillMode {
+    Filled = 'filled',
+    Outline = 'outline'
+}

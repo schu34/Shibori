@@ -16,6 +16,7 @@ export function organizedStateToFlatState(organizedState: OrganizedState): State
         currentTool: organizedState.drawingConfig.currentTool,
         circleRadius: organizedState.drawingConfig.circleRadius,
         lineThickness: organizedState.drawingConfig.lineThickness,
+        shapeFillMode: organizedState.drawingConfig.shapeFillMode,
         
         // Folding
         folds: organizedState.folding.folds,
@@ -50,6 +51,7 @@ export function flatStateToOrganizedState(flatState: State): OrganizedState {
             currentTool: flatState.currentTool,
             circleRadius: flatState.circleRadius,
             lineThickness: flatState.lineThickness,
+            shapeFillMode: flatState.shapeFillMode,
         },
         folding: {
             folds: flatState.folds,

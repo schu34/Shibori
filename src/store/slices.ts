@@ -1,4 +1,4 @@
-import { AppConfig, DrawingTool, FoldState, DiagonalDirection } from '../types';
+import { AppConfig, DrawingTool, ShapeFillMode, FoldState, DiagonalDirection } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
 
 // Persistent application settings
@@ -15,6 +15,7 @@ export interface DrawingConfigState {
     currentTool: DrawingTool;
     circleRadius: number;
     lineThickness: number;
+    shapeFillMode: ShapeFillMode;
 }
 
 // Folding configuration
@@ -61,6 +62,7 @@ export const defaultDrawingConfig: DrawingConfigState = {
     currentTool: DrawingTool.Paintbrush,
     circleRadius: DEFAULT_APP_CONFIG.defaultCircleRadius,
     lineThickness: DEFAULT_APP_CONFIG.defaultLineThickness,
+    shapeFillMode: ShapeFillMode.Filled,
 };
 
 export const defaultFoldingState: FoldingState = {

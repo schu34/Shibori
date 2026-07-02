@@ -2,8 +2,8 @@ import { DrawingTool, ShapeFillMode } from "../types";
 import { Point } from "../types/DrawingMode";
 import { DragShapeMode } from "./DragShapeMode";
 
-export class CircleMode extends DragShapeMode {
-  protected readonly tool = DrawingTool.Circle;
+export class RectangleMode extends DragShapeMode {
+  protected readonly tool = DrawingTool.Rectangle;
 
   protected drawShape(
     ctx: CanvasRenderingContext2D,
@@ -11,18 +11,14 @@ export class CircleMode extends DragShapeMode {
     endPoint: Point,
     fillMode: ShapeFillMode
   ): void {
-    const radius = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
-
-    if (radius <= 0) return;
-
-    ctx.beginPath();
-    ctx.arc(startPoint.x, startPoint.y, radius, 0, Math.PI * 2);
+    const width = endPoint.x - startPoint.x;
+    const height = endPoint.y - startPoint.y;
 
     if (fillMode === ShapeFillMode.Filled) {
-      ctx.fill();
+      ctx.fillRect(startPoint.x, startPoint.y, width, height);
       return;
     }
 
-    ctx.stroke();
+    ctx.strokeRect(startPoint.x, startPoint.y, width, height);
   }
 }

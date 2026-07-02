@@ -1,5 +1,5 @@
 import { State, Action } from '../store/shiboriCanvasState';
-import { DrawingTool } from '../types';
+import { DrawingTool, ShapeFillMode } from '../types';
 export interface Point {
     x: number;
     y: number;
@@ -21,11 +21,13 @@ export interface DrawingModeContext {
     updateUnfoldedCanvas: () => void;
     drawDiagonalFoldLinesOnFolded: () => void;
     isInValidDrawingArea: (x: number, y: number) => boolean;
+    historyItem?: UndoableHistoryItem;
 }
 
 export interface UndoableHistoryItem {
     action: DrawingTool;
     points: Point[];
+    shapeFillMode?: ShapeFillMode;
 }
 
 export interface DrawingMode {
