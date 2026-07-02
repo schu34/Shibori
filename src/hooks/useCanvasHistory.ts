@@ -10,6 +10,7 @@ import { useStore } from "react-redux";
 import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
 import { logger } from "../utils/logger";
+import { HistoryAction } from "../types";
 
 export interface HistoryOperations {
   undo: () => void;
@@ -21,7 +22,10 @@ export interface HistoryOperations {
  * Hook for managing canvas history and undo operations
  * Handles history replay, undo functionality, and canvas reset
  */
-export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
+export function useCanvasHistory(
+  canvasRefs: CanvasRefs,
+  updateUnfoldedCanvas: () => void
+): HistoryOperations {
   const dispatch = useAppDispatch();
   
   const { getState: _getState } = useStore<RootState>() as {
@@ -34,6 +38,7 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
     foldedCanvasRef,
     foldedCtxRef,
     unfoldedCtxRef,
+    getCanvasContext,
     getFoldedCanvasDimensions,
     getUnfoldedCanvasDimensions,
   } = canvasRefs;
@@ -54,17 +59,10 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
       isLoadingFromUrl: currentState.isLoadingFromUrl,
       redrawTrigger: currentState.redrawTrigger
     });
-    const context = canvasRefs.getCanvasContext();
+    const context = getCanvasContext();
     if (!context) return;
     CanvasService.resetCanvases(context, currentState.folds);
-  }, [canvasRefs, getState]);
-
-  // Function to update the unfolded canvas (for history replay)
-  const updateUnfoldedCanvas = useCallback(() => {
-    const context = canvasRefs.getCanvasContext();
-    if (!context) return;
-    CanvasService.updateUnfoldedCanvas(context, getState().folds);
-  }, [getState, canvasRefs]);
+  }, [getCanvasContext, getState]);
 
   // Function to check if a point is in the valid drawing area (for history replay)
   const isInValidDrawingArea = useCallback(
@@ -78,10 +76,10 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
 
   // Function to draw diagonal fold lines (for history replay)
   const drawDiagonalFoldLinesOnFolded = useCallback(() => {
-    const context = canvasRefs.getCanvasContext();
+    const context = getCanvasContext();
     if (!context) return;
     CanvasService.drawDiagonalFoldLinesOnFolded(context, getState().folds);
-  }, [getState, canvasRefs]);
+  }, [getState, getCanvasContext]);
 
   // Function to replay drawing operations from history
   const drawFromHistory = useCallback(
@@ -96,6 +94,13 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
 
       for (const historyItem of historyItems) {
         const { action, points } = historyItem;
+        if (action === HistoryAction.Clear) {
+          const context = getCanvasContext();
+          if (!context) return;
+          CanvasService.resetCanvases(context, getState().folds);
+          continue;
+        }
+
         logger.canvas.operation(`processing ${action}`, { pointCount: points.length });
         const mode = DrawingModeFactory.getTool(action);
         const args = {
@@ -107,7 +112,7 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
           historyItem,
           getFoldedCanvasDimensions,
           getUnfoldedCanvasDimensions,
-          updateUnfoldedCanvas,
+          updateUnfoldedCanvas: () => {},
           drawDiagonalFoldLinesOnFolded,
           isInValidDrawingArea,
         };
@@ -135,9 +140,9 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
       unfoldedCtxRef,
       foldedCtxRef,
       foldedCanvasRef,
+      getCanvasContext,
       getFoldedCanvasDimensions,
       getUnfoldedCanvasDimensions,
-      updateUnfoldedCanvas,
       drawDiagonalFoldLinesOnFolded,
       isInValidDrawingArea,
     ]
@@ -152,7 +157,10 @@ export function useCanvasHistory(canvasRefs: CanvasRefs): HistoryOperations {
       const historyItems = getState().history;
       resetCanvases();
       drawFromHistory(historyItems);
-      updateUnfoldedCanvas();
+      const latestHistoryItem = historyItems[historyItems.length - 1];
+      if (latestHistoryItem && latestHistoryItem.action !== HistoryAction.Clear) {
+        updateUnfoldedCanvas();
+      }
     }
   }, [
     getState,

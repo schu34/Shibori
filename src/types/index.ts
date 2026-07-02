@@ -28,6 +28,10 @@ export enum DrawingTool {
     Circle = 'circle'
 } 
 
+export enum HistoryAction {
+    Clear = 'clear'
+}
+
 export enum ShapeFillMode {
     Filled = 'filled',
     Outline = 'outline'

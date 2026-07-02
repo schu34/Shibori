@@ -33,7 +33,7 @@ export function useCanvas() {
   } = drawingOps;
 
   // Use the canvas history hook
-  const historyOps = useCanvasHistory(canvasRefs);
+  const historyOps = useCanvasHistory(canvasRefs, updateUnfoldedCanvas);
   const {
     undo,
     drawFromHistory,
@@ -99,4 +99,3 @@ export function useCanvas() {
     drawFromHistory,
   };
 }
-

@@ -1,6 +1,8 @@
 import React from 'react';
 import { useCanvas } from '../../hooks/useCanvas';
-import { useAppSelector } from '../../hooks/useReduxHooks';
+import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
+import { ActionType } from '../../store/shiboriCanvasState';
+import { HistoryAction } from '../../types';
 import { CanvasRenderer } from './CanvasRenderer';
 import { CanvasEventHandler } from './CanvasEventHandler';
 import { CanvasController } from './CanvasController';
@@ -14,6 +16,7 @@ import { logger } from '../../utils/logger';
  */
 export const CanvasDisplay: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
+    const dispatch = useAppDispatch();
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
@@ -38,6 +41,12 @@ export const CanvasDisplay: React.FC = () => {
 
     const handleClearCanvas = () => {
         resetCanvases();
+        if (state.history.length > 0) {
+            dispatch({
+                type: ActionType.ADD_HISTORY_ITEM,
+                payload: { action: HistoryAction.Clear, points: [] }
+            });
+        }
     };
 
     return (

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
+import { HistoryAction } from '../../types';
 import { logger } from '../../utils/logger';
 import { CanvasService } from '../../services/CanvasService';
 
@@ -59,7 +60,9 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
             });
             resetCanvases();
             drawFromHistory(state.history);
-            updateUnfoldedCanvas();
+            if (state.history[state.history.length - 1]?.action !== HistoryAction.Clear) {
+                updateUnfoldedCanvas();
+            }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps  
     }, [state.redrawTrigger, state.history]);

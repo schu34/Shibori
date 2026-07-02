@@ -1,5 +1,5 @@
 import { State } from '../store/shiboriCanvasState';
-import { DrawingTool, ShapeFillMode, FoldState } from '../types';
+import { DrawingTool, HistoryAction, ShapeFillMode, FoldState } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
 
 // Interface for the subset of state we want to encode in URLs
@@ -114,7 +114,9 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
         if (!item || typeof item !== 'object') return false;
         
         const historyItem = item as Record<string, unknown>;
-        if (!Object.values(DrawingTool).includes(historyItem.action as DrawingTool) ||
+        const isDrawingAction = Object.values(DrawingTool).includes(historyItem.action as DrawingTool);
+        const isHistoryAction = Object.values(HistoryAction).includes(historyItem.action as HistoryAction);
+        if ((!isDrawingAction && !isHistoryAction) ||
             !Array.isArray(historyItem.points)) {
             return false;
         }

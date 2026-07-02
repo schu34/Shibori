@@ -1,5 +1,5 @@
 import { State, Action } from '../store/shiboriCanvasState';
-import { DrawingTool, ShapeFillMode } from '../types';
+import { DrawingTool, HistoryAction, ShapeFillMode } from '../types';
 export interface Point {
     x: number;
     y: number;
@@ -25,7 +25,7 @@ export interface DrawingModeContext {
 }
 
 export interface UndoableHistoryItem {
-    action: DrawingTool;
+    action: DrawingTool | HistoryAction;
     points: Point[];
     shapeFillMode?: ShapeFillMode;
 }

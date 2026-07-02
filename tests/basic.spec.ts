@@ -3,6 +3,7 @@ import {
   analyzeCanvasPixels, 
   compareCanvasBeforeAfterDrawing, 
   drawOnCanvas, 
+  getWhitePixelCount,
   selectDrawingTool,
   selectShapeFillMode
 } from './utils/canvasHelpers';
@@ -169,6 +170,146 @@ test.describe('Shibori Canvas App', () => {
     // Verify canvases are still functional after undo
     await expect(foldedCanvas).toBeVisible();
     await expect(unfoldedCanvas).toBeVisible();
+  });
+
+  test('clear is undoable without letting later undo replay pre-clear drawing', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    const clearButton = page.getByRole('button', { name: 'Clear' });
+    const undoButton = page.getByRole('button', { name: 'Undo' });
+
+    await expect(foldedCanvas).toBeVisible();
+    await selectDrawingTool(page, 'paintbrush');
+
+    const initialUnfoldedWhite = await getWhitePixelCount(page, 1);
+
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: -60, y: -20 },
+      endOffset: { x: 30, y: 70 }
+    });
+    await page.waitForTimeout(500);
+
+    const firstDrawingWhite = await getWhitePixelCount(page, 1);
+    expect(firstDrawingWhite).toBeGreaterThan(initialUnfoldedWhite + 100);
+
+    await clearButton.click();
+    await page.waitForTimeout(500);
+
+    const afterClearWhite = await getWhitePixelCount(page, 1);
+    expect(afterClearWhite).toBeLessThan(firstDrawingWhite);
+
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 40, y: -40 },
+      endOffset: { x: 90, y: 40 }
+    });
+    await page.waitForTimeout(500);
+
+    const secondDrawingWhite = await getWhitePixelCount(page, 1);
+    expect(secondDrawingWhite).toBeGreaterThan(afterClearWhite + 100);
+
+    await undoButton.click();
+    await page.waitForTimeout(500);
+
+    const afterUndoWhite = await getWhitePixelCount(page, 1);
+    expect(afterUndoWhite).toBeLessThanOrEqual(afterClearWhite + 20);
+
+    await undoButton.click();
+    await page.waitForTimeout(500);
+
+    const afterUndoClearWhite = await getWhitePixelCount(page, 1);
+    expect(afterUndoClearWhite).toBeGreaterThan(afterClearWhite + 100);
+  });
+
+  test('undo preserves unfolded canvas orientation after replay', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    const undoButton = page.getByRole('button', { name: 'Undo' });
+
+    await expect(foldedCanvas).toBeVisible();
+    await selectDrawingTool(page, 'paintbrush');
+
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 80, y: 20 },
+      endOffset: { x: 160, y: 110 }
+    });
+    await page.waitForTimeout(500);
+
+    await page.evaluate(() => {
+      const canvas = document.querySelectorAll('canvas')[1] as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Missing unfolded canvas context');
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const mask = new Uint8Array(imageData.data.length / 4);
+      let whitePixels = 0;
+
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const pixelIndex = i / 4;
+        const isWhite = imageData.data[i] > 240 &&
+          imageData.data[i + 1] > 240 &&
+          imageData.data[i + 2] > 240;
+        if (isWhite) {
+          mask[pixelIndex] = 1;
+          whitePixels++;
+        }
+      }
+
+      const win = window as Window & {
+        __firstUnfoldedWhiteMask?: Uint8Array;
+        __firstUnfoldedWhiteCount?: number;
+      };
+      win.__firstUnfoldedWhiteMask = mask;
+      win.__firstUnfoldedWhiteCount = whitePixels;
+    });
+
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 30, y: 140 },
+      endOffset: { x: 140, y: 170 }
+    });
+    await page.waitForTimeout(500);
+
+    await undoButton.click();
+    await page.waitForTimeout(500);
+
+    const comparison = await page.evaluate(() => {
+      const canvas = document.querySelectorAll('canvas')[1] as HTMLCanvasElement;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Missing unfolded canvas context');
+
+      const win = window as Window & {
+        __firstUnfoldedWhiteMask?: Uint8Array;
+        __firstUnfoldedWhiteCount?: number;
+      };
+      const firstMask = win.__firstUnfoldedWhiteMask;
+      if (!firstMask) throw new Error('Missing first unfolded canvas mask');
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let currentWhite = 0;
+      let changedWhiteMaskPixels = 0;
+
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        const pixelIndex = i / 4;
+        const isWhite = imageData.data[i] > 240 &&
+          imageData.data[i + 1] > 240 &&
+          imageData.data[i + 2] > 240;
+        if (isWhite) currentWhite++;
+        if ((isWhite ? 1 : 0) !== firstMask[pixelIndex]) {
+          changedWhiteMaskPixels++;
+        }
+      }
+
+      return {
+        firstWhite: win.__firstUnfoldedWhiteCount ?? 0,
+        currentWhite,
+        changedWhiteMaskPixels
+      };
+    });
+
+    expect(comparison.firstWhite).toBeGreaterThan(100);
+    expect(comparison.currentWhite).toBeGreaterThan(100);
+    expect(comparison.changedWhiteMaskPixels).toBeLessThan(comparison.firstWhite * 0.03 + 200);
   });
 
   test('shape tools draw on folded canvas and mirror to unfolded canvas', async ({ page }) => {
