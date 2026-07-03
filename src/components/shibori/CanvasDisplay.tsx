@@ -27,6 +27,7 @@ export const CanvasDisplay: React.FC = () => {
         handleMouseMove,
         handleMouseUp,
         handleMouseLeave,
+        handleKeyDown,
         handleTouchStart,
         handleTouchMove,
         handleTouchEnd,
@@ -74,10 +75,15 @@ export const CanvasDisplay: React.FC = () => {
                 unfoldedCanvasRef={unfoldedCanvasRef}
                 canvasDimensions={state.canvasDimensions}
                 folds={state.folds}
+                history={state.history}
+                selectedHistoryItemId={state.selectedHistoryItemId}
+                selectionDragDelta={state.selectionDragDelta}
+                lineThickness={state.lineThickness}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}
+                onKeyDown={handleKeyDown}
                 onClear={handleClearCanvas}
                 onUndo={undo}
                 onDownload={downloadUnfoldedCanvas}

@@ -1,16 +1,24 @@
 import React from 'react';
 import { logger } from '../../utils/logger';
 import { DiagonalDirection, FoldState } from '../../types';
+import { DrawingModeFactory } from '../../drawingModes/DrawingModeFactory';
+import { Point, UndoableHistoryItem } from '../../types/DrawingMode';
+import { buildDrawableHistory } from '../../utils/historyOperations';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     canvasDimensions: { width: number; height: number };
     folds: FoldState;
+    history: UndoableHistoryItem[];
+    selectedHistoryItemId: string | null;
+    selectionDragDelta: Point | null;
+    lineThickness: number;
     onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onMouseLeave: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+    onKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
     onClear: () => void;
     onUndo: () => void;
     onDownload: () => void;
@@ -21,10 +29,15 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     unfoldedCanvasRef,
     canvasDimensions,
     folds,
+    history,
+    selectedHistoryItemId,
+    selectionDragDelta,
+    lineThickness,
     onMouseDown,
     onMouseMove,
     onMouseUp,
     onMouseLeave,
+    onKeyDown,
     onClear,
     onUndo,
     onDownload
@@ -38,6 +51,27 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     const invalidMaskClass = folds.diagonal.direction === DiagonalDirection.TopRightToBottomLeft
         ? 'invalid-region-top-left'
         : 'invalid-region-bottom-left';
+    const selectedDrawable = selectedHistoryItemId
+        ? buildDrawableHistory(history).find((item) => item.id === selectedHistoryItemId)
+        : null;
+    const selectedBounds = selectedDrawable
+        ? DrawingModeFactory
+            .getGeometry(selectedDrawable.action)
+            .getBounds(
+                selectionDragDelta
+                    ? DrawingModeFactory.getGeometry(selectedDrawable.action).translate(selectedDrawable, selectionDragDelta)
+                    : selectedDrawable,
+                { lineThickness }
+            )
+        : null;
+    const selectionOverlayStyle = selectedBounds
+        ? {
+            left: `${(selectedBounds.minX / canvasDimensions.width) * 100}%`,
+            top: `${(selectedBounds.minY / canvasDimensions.height) * 100}%`,
+            width: `${((selectedBounds.maxX - selectedBounds.minX) / canvasDimensions.width) * 100}%`,
+            height: `${((selectedBounds.maxY - selectedBounds.minY) / canvasDimensions.height) * 100}%`,
+        }
+        : undefined;
 
     return (
         <div className="canvas-container">
@@ -52,7 +86,18 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         onMouseMove={onMouseMove}
                         onMouseUp={onMouseUp}
                         onMouseLeave={onMouseLeave}
+                        onKeyDown={onKeyDown}
+                        tabIndex={0}
+                        aria-label="Folded drawing canvas"
+                        className={selectedHistoryItemId ? 'folded-canvas folded-canvas-selecting' : 'folded-canvas'}
                     />
+                    {selectionOverlayStyle && (
+                        <div
+                            className="selection-overlay"
+                            style={selectionOverlayStyle}
+                            aria-hidden="true"
+                        />
+                    )}
                     {showDiagonalMask && (
                         <div
                             className={`diagonal-invalid-region ${invalidMaskClass}`}

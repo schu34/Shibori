@@ -1,8 +1,9 @@
-import { AppConfig, DrawingTool, ShapeFillMode, FoldState, DiagonalDirection } from '../types';
+import { AppConfig, DrawingTool, ShapeFillMode, FoldState, DiagonalDirection, HistoryAction } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
 import { SerializableState } from '../utils/urlStateUtils';
 import { sanitizeState, validateState } from './stateValidation';
 import { logger } from '../utils/logger';
+import { assignHistoryItemId, ensureHistoryItemIds } from '../utils/historyOperations';
 
 // Default configuration values
 export const DEFAULT_CONFIG: AppConfig = {
@@ -29,6 +30,8 @@ export interface State {
         width: number;
         height: number;
     };
+    selectedHistoryItemId: string | null;
+    selectionDragDelta: { x: number; y: number } | null;
     redrawTrigger: number; // Used to trigger canvas redraws
     isLoadingFromUrl: boolean; // Flag to prevent history clearing during URL loads
 }
@@ -57,6 +60,8 @@ export const initialState: State = {
         height: 1600
     },
     history: [],
+    selectedHistoryItemId: null,
+    selectionDragDelta: null,
     redrawTrigger: 0,
     isLoadingFromUrl: false
 };
@@ -80,6 +85,9 @@ export enum ActionType {
     ADD_HISTORY_ITEM = 'ADD_HISTORY_ITEM',
     UNDO = 'UNDO',
     CLEAR_UNDO_HISTORY = 'CLEAR_UNDO_HISTORY',
+    SET_SELECTED_HISTORY_ITEM_ID = 'SET_SELECTED_HISTORY_ITEM_ID',
+    SET_SELECTION_DRAG_DELTA = 'SET_SELECTION_DRAG_DELTA',
+    CLEAR_SELECTION = 'CLEAR_SELECTION',
     LOAD_STATE_FROM_URL = 'LOAD_STATE_FROM_URL',
     RESET_TO_INITIAL = 'RESET_TO_INITIAL',
     REDRAW_FROM_HISTORY = 'REDRAW_FROM_HISTORY',
@@ -105,6 +113,9 @@ export type Action =
     | { type: ActionType.ADD_HISTORY_ITEM, payload: UndoableHistoryItem }
     | { type: ActionType.UNDO }
     | { type: ActionType.CLEAR_UNDO_HISTORY }
+    | { type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: string | null }
+    | { type: ActionType.SET_SELECTION_DRAG_DELTA, payload: { x: number; y: number } | null }
+    | { type: ActionType.CLEAR_SELECTION }
     | { type: ActionType.LOAD_STATE_FROM_URL, payload: SerializableState }
     | { type: ActionType.RESET_TO_INITIAL }
     | { type: ActionType.REDRAW_FROM_HISTORY }
@@ -147,7 +158,11 @@ export function reducer(state: State, action: Action): State {
             newState = { ...state, shapeFillMode: action.payload };
             break;
         case ActionType.SET_CURRENT_TOOL:
-            newState = { ...state, currentTool: action.payload };
+            newState = {
+                ...state,
+                currentTool: action.payload,
+                selectedHistoryItemId: action.payload === DrawingTool.SelectMove ? state.selectedHistoryItemId : null
+            };
             break;
         case ActionType.SET_IS_DRAWING:
             newState = { ...state, isDrawing: action.payload };
@@ -269,13 +284,21 @@ export function reducer(state: State, action: Action): State {
         case ActionType.ADD_HISTORY_ITEM:
             newState = {
                 ...state,
-                history: [...state.history, action.payload]
+                history: [
+                    ...state.history,
+                    assignHistoryItemId(action.payload, state.history)
+                ],
+                selectedHistoryItemId: action.payload.action === HistoryAction.Clear ? null : state.selectedHistoryItemId,
+                selectionDragDelta: null,
+                redrawTrigger: state.redrawTrigger + 1
             };
             break;
         case ActionType.UNDO:
             newState = {
                 ...state,
-                history: state.history.slice(0, -1)
+                history: state.history.slice(0, -1),
+                selectionDragDelta: null,
+                redrawTrigger: state.redrawTrigger + 1
             };
             break;
         case ActionType.CLEAR_UNDO_HISTORY:
@@ -295,9 +318,32 @@ export function reducer(state: State, action: Action): State {
             } else {
                 newState = {
                     ...state,
-                    history: []
+                    history: [],
+                    selectedHistoryItemId: null,
+                    selectionDragDelta: null,
+                    redrawTrigger: state.redrawTrigger + 1
                 };
             }
+            break;
+        case ActionType.SET_SELECTED_HISTORY_ITEM_ID:
+            newState = {
+                ...state,
+                selectedHistoryItemId: action.payload,
+                selectionDragDelta: null
+            };
+            break;
+        case ActionType.SET_SELECTION_DRAG_DELTA:
+            newState = {
+                ...state,
+                selectionDragDelta: action.payload
+            };
+            break;
+        case ActionType.CLEAR_SELECTION:
+            newState = {
+                ...state,
+                selectedHistoryItemId: null,
+                selectionDragDelta: null
+            };
             break;
         case ActionType.LOAD_STATE_FROM_URL:
             logger.redux.action('LOAD_STATE_FROM_URL', {
@@ -309,7 +355,7 @@ export function reducer(state: State, action: Action): State {
             
             newState = {
                 ...state,
-                history: action.payload.history || [],
+                history: ensureHistoryItemIds(action.payload.history || []),
                 folds: action.payload.folds,
                 canvasDimensions: action.payload.canvasDimensions,
                 circleRadius: Math.max(1, Math.min(200, action.payload.circleRadius || state.circleRadius)),
@@ -320,6 +366,8 @@ export function reducer(state: State, action: Action): State {
                 isDrawing: false,
                 lineStartPoint: null,
                 currentStrokePoints: [],
+                selectedHistoryItemId: null,
+                selectionDragDelta: null,
                 // Increment redraw trigger to force canvas redraw
                 redrawTrigger: state.redrawTrigger + 1,
                 // Mark that we're loading from URL to prevent history clearing

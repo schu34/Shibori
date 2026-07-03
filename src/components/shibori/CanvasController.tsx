@@ -4,6 +4,8 @@ import { ActionType } from '../../store/shiboriCanvasState';
 import { HistoryAction } from '../../types';
 import { logger } from '../../utils/logger';
 import { CanvasService } from '../../services/CanvasService';
+import { buildDrawableHistory, createMoveHistoryItem } from '../../utils/historyOperations';
+import { translatePoints } from '../../utils/geometryMath';
 
 interface CanvasControllerProps {
     unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -66,6 +68,37 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps  
     }, [state.redrawTrigger, state.history]);
+
+    // Preview selected-item movement while dragging without committing a history entry per frame.
+    useEffect(() => {
+        const delta = state.selectionDragDelta;
+        const selectedId = state.selectedHistoryItemId;
+        if (!delta || !selectedId || (delta.x === 0 && delta.y === 0)) {
+            return;
+        }
+
+        const selectedItem = buildDrawableHistory(state.history)
+            .find((item) => item.id === selectedId);
+        if (!selectedItem) return;
+
+        const previewHistory = [
+            ...state.history,
+            createMoveHistoryItem(
+                selectedId,
+                selectedItem.points,
+                translatePoints(selectedItem.points, delta)
+            )
+        ];
+
+        logger.canvas.operation('previewing selected item movement', {
+            selectedId,
+            delta
+        });
+        resetCanvases();
+        drawFromHistory(previewHistory);
+        updateUnfoldedCanvas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.selectionDragDelta, state.selectedHistoryItemId, state.history]);
 
     // Only reset canvases when actual structural changes occur (dimensions or folds)
     useEffect(() => {

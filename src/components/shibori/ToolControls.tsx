@@ -11,6 +11,13 @@ const shapeTools = new Set<DrawingTool>([
     DrawingTool.Square,
     DrawingTool.Circle,
 ]);
+const toolsWithSizeControl = new Set<DrawingTool>([
+    DrawingTool.Line,
+    DrawingTool.Paintbrush,
+    DrawingTool.Rectangle,
+    DrawingTool.Square,
+    DrawingTool.Circle,
+]);
 
 export const ToolControls: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
@@ -20,10 +27,12 @@ export const ToolControls: React.FC = () => {
             <ToolSelector
                 currentTool={state.currentTool}
             />
-            <SizeControl
-                tool={state.currentTool}
-                value={state.lineThickness}
-            />
+            {toolsWithSizeControl.has(state.currentTool) && (
+                <SizeControl
+                    tool={state.currentTool}
+                    value={state.lineThickness}
+                />
+            )}
             {shapeTools.has(state.currentTool) && (
                 <ShapeFillControl fillMode={state.shapeFillMode} />
             )}

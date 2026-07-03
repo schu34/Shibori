@@ -1,10 +1,11 @@
 import { DrawingTool } from '../types';
-import { DrawingMode } from '../types/DrawingMode';
-import { CircleMode } from './CircleMode';
-import { LineMode } from './LineMode';
-import { PaintbrushMode } from './PaintbrushMode';
-import { RectangleMode } from './RectangleMode';
-import { SquareMode } from './SquareMode';
+import { DrawingMode, DrawingModeGeometry } from '../types/DrawingMode';
+import { CircleGeometry, CircleMode } from './CircleMode';
+import { LineGeometry, LineMode } from './LineMode';
+import { PaintbrushGeometry, PaintbrushMode } from './PaintbrushMode';
+import { RectangleGeometry, RectangleMode } from './RectangleMode';
+import { SelectMoveMode } from './SelectMoveMode';
+import { SquareGeometry, SquareMode } from './SquareMode';
 
 export type RenderingMode = 'canvas2d' | 'webgl' | 'auto';
 
@@ -22,6 +23,13 @@ interface DrawingModeDebugInfo {
 
 export class DrawingModeFactory {
     private static instances: Map<string, DrawingMode> = new Map();
+    private static geometry: Record<Exclude<DrawingTool, DrawingTool.SelectMove>, DrawingModeGeometry> = {
+        [DrawingTool.Line]: LineGeometry,
+        [DrawingTool.Paintbrush]: PaintbrushGeometry,
+        [DrawingTool.Rectangle]: RectangleGeometry,
+        [DrawingTool.Square]: SquareGeometry,
+        [DrawingTool.Circle]: CircleGeometry,
+    };
     private static config: DrawingModeConfig = {
         renderingMode: 'auto',
         useWebGL: true
@@ -51,6 +59,14 @@ export class DrawingModeFactory {
         return instance;
     }
 
+    static getGeometry(tool: DrawingTool): DrawingModeGeometry {
+        if (tool === DrawingTool.SelectMove) {
+            throw new Error('Select/Move is an interaction tool and has no drawable geometry');
+        }
+
+        return this.geometry[tool];
+    }
+
     /**
      * Create a new instance of the specified tool
      */
@@ -70,6 +86,9 @@ export class DrawingModeFactory {
 
             case DrawingTool.Circle:
                 return new CircleMode();
+
+            case DrawingTool.SelectMove:
+                return new SelectMoveMode();
                 
             default:
                 // asserts that this switch is exhaustive

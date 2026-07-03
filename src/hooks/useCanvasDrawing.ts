@@ -4,13 +4,17 @@ import { useAppDispatch } from "./useReduxHooks";
 import { CanvasRefs } from "./useCanvasRefs";
 import {
   Point,
+  UndoableHistoryItem,
 } from "../types/DrawingMode";
 import { ActionType } from "../store/shiboriCanvasState";
+import { DrawingTool } from "../types";
 import { useStore } from "react-redux";
 import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
 import { WebGLCanvasService } from "../services/WebGLCanvasService";
 import { logger } from "../utils/logger";
+import { buildDrawableHistory, createMoveHistoryItem, DrawableHistoryItem } from "../utils/historyOperations";
+import { translatePoints } from "../utils/geometryMath";
 
 export interface DrawingOperations {
   startDrawing: (x: number, y: number) => void;
@@ -21,6 +25,8 @@ export interface DrawingOperations {
   isInValidDrawingArea: (x: number, y: number) => boolean;
   isUsingWebGL: () => boolean;
   getWebGLInfo: () => string | null;
+  nudgeSelection: (delta: Point) => void;
+  clearSelection: () => void;
 }
 
 /**
@@ -30,6 +36,11 @@ export interface DrawingOperations {
 export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
   const dispatch = useAppDispatch();
   const updateFrameRef = useRef<number | null>(null);
+  const selectionDragRef = useRef<{
+    itemId: string;
+    startPoint: Point;
+    fromPoints: Point[];
+  } | null>(null);
   
   const { getState: _getState } = useStore<RootState>() as {
     getState: () => RootState;
@@ -141,7 +152,10 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
   );
 
   // Helper to check if currently drawing
-  const isDrawing = useCallback(() => getState().isDrawing, [getState]);
+  const isDrawing = useCallback(
+    () => getState().isDrawing || selectionDragRef.current !== null,
+    [getState]
+  );
 
   // Helper to check if using WebGL
   const isUsingWebGL = useCallback(() => {
@@ -153,9 +167,59 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
     return WebGLCanvasService.getWebGLInfo();
   }, []);
 
+  const nudgeSelection = useCallback(
+    (delta: Point) => {
+      const currentState = getState();
+      const selectedId = currentState.selectedHistoryItemId;
+      if (!selectedId) return;
+
+      const selectedItem = buildDrawableHistory(currentState.history)
+        .find((item) => item.id === selectedId);
+      if (!selectedItem) return;
+
+      dispatch({
+        type: ActionType.ADD_HISTORY_ITEM,
+        payload: createMoveHistoryItem(
+          selectedId,
+          selectedItem.points,
+          translatePoints(selectedItem.points, delta)
+        ),
+      });
+    },
+    [dispatch, getState]
+  );
+
+  const clearSelection = useCallback(() => {
+    selectionDragRef.current = null;
+    dispatch({ type: ActionType.CLEAR_SELECTION });
+  }, [dispatch]);
+
   // Common start drawing function
   const startDrawing = useCallback(
     (x: number, y: number) => {
+      const currentState = getState();
+      if (currentState.currentTool === DrawingTool.SelectMove) {
+        const point = { x, y };
+        const selectedItem = findTopmostDrawable(point, currentState.history, currentState.lineThickness);
+
+        if (!selectedItem) {
+          selectionDragRef.current = null;
+          dispatch({ type: ActionType.CLEAR_SELECTION });
+          dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+          return;
+        }
+
+        selectionDragRef.current = {
+          itemId: selectedItem.id,
+          startPoint: point,
+          fromPoints: selectedItem.points,
+        };
+        dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: selectedItem.id });
+        dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: { x: 0, y: 0 } });
+        dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
+        return;
+      }
+
       const mode = DrawingModeFactory.getTool(getState().currentTool);
       if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
       
@@ -199,6 +263,18 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
   // Common continue drawing function
   const continueDrawing = useCallback(
     (x: number, y: number) => {
+      const currentState = getState();
+      if (currentState.currentTool === DrawingTool.SelectMove) {
+        if (!selectionDragRef.current) return;
+
+        const delta = {
+          x: x - selectionDragRef.current.startPoint.x,
+          y: y - selectionDragRef.current.startPoint.y,
+        };
+        dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: delta });
+        return;
+      }
+
       const mode = DrawingModeFactory.getTool(getState().currentTool);
       if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
       
@@ -240,6 +316,37 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
   // Common end drawing function
   const endDrawing = useCallback(
     (point: Point | null) => {
+      const currentState = getState();
+      if (currentState.currentTool === DrawingTool.SelectMove) {
+        const drag = selectionDragRef.current;
+        if (!drag) {
+          dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+          dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: null });
+          return;
+        }
+
+        const delta = point
+          ? { x: point.x - drag.startPoint.x, y: point.y - drag.startPoint.y }
+          : currentState.selectionDragDelta ?? { x: 0, y: 0 };
+
+        if (delta.x !== 0 || delta.y !== 0) {
+          dispatch({
+            type: ActionType.ADD_HISTORY_ITEM,
+            payload: createMoveHistoryItem(
+              drag.itemId,
+              drag.fromPoints,
+              translatePoints(drag.fromPoints, delta)
+            ),
+          });
+        } else {
+          dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: null });
+        }
+
+        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+        selectionDragRef.current = null;
+        return;
+      }
+
       const mode = DrawingModeFactory.getTool(getState().currentTool);
       if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
       
@@ -289,5 +396,25 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
     isInValidDrawingArea,
     isUsingWebGL,
     getWebGLInfo,
+    nudgeSelection,
+    clearSelection,
   };
+}
+
+function findTopmostDrawable(
+  point: Point,
+  history: UndoableHistoryItem[],
+  lineThickness: number
+): DrawableHistoryItem | null {
+  const drawables = buildDrawableHistory(history);
+
+  for (let i = drawables.length - 1; i >= 0; i--) {
+    const item = drawables[i];
+    const geometry = DrawingModeFactory.getGeometry(item.action);
+    if (geometry.hitTest(item, point, { lineThickness, hitTolerance: 8 })) {
+      return item;
+    }
+  }
+
+  return null;
 }

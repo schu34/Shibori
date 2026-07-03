@@ -41,10 +41,13 @@ export const SizeControl: React.FC<SizeControlProps> = ({ tool, value }) => {
                     max: 40,
                     id: 'shapeThicknessSlider'
                 };
+            default:
+                return null;
         }
     };
 
     const config = getControlConfig();
+    if (!config) return null;
 
     return (
         <div className="tool-controls-group">

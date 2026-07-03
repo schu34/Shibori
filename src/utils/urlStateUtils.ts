@@ -1,6 +1,7 @@
 import { State } from '../store/shiboriCanvasState';
 import { DrawingTool, HistoryAction, ShapeFillMode, FoldState } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
+import { ensureHistoryItemIds } from './historyOperations';
 
 // Interface for the subset of state we want to encode in URLs
 export interface SerializableState {
@@ -62,7 +63,10 @@ export function decodeStateFromUrl(encodedState: string): SerializableState | nu
             return null;
         }
         
-        return parsed as SerializableState;
+        return {
+            ...(parsed as SerializableState),
+            history: ensureHistoryItemIds((parsed as SerializableState).history),
+        };
     } catch (error) {
         console.error('Failed to decode state from URL:', error);
         return null;
@@ -114,7 +118,8 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
         if (!item || typeof item !== 'object') return false;
         
         const historyItem = item as Record<string, unknown>;
-        const isDrawingAction = Object.values(DrawingTool).includes(historyItem.action as DrawingTool);
+        const isDrawingAction = Object.values(DrawingTool).includes(historyItem.action as DrawingTool) &&
+            historyItem.action !== DrawingTool.SelectMove;
         const isHistoryAction = Object.values(HistoryAction).includes(historyItem.action as HistoryAction);
         if ((!isDrawingAction && !isHistoryAction) ||
             !Array.isArray(historyItem.points)) {
@@ -125,18 +130,35 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
             return false;
         }
         
-        // Validate points in each history item
-        for (const point of historyItem.points) {
-            if (!point || typeof point !== 'object') return false;
-            
-            const pointObj = point as Record<string, unknown>;
-            if (typeof pointObj.x !== 'number' ||
-                typeof pointObj.y !== 'number') {
+        if (!areValidPoints(historyItem.points)) return false;
+
+        if (historyItem.action === HistoryAction.Move) {
+            if (typeof historyItem.itemId !== 'string' ||
+                !Array.isArray(historyItem.fromPoints) ||
+                !Array.isArray(historyItem.toPoints) ||
+                !areValidPoints(historyItem.fromPoints) ||
+                !areValidPoints(historyItem.toPoints)) {
                 return false;
             }
         }
     }
     
+    return true;
+}
+
+function areValidPoints(points: unknown): boolean {
+    if (!Array.isArray(points)) return false;
+
+    for (const point of points) {
+        if (!point || typeof point !== 'object') return false;
+
+        const pointObj = point as Record<string, unknown>;
+        if (typeof pointObj.x !== 'number' ||
+            typeof pointObj.y !== 'number') {
+            return false;
+        }
+    }
+
     return true;
 }
 

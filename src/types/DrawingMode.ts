@@ -10,6 +10,24 @@ export interface CanvasDimensions {
     height: number;
 }
 
+export interface Bounds {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+}
+
+export interface GeometryOptions {
+    lineThickness: number;
+    hitTolerance?: number;
+}
+
+export interface DrawingModeGeometry {
+    hitTest: (item: UndoableHistoryItem, point: Point, options: GeometryOptions) => boolean;
+    getBounds: (item: UndoableHistoryItem, options: GeometryOptions) => Bounds | null;
+    translate: (item: UndoableHistoryItem, delta: Point) => UndoableHistoryItem;
+}
+
 export interface DrawingModeContext {
     getState: () => State;
     dispatch: React.Dispatch<Action>;
@@ -25,9 +43,13 @@ export interface DrawingModeContext {
 }
 
 export interface UndoableHistoryItem {
+    id?: string;
     action: DrawingTool | HistoryAction;
     points: Point[];
     shapeFillMode?: ShapeFillMode;
+    itemId?: string;
+    fromPoints?: Point[];
+    toPoints?: Point[];
 }
 
 export interface DrawingMode {

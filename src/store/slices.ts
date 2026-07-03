@@ -33,6 +33,8 @@ export interface DrawingSessionState {
 // Canvas history
 export interface CanvasHistoryState {
     history: UndoableHistoryItem[];
+    selectedHistoryItemId: string | null;
+    selectionDragDelta: { x: number; y: number } | null;
 }
 
 // Application control state (UI/system state)
@@ -85,6 +87,8 @@ export const defaultDrawingSession: DrawingSessionState = {
 
 export const defaultCanvasHistory: CanvasHistoryState = {
     history: [],
+    selectedHistoryItemId: null,
+    selectionDragDelta: null,
 };
 
 export const defaultAppControl: AppControlState = {

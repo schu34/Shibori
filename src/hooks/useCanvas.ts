@@ -70,6 +70,8 @@ export function useCanvas() {
     continueDrawing: drawingOps.continueDrawing,
     endDrawing: drawingOps.endDrawing,
     isDrawing: drawingOps.isDrawing,
+    nudgeSelection: drawingOps.nudgeSelection,
+    clearSelection: drawingOps.clearSelection,
   };
   const eventHandlers = useCanvasEvents(canvasRefs, drawingCallbacks);
 

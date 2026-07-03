@@ -1,6 +1,36 @@
 import { DrawingTool, ShapeFillMode } from "../types";
-import { Point } from "../types/DrawingMode";
+import { DrawingModeGeometry, Point } from "../types/DrawingMode";
+import {
+  expandBounds,
+  getRectBounds,
+  isPointInBounds,
+  isPointNearRectOutline,
+  translatePoints,
+} from "../utils/geometryMath";
 import { DragShapeMode } from "./DragShapeMode";
+
+export const RectangleGeometry: DrawingModeGeometry = {
+  hitTest(item, point, options) {
+    if (item.points.length < 2) return false;
+    const bounds = getRectBounds(item.points[0], item.points[1]);
+    const fillMode = item.shapeFillMode ?? ShapeFillMode.Filled;
+    const tolerance = (options.lineThickness / 2) + (options.hitTolerance ?? 8);
+
+    return fillMode === ShapeFillMode.Filled
+      ? isPointInBounds(point, bounds)
+      : isPointNearRectOutline(point, bounds, tolerance);
+  },
+  getBounds(item, options) {
+    if (item.points.length < 2) return null;
+    return expandBounds(getRectBounds(item.points[0], item.points[1]), options.lineThickness / 2);
+  },
+  translate(item, delta) {
+    return {
+      ...item,
+      points: translatePoints(item.points, delta),
+    };
+  },
+};
 
 export class RectangleMode extends DragShapeMode {
   protected readonly tool = DrawingTool.Rectangle;

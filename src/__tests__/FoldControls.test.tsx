@@ -35,7 +35,12 @@ describe('FoldControls Component', () => {
         canvasDimensions: {
             width: 400,
             height: 400
-        }
+        },
+        history: [],
+        selectedHistoryItemId: null,
+        selectionDragDelta: null,
+        redrawTrigger: 0,
+        isLoadingFromUrl: false
     };
 
     const mockDispatch = jest.fn();

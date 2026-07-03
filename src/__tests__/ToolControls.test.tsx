@@ -36,7 +36,11 @@ describe('ToolControls Component', () => {
             width: 400,
             height: 400
         },
-        history: []
+        history: [],
+        selectedHistoryItemId: null,
+        selectionDragDelta: null,
+        redrawTrigger: 0,
+        isLoadingFromUrl: false
     };
 
     const mockDispatch = jest.fn();
@@ -60,6 +64,7 @@ describe('ToolControls Component', () => {
         expect(screen.getByText('Rectangle')).toBeInTheDocument();
         expect(screen.getByText('Square')).toBeInTheDocument();
         expect(screen.getByText('Circle')).toBeInTheDocument();
+        expect(screen.getByText('Select/Move')).toBeInTheDocument();
     });
 
     test('shows line controls when line tool is selected', () => {
@@ -111,6 +116,19 @@ describe('ToolControls Component', () => {
             type: 'SET_CURRENT_TOOL',
             payload: DrawingTool.Line
         });
+    });
+
+    test('select move tool hides drawing-only controls', () => {
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => ({
+            ...mockState,
+            currentTool: DrawingTool.SelectMove
+        }));
+
+        renderWithRedux(<ToolControls />);
+
+        expect(screen.getByLabelText('Select/Move')).toBeChecked();
+        expect(screen.queryByText(/Thickness:/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Shape Fill:')).not.toBeInTheDocument();
     });
 
     test('changing to a shape tool dispatches SET_CURRENT_TOOL action', () => {

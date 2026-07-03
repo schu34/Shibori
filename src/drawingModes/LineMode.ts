@@ -7,6 +7,31 @@ import {
 import { ActionType } from "../store/shiboriCanvasState";
 import { DrawingTool } from "../types";
 import { CanvasService } from "../services/CanvasService";
+import { DrawingModeGeometry } from "../types/DrawingMode";
+import {
+  distanceToSegment,
+  expandBounds,
+  getBoundsFromPoints,
+  translatePoints,
+} from "../utils/geometryMath";
+
+export const LineGeometry: DrawingModeGeometry = {
+  hitTest(item, point, options) {
+    if (item.points.length < 2) return false;
+    const tolerance = (options.lineThickness / 2) + (options.hitTolerance ?? 8);
+    return distanceToSegment(point, item.points[0], item.points[1]) <= tolerance;
+  },
+  getBounds(item, options) {
+    const bounds = getBoundsFromPoints(item.points);
+    return bounds ? expandBounds(bounds, options.lineThickness / 2) : null;
+  },
+  translate(item, delta) {
+    return {
+      ...item,
+      points: translatePoints(item.points, delta),
+    };
+  },
+};
 
 export class LineMode implements DrawingMode {
   private originalFoldedCanvasState: ImageData | null = null;

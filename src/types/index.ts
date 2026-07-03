@@ -25,11 +25,13 @@ export enum DrawingTool {
     Paintbrush = 'paintbrush',
     Rectangle = 'rectangle',
     Square = 'square',
-    Circle = 'circle'
+    Circle = 'circle',
+    SelectMove = 'selectMove'
 } 
 
 export enum HistoryAction {
-    Clear = 'clear'
+    Clear = 'clear',
+    Move = 'move'
 }
 
 export enum ShapeFillMode {

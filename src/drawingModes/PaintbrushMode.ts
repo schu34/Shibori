@@ -3,6 +3,25 @@ import { ActionType } from '../store/shiboriCanvasState';
 import { getStroke } from 'perfect-freehand';
 import { DrawingTool } from '../types';
 import { CanvasService } from '../services/CanvasService';
+import { DrawingModeGeometry } from '../types/DrawingMode';
+import { distanceToPolyline, expandBounds, getBoundsFromPoints, translatePoints } from '../utils/geometryMath';
+
+export const PaintbrushGeometry: DrawingModeGeometry = {
+    hitTest(item, point, options) {
+        const tolerance = Math.max(options.hitTolerance ?? 8, options.lineThickness);
+        return distanceToPolyline(point, item.points) <= tolerance;
+    },
+    getBounds(item, options) {
+        const bounds = getBoundsFromPoints(item.points);
+        return bounds ? expandBounds(bounds, options.lineThickness) : null;
+    },
+    translate(item, delta) {
+        return {
+            ...item,
+            points: translatePoints(item.points, delta),
+        };
+    },
+};
 
 export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;

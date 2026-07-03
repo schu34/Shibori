@@ -1,6 +1,7 @@
 import { State } from './shiboriCanvasState';
-import { DrawingTool, ShapeFillMode } from '../types';
+import { DrawingTool, HistoryAction, ShapeFillMode } from '../types';
 import { logger } from '../utils/logger';
+import { ensureHistoryItemIds } from '../utils/historyOperations';
 
 /**
  * Validates that the state is in a consistent and valid format
@@ -65,6 +66,30 @@ export function validateState(state: State): boolean {
     // Validate history
     if (!Array.isArray(state.history)) {
         errors.push('History is not an array');
+    }
+    if (state.selectedHistoryItemId !== null && typeof state.selectedHistoryItemId !== 'string') {
+        errors.push('selectedHistoryItemId must be null or string');
+    }
+    if (state.selectionDragDelta !== null &&
+        (typeof state.selectionDragDelta?.x !== 'number' ||
+         typeof state.selectionDragDelta?.y !== 'number')) {
+        errors.push('selectionDragDelta must be null or a point');
+    }
+    if (Array.isArray(state.history)) {
+        for (const historyItem of state.history) {
+            if (!historyItem || typeof historyItem !== 'object') {
+                errors.push('Invalid history item');
+                break;
+            }
+            if (historyItem.action === HistoryAction.Move) {
+                if (typeof historyItem.itemId !== 'string' ||
+                    !Array.isArray(historyItem.fromPoints) ||
+                    !Array.isArray(historyItem.toPoints)) {
+                    errors.push('Invalid move history item');
+                    break;
+                }
+            }
+        }
     }
 
     // Validate drawing session state
@@ -152,9 +177,19 @@ export function sanitizeState(state: State): State {
             }
         });
         sanitized.history = [];
+    } else {
+        sanitized.history = ensureHistoryItemIds(sanitized.history);
     }
     if (!Array.isArray(sanitized.currentStrokePoints)) {
         sanitized.currentStrokePoints = [];
+    }
+    if (sanitized.selectedHistoryItemId !== null && typeof sanitized.selectedHistoryItemId !== 'string') {
+        sanitized.selectedHistoryItemId = null;
+    }
+    if (sanitized.selectionDragDelta !== null &&
+        (typeof sanitized.selectionDragDelta?.x !== 'number' ||
+         typeof sanitized.selectionDragDelta?.y !== 'number')) {
+        sanitized.selectionDragDelta = null;
     }
 
     logger.redux.stateChange('State sanitized', { originalValid: validateState(state) });

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { 
   analyzeCanvasPixels, 
   compareCanvasBeforeAfterDrawing, 
@@ -170,6 +170,120 @@ test.describe('Shibori Canvas App', () => {
     // Verify canvases are still functional after undo
     await expect(foldedCanvas).toBeVisible();
     await expect(unfoldedCanvas).toBeVisible();
+  });
+
+  test('select move tool drags a drawn stroke and updates unfolded canvas', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    await expect(foldedCanvas).toBeVisible();
+
+    await selectDrawingTool(page, 'paintbrush');
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 40, y: 200 },
+      endOffset: { x: 120, y: 200 }
+    });
+    await page.waitForTimeout(500);
+
+    const beforeLeft = await getWhiteRegionCount(page, 0, {
+      minXOffset: -150,
+      maxXOffset: 150,
+      minYOffset: 170,
+      maxYOffset: 230
+    });
+    const beforeRight = await getWhiteRegionCount(page, 0, {
+      minXOffset: 160,
+      maxXOffset: 300,
+      minYOffset: 170,
+      maxYOffset: 230
+    });
+    await storeWhiteMask(page, 1, '__unfoldedBeforeMoveMask');
+
+    expect(beforeLeft).toBeGreaterThan(100);
+
+    await selectDrawingTool(page, 'selectMove');
+    await dragCanvasAtOffsets(foldedCanvas, { x: 80, y: 200 }, { x: 220, y: 200 });
+    await page.waitForTimeout(500);
+
+    const afterLeft = await getWhiteRegionCount(page, 0, {
+      minXOffset: -150,
+      maxXOffset: 150,
+      minYOffset: 170,
+      maxYOffset: 230
+    });
+    const afterRight = await getWhiteRegionCount(page, 0, {
+      minXOffset: 160,
+      maxXOffset: 300,
+      minYOffset: 170,
+      maxYOffset: 230
+    });
+    const unfoldedChangedPixels = await compareWhiteMask(page, 1, '__unfoldedBeforeMoveMask');
+
+    expect(afterLeft).toBeLessThan(beforeLeft * 0.7);
+    expect(afterRight).toBeGreaterThan(beforeRight + 100);
+    expect(unfoldedChangedPixels).toBeGreaterThan(200);
+  });
+
+  test('select move tool updates unfolded preview during drag', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    await expect(foldedCanvas).toBeVisible();
+
+    await selectDrawingTool(page, 'paintbrush');
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 40, y: 200 },
+      endOffset: { x: 120, y: 200 }
+    });
+    await page.waitForTimeout(500);
+
+    await selectDrawingTool(page, 'selectMove');
+    await storeWhiteMask(page, 1, '__unfoldedBeforeLiveDragMask');
+
+    await moveCanvasMouse(page, foldedCanvas, { x: 80, y: 200 });
+    await page.mouse.down();
+    await page.waitForTimeout(100);
+    await moveCanvasMouse(page, foldedCanvas, { x: 220, y: 200 });
+
+    await expect.poll(
+      () => compareWhiteMask(page, 1, '__unfoldedBeforeLiveDragMask'),
+      { timeout: 3000 }
+    ).toBeGreaterThan(200);
+
+    await storeWhiteMask(page, 1, '__unfoldedAfterFirstLiveDragFrameMask');
+    await moveCanvasMouse(page, foldedCanvas, { x: 260, y: 200 });
+
+    await expect.poll(
+      () => compareWhiteMask(page, 1, '__unfoldedAfterFirstLiveDragFrameMask'),
+      { timeout: 3000 }
+    ).toBeGreaterThan(50);
+
+    await page.mouse.up();
+  });
+
+  test('select move tool nudges selected stroke with arrow keys', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    await expect(foldedCanvas).toBeVisible();
+
+    await selectDrawingTool(page, 'paintbrush');
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 40, y: 220 },
+      endOffset: { x: 120, y: 220 }
+    });
+    await page.waitForTimeout(500);
+
+    await selectDrawingTool(page, 'selectMove');
+    await clickCanvasAtOffset(foldedCanvas, { x: 80, y: 220 });
+    await page.waitForTimeout(100);
+    await storeWhiteMask(page, 0, '__foldedBeforeNudgeMask');
+
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.waitForTimeout(500);
+
+    const foldedChangedPixels = await compareWhiteMask(page, 0, '__foldedBeforeNudgeMask');
+    expect(foldedChangedPixels).toBeGreaterThan(50);
   });
 
   test('clear is undoable without letting later undo replay pre-clear drawing', async ({ page }) => {
@@ -443,3 +557,145 @@ test.describe('Shibori Canvas App', () => {
     }
   });
 });
+
+async function dragCanvasAtOffsets(
+  canvas: Locator,
+  sourceOffset: { x: number; y: number },
+  targetOffset: { x: number; y: number }
+): Promise<void> {
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center' }));
+  const canvasBox = await canvas.boundingBox();
+  if (!canvasBox) throw new Error('Canvas not found');
+
+  await canvas.dragTo(canvas, {
+    sourcePosition: {
+      x: canvasBox.width / 2 + sourceOffset.x,
+      y: canvasBox.height / 2 + sourceOffset.y,
+    },
+    targetPosition: {
+      x: canvasBox.width / 2 + targetOffset.x,
+      y: canvasBox.height / 2 + targetOffset.y,
+    },
+  });
+}
+
+async function clickCanvasAtOffset(
+  canvas: Locator,
+  offset: { x: number; y: number }
+): Promise<void> {
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center' }));
+  const canvasBox = await canvas.boundingBox();
+  if (!canvasBox) throw new Error('Canvas not found');
+
+  await canvas.click({
+    position: {
+      x: canvasBox.width / 2 + offset.x,
+      y: canvasBox.height / 2 + offset.y,
+    },
+  });
+}
+
+async function moveCanvasMouse(
+  page: Page,
+  canvas: Locator,
+  offset: { x: number; y: number }
+): Promise<void> {
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center' }));
+  const canvasBox = await canvas.boundingBox();
+  if (!canvasBox) throw new Error('Canvas not found');
+
+  await page.mouse.move(
+    canvasBox.x + canvasBox.width / 2 + offset.x,
+    canvasBox.y + canvasBox.height / 2 + offset.y
+  );
+}
+
+async function getWhiteRegionCount(
+  page: Page,
+  canvasIndex: number,
+  region: {
+    minXOffset: number;
+    maxXOffset: number;
+    minYOffset: number;
+    maxYOffset: number;
+  }
+): Promise<number> {
+  return page.evaluate(({ index, testRegion }) => {
+    const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return 0;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const minX = Math.max(0, Math.floor(centerX + testRegion.minXOffset * scaleX));
+    const maxX = Math.min(canvas.width, Math.ceil(centerX + testRegion.maxXOffset * scaleX));
+    const minY = Math.max(0, Math.floor(centerY + testRegion.minYOffset * scaleY));
+    const maxY = Math.min(canvas.height, Math.ceil(centerY + testRegion.maxYOffset * scaleY));
+    const imageData = ctx.getImageData(minX, minY, maxX - minX, maxY - minY);
+    let white = 0;
+
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      if (imageData.data[i] > 240 && imageData.data[i + 1] > 240 && imageData.data[i + 2] > 240) {
+        white++;
+      }
+    }
+
+    return white;
+  }, { index: canvasIndex, testRegion: region });
+}
+
+async function storeWhiteMask(
+  page: Page,
+  canvasIndex: number,
+  key: string
+): Promise<void> {
+  await page.evaluate(({ index, maskKey }) => {
+    const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Missing canvas context');
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const mask = new Uint8Array(imageData.data.length / 4);
+
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const isWhite = imageData.data[i] > 240 &&
+        imageData.data[i + 1] > 240 &&
+        imageData.data[i + 2] > 240;
+      mask[i / 4] = isWhite ? 1 : 0;
+    }
+
+    (window as Window & Record<string, Uint8Array>)[maskKey] = mask;
+  }, { index: canvasIndex, maskKey: key });
+}
+
+async function compareWhiteMask(
+  page: Page,
+  canvasIndex: number,
+  key: string
+): Promise<number> {
+  return page.evaluate(({ index, maskKey }) => {
+    const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Missing canvas context');
+
+    const previous = (window as Window & Record<string, Uint8Array>)[maskKey];
+    if (!previous) throw new Error(`Missing stored mask ${maskKey}`);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let changed = 0;
+
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const isWhite = imageData.data[i] > 240 &&
+        imageData.data[i + 1] > 240 &&
+        imageData.data[i + 2] > 240;
+      if ((isWhite ? 1 : 0) !== previous[i / 4]) {
+        changed++;
+      }
+    }
+
+    return changed;
+  }, { index: canvasIndex, maskKey: key });
+}

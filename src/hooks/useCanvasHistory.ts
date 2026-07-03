@@ -11,6 +11,7 @@ import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
 import { logger } from "../utils/logger";
 import { HistoryAction } from "../types";
+import { buildDrawableHistory } from "../utils/historyOperations";
 
 export interface HistoryOperations {
   undo: () => void;
@@ -90,16 +91,11 @@ export function useCanvasHistory(
 
       if (!unfoldedCanvas || !unfoldedCtx || !foldedCtx) return;
 
-      logger.history.replay(historyItems.length);
+      const drawableItems = buildDrawableHistory(historyItems);
+      logger.history.replay(drawableItems.length);
 
-      for (const historyItem of historyItems) {
+      for (const historyItem of drawableItems) {
         const { action, points } = historyItem;
-        if (action === HistoryAction.Clear) {
-          const context = getCanvasContext();
-          if (!context) return;
-          CanvasService.resetCanvases(context, getState().folds);
-          continue;
-        }
 
         logger.canvas.operation(`processing ${action}`, { pointCount: points.length });
         const mode = DrawingModeFactory.getTool(action);

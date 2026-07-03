@@ -8,6 +8,7 @@ export interface CanvasEventHandlers {
   handleMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   handleMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   handleMouseLeave: () => void;
+  handleKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
   handleTouchStart: (e: React.TouchEvent<HTMLCanvasElement>) => void;
   handleTouchMove: (e: React.TouchEvent<HTMLCanvasElement>) => void;
   handleTouchEnd: (e: React.TouchEvent<HTMLCanvasElement>) => void;
@@ -19,6 +20,8 @@ export interface DrawingCallbacks {
   continueDrawing: (x: number, y: number) => void;
   endDrawing: (point: { x: number; y: number } | null) => void;
   isDrawing: () => boolean;
+  nudgeSelection: (delta: { x: number; y: number }) => void;
+  clearSelection: () => void;
 }
 
 /**
@@ -30,7 +33,7 @@ export function useCanvasEvents(
   drawingCallbacks: DrawingCallbacks
 ): CanvasEventHandlers {
   const { foldedCanvasRef, assertCanvasRef } = canvasRefs;
-  const { startDrawing, continueDrawing, endDrawing, isDrawing } = drawingCallbacks;
+  const { startDrawing, continueDrawing, endDrawing, isDrawing, nudgeSelection, clearSelection } = drawingCallbacks;
 
   // Helper function to get canvas coordinates from mouse/touch event
   const getCanvasCoordinates = useCallback(
@@ -45,6 +48,7 @@ export function useCanvasEvents(
   // Handle mouse events for the folded canvas
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      e.currentTarget.focus();
       const foldedCanvas = assertCanvasRef(foldedCanvasRef);
       const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
       logger.canvas.event("mouseDown", coords);
@@ -79,6 +83,31 @@ export function useCanvasEvents(
       endDrawing(null);
     }
   }, [isDrawing, endDrawing]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+      const step = e.shiftKey ? 10 : 1;
+      const keyDeltas: Record<string, { x: number; y: number }> = {
+        ArrowUp: { x: 0, y: -step },
+        ArrowDown: { x: 0, y: step },
+        ArrowLeft: { x: -step, y: 0 },
+        ArrowRight: { x: step, y: 0 },
+      };
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clearSelection();
+        return;
+      }
+
+      const delta = keyDeltas[e.key];
+      if (!delta) return;
+
+      e.preventDefault();
+      nudgeSelection(delta);
+    },
+    [clearSelection, nudgeSelection]
+  );
 
   // Handle touch events for mobile devices
   const handleTouchStart = useCallback(
@@ -149,6 +178,7 @@ export function useCanvasEvents(
     handleMouseMove,
     handleMouseUp,
     handleMouseLeave,
+    handleKeyDown,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,

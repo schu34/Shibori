@@ -201,7 +201,7 @@ export async function drawOnCanvas(
  */
 export async function selectDrawingTool(
   page: Page,
-  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle'
+  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle' | 'selectMove'
 ): Promise<void> {
   const toolInput = page.locator(`input[value="${tool}"]`);
   await toolInput.check();

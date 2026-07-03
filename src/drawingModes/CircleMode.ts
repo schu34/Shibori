@@ -1,6 +1,41 @@
 import { DrawingTool, ShapeFillMode } from "../types";
-import { Point } from "../types/DrawingMode";
+import { DrawingModeGeometry, Point } from "../types/DrawingMode";
+import {
+  expandBounds,
+  getRectBounds,
+  isPointInCircle,
+  isPointNearCircleOutline,
+  translatePoints,
+} from "../utils/geometryMath";
 import { DragShapeMode } from "./DragShapeMode";
+
+export const CircleGeometry: DrawingModeGeometry = {
+  hitTest(item, point, options) {
+    if (item.points.length < 2) return false;
+    const radius = Math.hypot(item.points[1].x - item.points[0].x, item.points[1].y - item.points[0].y);
+    const fillMode = item.shapeFillMode ?? ShapeFillMode.Filled;
+    const tolerance = (options.lineThickness / 2) + (options.hitTolerance ?? 8);
+
+    return fillMode === ShapeFillMode.Filled
+      ? isPointInCircle(point, item.points[0], radius)
+      : isPointNearCircleOutline(point, item.points[0], radius, tolerance);
+  },
+  getBounds(item, options) {
+    if (item.points.length < 2) return null;
+    const radius = Math.hypot(item.points[1].x - item.points[0].x, item.points[1].y - item.points[0].y);
+    const bounds = getRectBounds(
+      { x: item.points[0].x - radius, y: item.points[0].y - radius },
+      { x: item.points[0].x + radius, y: item.points[0].y + radius }
+    );
+    return expandBounds(bounds, options.lineThickness / 2);
+  },
+  translate(item, delta) {
+    return {
+      ...item,
+      points: translatePoints(item.points, delta),
+    };
+  },
+};
 
 export class CircleMode extends DragShapeMode {
   protected readonly tool = DrawingTool.Circle;
