@@ -1,11 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
 import { HistoryAction } from '../../types';
 import { logger } from '../../utils/logger';
 import { CanvasService } from '../../services/CanvasService';
-import { buildDrawableHistory, createMoveHistoryItem } from '../../utils/historyOperations';
+import { buildDrawableHistory, DrawableHistoryItem } from '../../utils/historyOperations';
 import { translatePoints } from '../../utils/geometryMath';
+import {
+    clearFoldedCanvas,
+    HistoryRenderOptions,
+    renderDrawableHistoryItem,
+    renderDrawableHistoryItems
+} from '../../utils/historyRenderer';
+import { UndoableHistoryItem } from '../../types/DrawingMode';
 
 interface CanvasControllerProps {
     unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -32,6 +39,7 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
 }) => {
     const state = useAppSelector((state) => state.shibori);
     const dispatch = useAppDispatch();
+    const movePreviewCacheRef = useRef<MovePreviewCache | null>(null);
 
     // Initialize canvases when dimensions or folds change
     useEffect(() => {
@@ -74,28 +82,52 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         const delta = state.selectionDragDelta;
         const selectedId = state.selectedHistoryItemId;
         if (!delta || !selectedId || (delta.x === 0 && delta.y === 0)) {
+            movePreviewCacheRef.current = null;
             return;
         }
 
-        const selectedItem = buildDrawableHistory(state.history)
-            .find((item) => item.id === selectedId);
-        if (!selectedItem) return;
+        const context = getCanvasContextFromRefs(
+            foldedCanvasRef,
+            unfoldedCanvasRef,
+            foldedCtxRef,
+            unfoldedCtxRef
+        );
+        if (!context) return;
 
-        const previewHistory = [
-            ...state.history,
-            createMoveHistoryItem(
-                selectedId,
-                selectedItem.points,
-                translatePoints(selectedItem.points, delta)
-            )
-        ];
+        const cache = getMovePreviewCache({
+            currentCache: movePreviewCacheRef.current,
+            selectedId,
+            history: state.history,
+            foldedCanvas: context.foldedCanvas,
+            renderOptions: {
+                config: state.config,
+                folds: state.folds,
+                lineThickness: state.lineThickness,
+                shapeFillMode: state.shapeFillMode
+            }
+        });
+        movePreviewCacheRef.current = cache;
+        if (!cache) return;
+
+        const translatedItem = {
+            ...cache.selectedItem,
+            points: translatePoints(cache.selectedItem.points, delta)
+        };
 
         logger.canvas.operation('previewing selected item movement', {
             selectedId,
-            delta
+            delta,
+            cachedBase: true
         });
-        resetCanvases();
-        drawFromHistory(previewHistory);
+        context.foldedCtx.clearRect(0, 0, context.foldedCanvas.width, context.foldedCanvas.height);
+        context.foldedCtx.drawImage(cache.baseFoldedCanvas, 0, 0);
+        renderDrawableHistoryItem(
+            context.foldedCtx,
+            context.foldedCanvas,
+            translatedItem,
+            cache.renderOptions
+        );
+        CanvasService.drawDiagonalFoldLinesOnFolded(context, state.folds);
         updateUnfoldedCanvas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectionDragDelta, state.selectedHistoryItemId, state.history]);
@@ -230,3 +262,108 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
     // This component renders nothing - it only manages canvas lifecycle
     return null;
 };
+
+interface MovePreviewCache {
+    selectedId: string;
+    selectedItem: DrawableHistoryItem;
+    history: UndoableHistoryItem[];
+    baseFoldedCanvas: HTMLCanvasElement;
+    renderOptions: HistoryRenderOptions;
+    cacheKey: string;
+}
+
+interface MovePreviewCacheParams {
+    currentCache: MovePreviewCache | null;
+    selectedId: string;
+    history: UndoableHistoryItem[];
+    foldedCanvas: HTMLCanvasElement;
+    renderOptions: HistoryRenderOptions;
+}
+
+function getMovePreviewCache({
+    currentCache,
+    selectedId,
+    history,
+    foldedCanvas,
+    renderOptions
+}: MovePreviewCacheParams): MovePreviewCache | null {
+    const cacheKey = createMovePreviewCacheKey(selectedId, foldedCanvas, renderOptions);
+    if (currentCache &&
+        currentCache.selectedId === selectedId &&
+        currentCache.history === history &&
+        currentCache.cacheKey === cacheKey) {
+        return currentCache;
+    }
+
+    const drawables = buildDrawableHistory(history);
+    const selectedItem = drawables.find((item) => item.id === selectedId);
+    if (!selectedItem) return null;
+
+    const baseFoldedCanvas = document.createElement('canvas');
+    baseFoldedCanvas.width = foldedCanvas.width;
+    baseFoldedCanvas.height = foldedCanvas.height;
+    const baseCtx = baseFoldedCanvas.getContext('2d', {
+        willReadFrequently: true
+    });
+    if (!baseCtx) return null;
+
+    clearFoldedCanvas(baseCtx, baseFoldedCanvas);
+    renderDrawableHistoryItems(
+        baseCtx,
+        baseFoldedCanvas,
+        drawables.filter((item) => item.id !== selectedId),
+        renderOptions
+    );
+    CanvasService.drawDiagonalFoldLinesOnFolded({
+        foldedCanvas: baseFoldedCanvas,
+        unfoldedCanvas: baseFoldedCanvas,
+        foldedCtx: baseCtx,
+        unfoldedCtx: baseCtx
+    }, renderOptions.folds);
+
+    return {
+        selectedId,
+        selectedItem,
+        history,
+        baseFoldedCanvas,
+        renderOptions,
+        cacheKey
+    };
+}
+
+function createMovePreviewCacheKey(
+    selectedId: string,
+    foldedCanvas: HTMLCanvasElement,
+    renderOptions: HistoryRenderOptions
+): string {
+    return JSON.stringify({
+        selectedId,
+        width: foldedCanvas.width,
+        height: foldedCanvas.height,
+        folds: renderOptions.folds,
+        lineThickness: renderOptions.lineThickness,
+        shapeFillMode: renderOptions.shapeFillMode,
+        lineColor: renderOptions.config.lineColor
+    });
+}
+
+function getCanvasContextFromRefs(
+    foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>,
+    unfoldedCanvasRef: React.RefObject<HTMLCanvasElement | null>,
+    foldedCtxRef: React.RefObject<CanvasRenderingContext2D | null>,
+    unfoldedCtxRef: React.RefObject<CanvasRenderingContext2D | null>
+) {
+    if (!foldedCanvasRef.current ||
+        !unfoldedCanvasRef.current ||
+        !foldedCtxRef.current ||
+        !unfoldedCtxRef.current) {
+        return null;
+    }
+
+    return {
+        foldedCanvas: foldedCanvasRef.current,
+        unfoldedCanvas: unfoldedCanvasRef.current,
+        foldedCtx: foldedCtxRef.current,
+        unfoldedCtx: unfoldedCtxRef.current
+    };
+}
