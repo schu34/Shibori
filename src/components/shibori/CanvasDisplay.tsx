@@ -78,6 +78,7 @@ export const CanvasDisplay: React.FC = () => {
                 history={state.history}
                 selectedHistoryItemId={state.selectedHistoryItemId}
                 selectionDragDelta={state.selectionDragDelta}
+                selectionRotationPreview={state.selectionRotationPreview}
                 lineThickness={state.lineThickness}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}

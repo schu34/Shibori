@@ -1,9 +1,15 @@
 import React from 'react';
 import { logger } from '../../utils/logger';
-import { DiagonalDirection, FoldState } from '../../types';
+import { DiagonalDirection, DrawingTool, FoldState } from '../../types';
 import { DrawingModeFactory } from '../../drawingModes/DrawingModeFactory';
-import { Point, UndoableHistoryItem } from '../../types/DrawingMode';
-import { buildDrawableHistory } from '../../utils/historyOperations';
+import { Bounds, Point, UndoableHistoryItem } from '../../types/DrawingMode';
+import {
+    DrawableHistoryItem,
+    buildDrawableHistory,
+    getRotatedHistoryItemPreview,
+    getTranslatedHistoryItemPreview
+} from '../../utils/historyOperations';
+import { expandBounds, getBoundsCenter, getRectBounds, getSquareEndPoint } from '../../utils/geometryMath';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -13,6 +19,7 @@ interface CanvasRendererProps {
     history: UndoableHistoryItem[];
     selectedHistoryItemId: string | null;
     selectionDragDelta: Point | null;
+    selectionRotationPreview: { angle: number; center: Point } | null;
     lineThickness: number;
     onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
@@ -32,6 +39,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     history,
     selectedHistoryItemId,
     selectionDragDelta,
+    selectionRotationPreview,
     lineThickness,
     onMouseDown,
     onMouseMove,
@@ -54,22 +62,29 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     const selectedDrawable = selectedHistoryItemId
         ? buildDrawableHistory(history).find((item) => item.id === selectedHistoryItemId)
         : null;
-    const selectedBounds = selectedDrawable
-        ? DrawingModeFactory
-            .getGeometry(selectedDrawable.action)
-            .getBounds(
-                selectionDragDelta
-                    ? DrawingModeFactory.getGeometry(selectedDrawable.action).translate(selectedDrawable, selectionDragDelta)
-                    : selectedDrawable,
-                { lineThickness }
-            )
+    const selectedPreviewDrawable = selectedDrawable && selectionRotationPreview
+        ? getRotatedHistoryItemPreview(
+            selectedDrawable,
+            selectionRotationPreview.angle,
+            selectionRotationPreview.center
+        )
+        : selectedDrawable && selectionDragDelta
+            ? getTranslatedHistoryItemPreview(selectedDrawable, selectionDragDelta)
+            : selectedDrawable;
+    const selectedGeometry = selectedDrawable
+        ? DrawingModeFactory.getGeometry(selectedDrawable.action)
         : null;
-    const selectionOverlayStyle = selectedBounds
+    const selectionFrame = selectedGeometry && selectedPreviewDrawable
+        ? getSelectionFrame(selectedPreviewDrawable, lineThickness)
+        : null;
+    const selectionOverlayStyle = selectionFrame
         ? {
-            left: `${(selectedBounds.minX / canvasDimensions.width) * 100}%`,
-            top: `${(selectedBounds.minY / canvasDimensions.height) * 100}%`,
-            width: `${((selectedBounds.maxX - selectedBounds.minX) / canvasDimensions.width) * 100}%`,
-            height: `${((selectedBounds.maxY - selectedBounds.minY) / canvasDimensions.height) * 100}%`,
+            left: `${(selectionFrame.bounds.minX / canvasDimensions.width) * 100}%`,
+            top: `${(selectionFrame.bounds.minY / canvasDimensions.height) * 100}%`,
+            width: `${((selectionFrame.bounds.maxX - selectionFrame.bounds.minX) / canvasDimensions.width) * 100}%`,
+            height: `${((selectionFrame.bounds.maxY - selectionFrame.bounds.minY) / canvasDimensions.height) * 100}%`,
+            transform: selectionFrame.rotation ? `rotate(${selectionFrame.rotation}rad)` : undefined,
+            transformOrigin: `${selectionFrame.origin.x}% ${selectionFrame.origin.y}%`,
         }
         : undefined;
 
@@ -96,7 +111,12 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                             className="selection-overlay"
                             style={selectionOverlayStyle}
                             aria-hidden="true"
-                        />
+                        >
+                            <span className="selection-rotate-handle selection-rotate-handle-nw" />
+                            <span className="selection-rotate-handle selection-rotate-handle-ne" />
+                            <span className="selection-rotate-handle selection-rotate-handle-se" />
+                            <span className="selection-rotate-handle selection-rotate-handle-sw" />
+                        </div>
                     )}
                     {showDiagonalMask && (
                         <div
@@ -142,3 +162,60 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         </div>
     );
 };
+
+function getSelectionFrame(
+    item: DrawableHistoryItem,
+    lineThickness: number
+): { bounds: Bounds; rotation: number; origin: Point } | null {
+    const localBounds = getUnrotatedShapeBounds(item, lineThickness);
+    if (localBounds) {
+        const rotationCenter = item.rotationCenter ?? getBoundsCenter(localBounds);
+        const width = localBounds.maxX - localBounds.minX;
+        const height = localBounds.maxY - localBounds.minY;
+
+        return {
+            bounds: localBounds,
+            rotation: item.rotation ?? 0,
+            origin: {
+                x: width === 0 ? 50 : ((rotationCenter.x - localBounds.minX) / width) * 100,
+                y: height === 0 ? 50 : ((rotationCenter.y - localBounds.minY) / height) * 100,
+            }
+        };
+    }
+
+    const geometry = DrawingModeFactory.getGeometry(item.action);
+    const bounds = geometry.getBounds(item, { lineThickness });
+    if (!bounds) return null;
+
+    return {
+        bounds,
+        rotation: 0,
+        origin: { x: 50, y: 50 }
+    };
+}
+
+function getUnrotatedShapeBounds(
+    item: DrawableHistoryItem,
+    lineThickness: number
+): Bounds | null {
+    if (item.points.length < 2) return null;
+
+    if (item.action === DrawingTool.Rectangle) {
+        return expandBounds(getRectBounds(item.points[0], item.points[1]), lineThickness / 2);
+    }
+
+    if (item.action === DrawingTool.Square) {
+        return expandBounds(
+            getRectBounds(item.points[0], getSquareEndPoint(item.points[0], item.points[1])),
+            lineThickness / 2
+        );
+    }
+
+    if (item.action === DrawingTool.Circle) {
+        return DrawingModeFactory
+            .getGeometry(item.action)
+            .getBounds(item, { lineThickness });
+    }
+
+    return null;
+}

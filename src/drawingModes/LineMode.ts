@@ -12,6 +12,7 @@ import {
   distanceToSegment,
   expandBounds,
   getBoundsFromPoints,
+  translatePoint,
   translatePoints,
 } from "../utils/geometryMath";
 
@@ -29,6 +30,9 @@ export const LineGeometry: DrawingModeGeometry = {
     return {
       ...item,
       points: translatePoints(item.points, delta),
+      rotationCenter: item.rotationCenter
+        ? translatePoint(item.rotationCenter, delta)
+        : undefined,
     };
   },
 };

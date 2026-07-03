@@ -1,5 +1,6 @@
 import { DrawingTool, HistoryAction } from "../types";
 import { Point, UndoableHistoryItem } from "../types/DrawingMode";
+import { rotatePoints, translatePoint, translatePoints } from "./geometryMath";
 
 export type DrawableHistoryItem = UndoableHistoryItem & {
   id: string;
@@ -74,8 +75,8 @@ export function buildDrawableHistory(history: UndoableHistoryItem[]): DrawableHi
       continue;
     }
 
-    if (item.action === HistoryAction.Move) {
-      applyMoveOperation(drawables, item);
+    if (item.action === HistoryAction.Move || item.action === HistoryAction.Rotate) {
+      applyTransformOperation(drawables, item);
       continue;
     }
 
@@ -90,18 +91,81 @@ export function buildDrawableHistory(history: UndoableHistoryItem[]): DrawableHi
 export function createMoveHistoryItem(
   itemId: string,
   fromPoints: Point[],
-  toPoints: Point[]
+  toPoints: Point[],
+  fromRotation?: number,
+  toRotation?: number,
+  fromRotationCenter?: Point,
+  toRotationCenter?: Point
 ): UndoableHistoryItem {
-  return {
+  const historyItem: UndoableHistoryItem = {
     action: HistoryAction.Move,
     itemId,
     points: [],
     fromPoints,
     toPoints,
   };
+
+  if (fromRotation !== undefined) historyItem.fromRotation = fromRotation;
+  if (toRotation !== undefined) historyItem.toRotation = toRotation;
+  if (fromRotationCenter) historyItem.fromRotationCenter = fromRotationCenter;
+  if (toRotationCenter) historyItem.toRotationCenter = toRotationCenter;
+
+  return historyItem;
 }
 
-function applyMoveOperation(drawables: DrawableHistoryItem[], operation: UndoableHistoryItem): void {
+export function createRotateHistoryItem(
+  item: DrawableHistoryItem,
+  angleRadians: number,
+  center: Point
+): UndoableHistoryItem {
+  const rotatedItem = getRotatedHistoryItemPreview(item, angleRadians, center);
+
+  return {
+    action: HistoryAction.Rotate,
+    itemId: item.id,
+    points: [],
+    fromPoints: item.points,
+    toPoints: rotatedItem.points,
+    fromRotation: item.rotation,
+    toRotation: rotatedItem.rotation,
+    fromRotationCenter: item.rotationCenter,
+    toRotationCenter: rotatedItem.rotationCenter,
+  };
+}
+
+export function getTranslatedHistoryItemPreview(
+  item: DrawableHistoryItem,
+  delta: Point
+): DrawableHistoryItem {
+  return {
+    ...item,
+    points: translatePoints(item.points, delta),
+    rotationCenter: item.rotationCenter
+      ? translatePoint(item.rotationCenter, delta)
+      : undefined,
+  };
+}
+
+export function getRotatedHistoryItemPreview(
+  item: DrawableHistoryItem,
+  angleRadians: number,
+  center: Point
+): DrawableHistoryItem {
+  if (usesRotationMetadata(item.action)) {
+    return {
+      ...item,
+      rotation: (item.rotation ?? 0) + angleRadians,
+      rotationCenter: center,
+    };
+  }
+
+  return {
+    ...item,
+    points: rotatePoints(item.points, center, angleRadians),
+  };
+}
+
+function applyTransformOperation(drawables: DrawableHistoryItem[], operation: UndoableHistoryItem): void {
   if (!operation.itemId || !operation.toPoints) return;
 
   const index = drawables.findIndex((item) => item.id === operation.itemId);
@@ -110,7 +174,15 @@ function applyMoveOperation(drawables: DrawableHistoryItem[], operation: Undoabl
   drawables[index] = {
     ...drawables[index],
     points: operation.toPoints,
+    rotation: operation.toRotation ?? drawables[index].rotation,
+    rotationCenter: operation.toRotationCenter ?? drawables[index].rotationCenter,
   };
+}
+
+function usesRotationMetadata(action: DrawableHistoryItem["action"]): boolean {
+  return action === DrawingTool.Rectangle ||
+    action === DrawingTool.Square ||
+    action === DrawingTool.Circle;
 }
 
 function createHistoryItemId(usedIds: Set<string>, preferredIndex: number): string {

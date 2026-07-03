@@ -286,6 +286,41 @@ test.describe('Shibori Canvas App', () => {
     expect(foldedChangedPixels).toBeGreaterThan(50);
   });
 
+  test('select move tool rotates a selected rectangle by dragging a corner', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    await expect(foldedCanvas).toBeVisible();
+
+    await selectDrawingTool(page, 'rectangle');
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 20, y: 20 },
+      endOffset: { x: 120, y: 80 }
+    });
+    await page.waitForTimeout(500);
+
+    await selectDrawingTool(page, 'selectMove');
+    await clickCanvasAtOffset(foldedCanvas, { x: 70, y: 50 });
+    await page.waitForTimeout(100);
+    await expect(page.locator('.selection-rotate-handle')).toHaveCount(4);
+
+    await storeWhiteMask(page, 0, '__foldedBeforeRotateMask');
+    await storeWhiteMask(page, 1, '__unfoldedBeforeRotateMask');
+
+    await dragCanvasAtOffsets(foldedCanvas, { x: 130, y: 10 }, { x: 180, y: 110 });
+    await page.waitForTimeout(500);
+
+    const foldedChangedPixels = await compareWhiteMask(page, 0, '__foldedBeforeRotateMask');
+    const unfoldedChangedPixels = await compareWhiteMask(page, 1, '__unfoldedBeforeRotateMask');
+    const overlayTransform = await page.locator('.selection-overlay').evaluate((element) =>
+      window.getComputedStyle(element).transform
+    );
+
+    expect(foldedChangedPixels).toBeGreaterThan(100);
+    expect(unfoldedChangedPixels).toBeGreaterThan(200);
+    expect(overlayTransform).not.toBe('none');
+  });
+
   test('clear is undoable without letting later undo replay pre-clear drawing', async ({ page }) => {
     await page.goto('/');
 

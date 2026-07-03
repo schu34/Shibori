@@ -30,6 +30,7 @@ export function organizedStateToFlatState(organizedState: OrganizedState): State
         history: organizedState.canvasHistory.history,
         selectedHistoryItemId: organizedState.canvasHistory.selectedHistoryItemId,
         selectionDragDelta: organizedState.canvasHistory.selectionDragDelta,
+        selectionRotationPreview: organizedState.canvasHistory.selectionRotationPreview,
         
         // Control
         redrawTrigger: organizedState.appControl.redrawTrigger,
@@ -67,6 +68,7 @@ export function flatStateToOrganizedState(flatState: State): OrganizedState {
             history: flatState.history,
             selectedHistoryItemId: flatState.selectedHistoryItemId,
             selectionDragDelta: flatState.selectionDragDelta,
+            selectionRotationPreview: flatState.selectionRotationPreview,
         },
         appControl: {
             redrawTrigger: flatState.redrawTrigger,

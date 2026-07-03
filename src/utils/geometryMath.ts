@@ -7,6 +7,29 @@ export function translatePoints(points: Point[], delta: Point): Point[] {
   }));
 }
 
+export function translatePoint(point: Point, delta: Point): Point {
+  return {
+    x: point.x + delta.x,
+    y: point.y + delta.y,
+  };
+}
+
+export function rotatePoint(point: Point, center: Point, angleRadians: number): Point {
+  const cos = Math.cos(angleRadians);
+  const sin = Math.sin(angleRadians);
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+
+  return {
+    x: center.x + (dx * cos) - (dy * sin),
+    y: center.y + (dx * sin) + (dy * cos),
+  };
+}
+
+export function rotatePoints(points: Point[], center: Point, angleRadians: number): Point[] {
+  return points.map((point) => rotatePoint(point, center, angleRadians));
+}
+
 export function getBoundsFromPoints(points: Point[]): Bounds | null {
   if (points.length === 0) return null;
 
@@ -33,6 +56,29 @@ export function expandBounds(bounds: Bounds, amount: number): Bounds {
     maxX: bounds.maxX + amount,
     maxY: bounds.maxY + amount,
   };
+}
+
+export function getBoundsCenter(bounds: Bounds): Point {
+  return {
+    x: (bounds.minX + bounds.maxX) / 2,
+    y: (bounds.minY + bounds.maxY) / 2,
+  };
+}
+
+export function getBoundsCorners(bounds: Bounds): Point[] {
+  return [
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.maxY },
+    { x: bounds.minX, y: bounds.maxY },
+  ];
+}
+
+export function rotateBounds(bounds: Bounds, center: Point, angleRadians: number): Bounds {
+  const rotatedCorners = rotatePoints(getBoundsCorners(bounds), center, angleRadians);
+  const rotatedBounds = getBoundsFromPoints(rotatedCorners);
+
+  return rotatedBounds ?? bounds;
 }
 
 export function isPointInBounds(point: Point, bounds: Bounds): boolean {

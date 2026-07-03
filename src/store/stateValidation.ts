@@ -75,17 +75,23 @@ export function validateState(state: State): boolean {
          typeof state.selectionDragDelta?.y !== 'number')) {
         errors.push('selectionDragDelta must be null or a point');
     }
+    if (state.selectionRotationPreview !== null &&
+        (typeof state.selectionRotationPreview?.angle !== 'number' ||
+         typeof state.selectionRotationPreview?.center?.x !== 'number' ||
+         typeof state.selectionRotationPreview?.center?.y !== 'number')) {
+        errors.push('selectionRotationPreview must be null or a rotation preview');
+    }
     if (Array.isArray(state.history)) {
         for (const historyItem of state.history) {
             if (!historyItem || typeof historyItem !== 'object') {
                 errors.push('Invalid history item');
                 break;
             }
-            if (historyItem.action === HistoryAction.Move) {
+            if (historyItem.action === HistoryAction.Move || historyItem.action === HistoryAction.Rotate) {
                 if (typeof historyItem.itemId !== 'string' ||
                     !Array.isArray(historyItem.fromPoints) ||
                     !Array.isArray(historyItem.toPoints)) {
-                    errors.push('Invalid move history item');
+                    errors.push('Invalid transform history item');
                     break;
                 }
             }
@@ -190,6 +196,12 @@ export function sanitizeState(state: State): State {
         (typeof sanitized.selectionDragDelta?.x !== 'number' ||
          typeof sanitized.selectionDragDelta?.y !== 'number')) {
         sanitized.selectionDragDelta = null;
+    }
+    if (sanitized.selectionRotationPreview !== null &&
+        (typeof sanitized.selectionRotationPreview?.angle !== 'number' ||
+         typeof sanitized.selectionRotationPreview?.center?.x !== 'number' ||
+         typeof sanitized.selectionRotationPreview?.center?.y !== 'number')) {
+        sanitized.selectionRotationPreview = null;
     }
 
     logger.redux.stateChange('State sanitized', { originalValid: validateState(state) });

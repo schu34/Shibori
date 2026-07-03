@@ -1,5 +1,5 @@
 import { AppConfig, DrawingTool, ShapeFillMode, FoldState, DiagonalDirection } from '../types';
-import { UndoableHistoryItem } from '../types/DrawingMode';
+import { Point, UndoableHistoryItem } from '../types/DrawingMode';
 
 // Persistent application settings
 export interface AppSettingsState {
@@ -35,6 +35,7 @@ export interface CanvasHistoryState {
     history: UndoableHistoryItem[];
     selectedHistoryItemId: string | null;
     selectionDragDelta: { x: number; y: number } | null;
+    selectionRotationPreview: { angle: number; center: Point } | null;
 }
 
 // Application control state (UI/system state)
@@ -89,6 +90,7 @@ export const defaultCanvasHistory: CanvasHistoryState = {
     history: [],
     selectedHistoryItemId: null,
     selectionDragDelta: null,
+    selectionRotationPreview: null,
 };
 
 export const defaultAppControl: AppControlState = {

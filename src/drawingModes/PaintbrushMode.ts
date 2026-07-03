@@ -4,7 +4,7 @@ import { getStroke } from 'perfect-freehand';
 import { DrawingTool } from '../types';
 import { CanvasService } from '../services/CanvasService';
 import { DrawingModeGeometry } from '../types/DrawingMode';
-import { distanceToPolyline, expandBounds, getBoundsFromPoints, translatePoints } from '../utils/geometryMath';
+import { distanceToPolyline, expandBounds, getBoundsFromPoints, translatePoint, translatePoints } from '../utils/geometryMath';
 
 export const PaintbrushGeometry: DrawingModeGeometry = {
     hitTest(item, point, options) {
@@ -19,6 +19,9 @@ export const PaintbrushGeometry: DrawingModeGeometry = {
         return {
             ...item,
             points: translatePoints(item.points, delta),
+            rotationCenter: item.rotationCenter
+                ? translatePoint(item.rotationCenter, delta)
+                : undefined,
         };
     },
 };

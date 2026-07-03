@@ -68,6 +68,27 @@ describe('drawing mode geometry', () => {
     expect(geometry.hitTest(outline, { x: 10, y: 50 }, options)).toBe(true);
   });
 
+  test('rectangle geometry hit tests and bounds rotated rectangles', () => {
+    const item: UndoableHistoryItem = {
+      id: 'rect-rotated',
+      action: DrawingTool.Rectangle,
+      shapeFillMode: ShapeFillMode.Filled,
+      points: [{ x: 0, y: 0 }, { x: 100, y: 20 }],
+      rotation: Math.PI / 2,
+      rotationCenter: { x: 50, y: 10 },
+    };
+    const geometry = DrawingModeFactory.getGeometry(DrawingTool.Rectangle);
+
+    expect(geometry.hitTest(item, { x: 50, y: 50 }, options)).toBe(true);
+    expect(geometry.hitTest(item, { x: 90, y: 10 }, options)).toBe(false);
+    expect(geometry.getBounds(item, options)).toEqual({
+      minX: 35,
+      minY: -45,
+      maxX: 65,
+      maxY: 65,
+    });
+  });
+
   test('square geometry uses the rendered square bounds', () => {
     const item: UndoableHistoryItem = {
       id: 'square',

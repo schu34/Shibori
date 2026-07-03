@@ -3,6 +3,7 @@ import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
 import { useAppDispatch } from "./useReduxHooks";
 import { CanvasRefs } from "./useCanvasRefs";
 import {
+  Bounds,
   Point,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
@@ -13,8 +14,23 @@ import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
 import { WebGLCanvasService } from "../services/WebGLCanvasService";
 import { logger } from "../utils/logger";
-import { buildDrawableHistory, createMoveHistoryItem, DrawableHistoryItem } from "../utils/historyOperations";
-import { translatePoints } from "../utils/geometryMath";
+import {
+  buildDrawableHistory,
+  createMoveHistoryItem,
+  createRotateHistoryItem,
+  DrawableHistoryItem,
+  getTranslatedHistoryItemPreview,
+} from "../utils/historyOperations";
+import {
+  expandBounds,
+  getBoundsCenter,
+  getBoundsCorners,
+  getRectBounds,
+  getSquareEndPoint,
+  rotatePoints,
+} from "../utils/geometryMath";
+
+const ROTATION_HANDLE_HIT_TOLERANCE = 34;
 
 export interface DrawingOperations {
   startDrawing: (x: number, y: number) => void;
@@ -39,7 +55,13 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
   const selectionDragRef = useRef<{
     itemId: string;
     startPoint: Point;
-    fromPoints: Point[];
+    fromItem: DrawableHistoryItem;
+  } | null>(null);
+  const selectionRotationRef = useRef<{
+    itemId: string;
+    center: Point;
+    startAngle: number;
+    fromItem: DrawableHistoryItem;
   } | null>(null);
   
   const { getState: _getState } = useStore<RootState>() as {
@@ -153,7 +175,7 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
 
   // Helper to check if currently drawing
   const isDrawing = useCallback(
-    () => getState().isDrawing || selectionDragRef.current !== null,
+    () => getState().isDrawing || selectionDragRef.current !== null || selectionRotationRef.current !== null,
     [getState]
   );
 
@@ -176,13 +198,18 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
       const selectedItem = buildDrawableHistory(currentState.history)
         .find((item) => item.id === selectedId);
       if (!selectedItem) return;
+      const movedItem = getTranslatedHistoryItemPreview(selectedItem, delta);
 
       dispatch({
         type: ActionType.ADD_HISTORY_ITEM,
         payload: createMoveHistoryItem(
           selectedId,
           selectedItem.points,
-          translatePoints(selectedItem.points, delta)
+          movedItem.points,
+          selectedItem.rotation,
+          movedItem.rotation,
+          selectedItem.rotationCenter,
+          movedItem.rotationCenter
         ),
       });
     },
@@ -191,6 +218,7 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
 
   const clearSelection = useCallback(() => {
     selectionDragRef.current = null;
+    selectionRotationRef.current = null;
     dispatch({ type: ActionType.CLEAR_SELECTION });
   }, [dispatch]);
 
@@ -200,21 +228,47 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
       const currentState = getState();
       if (currentState.currentTool === DrawingTool.SelectMove) {
         const point = { x, y };
-        const selectedItem = findTopmostDrawable(point, currentState.history, currentState.lineThickness);
+        const selectedItem = currentState.selectedHistoryItemId
+          ? findDrawableById(currentState.selectedHistoryItemId, currentState.history)
+          : null;
+        const selectedRotationHandle = selectedItem
+          ? findRotationHandleHit(selectedItem, point, currentState.lineThickness)
+          : null;
 
-        if (!selectedItem) {
+        if (selectedItem && selectedRotationHandle) {
           selectionDragRef.current = null;
+          selectionRotationRef.current = {
+            itemId: selectedItem.id,
+            center: selectedRotationHandle.center,
+            startAngle: Math.atan2(point.y - selectedRotationHandle.center.y, point.x - selectedRotationHandle.center.x),
+            fromItem: selectedItem,
+          };
+          dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: selectedItem.id });
+          dispatch({
+            type: ActionType.SET_SELECTION_ROTATION_PREVIEW,
+            payload: { angle: 0, center: selectedRotationHandle.center }
+          });
+          dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
+          return;
+        }
+
+        const hitItem = findTopmostDrawable(point, currentState.history, currentState.lineThickness);
+
+        if (!hitItem) {
+          selectionDragRef.current = null;
+          selectionRotationRef.current = null;
           dispatch({ type: ActionType.CLEAR_SELECTION });
           dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
           return;
         }
 
         selectionDragRef.current = {
-          itemId: selectedItem.id,
+          itemId: hitItem.id,
           startPoint: point,
-          fromPoints: selectedItem.points,
+          fromItem: hitItem,
         };
-        dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: selectedItem.id });
+        selectionRotationRef.current = null;
+        dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: hitItem.id });
         dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: { x: 0, y: 0 } });
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
         return;
@@ -265,6 +319,16 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
     (x: number, y: number) => {
       const currentState = getState();
       if (currentState.currentTool === DrawingTool.SelectMove) {
+        if (selectionRotationRef.current) {
+          const rotation = selectionRotationRef.current;
+          const angle = Math.atan2(y - rotation.center.y, x - rotation.center.x) - rotation.startAngle;
+          dispatch({
+            type: ActionType.SET_SELECTION_ROTATION_PREVIEW,
+            payload: { angle, center: rotation.center }
+          });
+          return;
+        }
+
         if (!selectionDragRef.current) return;
 
         const delta = {
@@ -318,10 +382,31 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
     (point: Point | null) => {
       const currentState = getState();
       if (currentState.currentTool === DrawingTool.SelectMove) {
+        const rotation = selectionRotationRef.current;
+        if (rotation) {
+          const angle = point
+            ? Math.atan2(point.y - rotation.center.y, point.x - rotation.center.x) - rotation.startAngle
+            : currentState.selectionRotationPreview?.angle ?? 0;
+
+          if (Math.abs(angle) > 0.0001) {
+            dispatch({
+              type: ActionType.ADD_HISTORY_ITEM,
+              payload: createRotateHistoryItem(rotation.fromItem, angle, rotation.center),
+            });
+          } else {
+            dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: null });
+          }
+
+          dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
+          selectionRotationRef.current = null;
+          return;
+        }
+
         const drag = selectionDragRef.current;
         if (!drag) {
           dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
           dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: null });
+          dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: null });
           return;
         }
 
@@ -330,12 +415,17 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
           : currentState.selectionDragDelta ?? { x: 0, y: 0 };
 
         if (delta.x !== 0 || delta.y !== 0) {
+          const movedItem = getTranslatedHistoryItemPreview(drag.fromItem, delta);
           dispatch({
             type: ActionType.ADD_HISTORY_ITEM,
             payload: createMoveHistoryItem(
               drag.itemId,
-              drag.fromPoints,
-              translatePoints(drag.fromPoints, delta)
+              drag.fromItem.points,
+              movedItem.points,
+              drag.fromItem.rotation,
+              movedItem.rotation,
+              drag.fromItem.rotationCenter,
+              movedItem.rotationCenter
             ),
           });
         } else {
@@ -344,6 +434,7 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         selectionDragRef.current = null;
+        selectionRotationRef.current = null;
         return;
       }
 
@@ -414,6 +505,97 @@ function findTopmostDrawable(
     if (geometry.hitTest(item, point, { lineThickness, hitTolerance: 8 })) {
       return item;
     }
+  }
+
+  return null;
+}
+
+function findDrawableById(
+  id: string,
+  history: UndoableHistoryItem[]
+): DrawableHistoryItem | null {
+  return buildDrawableHistory(history).find((item) => item.id === id) ?? null;
+}
+
+function findRotationHandleHit(
+  item: DrawableHistoryItem,
+  point: Point,
+  lineThickness: number
+): { center: Point; bounds: Bounds } | null {
+  const shapeFrame = getRotatedShapeSelectionFrame(item, lineThickness);
+  if (shapeFrame) {
+    const tolerance = ROTATION_HANDLE_HIT_TOLERANCE + (lineThickness / 2);
+    for (const corner of shapeFrame.corners) {
+      if (Math.hypot(point.x - corner.x, point.y - corner.y) <= tolerance) {
+        return {
+          center: shapeFrame.center,
+          bounds: shapeFrame.bounds
+        };
+      }
+    }
+
+    return null;
+  }
+
+  const geometry = DrawingModeFactory.getGeometry(item.action);
+  const bounds = geometry.getBounds(item, { lineThickness });
+  if (!bounds) return null;
+
+  const corners = [
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.maxY },
+    { x: bounds.minX, y: bounds.maxY },
+  ];
+  const tolerance = ROTATION_HANDLE_HIT_TOLERANCE + (lineThickness / 2);
+  const center = {
+    x: (bounds.minX + bounds.maxX) / 2,
+    y: (bounds.minY + bounds.maxY) / 2,
+  };
+
+  for (const corner of corners) {
+    if (Math.hypot(point.x - corner.x, point.y - corner.y) <= tolerance) {
+      return { center, bounds };
+    }
+  }
+
+  return null;
+}
+
+function getRotatedShapeSelectionFrame(
+  item: DrawableHistoryItem,
+  lineThickness: number
+): { bounds: Bounds; center: Point; corners: Point[] } | null {
+  const bounds = getUnrotatedShapeSelectionBounds(item, lineThickness);
+  if (!bounds) return null;
+
+  const center = item.rotationCenter ?? getBoundsCenter(bounds);
+  const corners = item.rotation
+    ? rotatePoints(getBoundsCorners(bounds), center, item.rotation)
+    : getBoundsCorners(bounds);
+
+  return { bounds, center, corners };
+}
+
+function getUnrotatedShapeSelectionBounds(
+  item: DrawableHistoryItem,
+  lineThickness: number
+): Bounds | null {
+  if (item.points.length < 2) return null;
+
+  if (item.action === DrawingTool.Rectangle) {
+    return expandBounds(getRectBounds(item.points[0], item.points[1]), lineThickness / 2);
+  }
+
+  if (item.action === DrawingTool.Square) {
+    return expandBounds(
+      getRectBounds(item.points[0], getSquareEndPoint(item.points[0], item.points[1])),
+      lineThickness / 2
+    );
+  }
+
+  if (item.action === DrawingTool.Circle) {
+    return DrawingModeFactory.getGeometry(item.action).getBounds(item, { lineThickness });
   }
 
   return null;

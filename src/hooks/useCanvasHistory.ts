@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
 import { useAppDispatch } from "./useReduxHooks";
 import { CanvasRefs } from "./useCanvasRefs";
 import {
@@ -12,6 +11,7 @@ import { CanvasService } from "../services/CanvasService";
 import { logger } from "../utils/logger";
 import { HistoryAction } from "../types";
 import { buildDrawableHistory } from "../utils/historyOperations";
+import { renderDrawableHistoryItems } from "../utils/historyRenderer";
 
 export interface HistoryOperations {
   undo: () => void;
@@ -40,8 +40,6 @@ export function useCanvasHistory(
     foldedCtxRef,
     unfoldedCtxRef,
     getCanvasContext,
-    getFoldedCanvasDimensions,
-    getUnfoldedCanvasDimensions,
   } = canvasRefs;
 
 
@@ -65,82 +63,39 @@ export function useCanvasHistory(
     CanvasService.resetCanvases(context, currentState.folds);
   }, [getCanvasContext, getState]);
 
-  // Function to check if a point is in the valid drawing area (for history replay)
-  const isInValidDrawingArea = useCallback(
-    (x: number, y: number): boolean => {
-      const foldedCanvas = canvasRefs.foldedCanvasRef.current;
-      if (!foldedCanvas) return true;
-      return CanvasService.isInValidDrawingArea(x, y, getState().folds, foldedCanvas);
-    },
-    [getState, canvasRefs]
-  );
-
-  // Function to draw diagonal fold lines (for history replay)
-  const drawDiagonalFoldLinesOnFolded = useCallback(() => {
-    const context = getCanvasContext();
-    if (!context) return;
-    CanvasService.drawDiagonalFoldLinesOnFolded(context, getState().folds);
-  }, [getState, getCanvasContext]);
-
   // Function to replay drawing operations from history
   const drawFromHistory = useCallback(
     (historyItems: UndoableHistoryItem[]) => {
       const unfoldedCanvas = unfoldedCanvasRef.current;
       const unfoldedCtx = unfoldedCtxRef.current;
+      const foldedCanvas = foldedCanvasRef.current;
       const foldedCtx = foldedCtxRef.current;
 
-      if (!unfoldedCanvas || !unfoldedCtx || !foldedCtx) return;
+      if (!unfoldedCanvas || !unfoldedCtx || !foldedCanvas || !foldedCtx) return;
 
+      const currentState = getState();
       const drawableItems = buildDrawableHistory(historyItems);
       logger.history.replay(drawableItems.length);
 
-      for (const historyItem of drawableItems) {
-        const { action, points } = historyItem;
-
-        logger.canvas.operation(`processing ${action}`, { pointCount: points.length });
-        const mode = DrawingModeFactory.getTool(action);
-        const args = {
-          getState,
-          dispatch,
-          foldedCtx,
-          unfoldedCtx,
-          foldedCanvas: foldedCanvasRef.current || undefined,
-          historyItem,
-          getFoldedCanvasDimensions,
-          getUnfoldedCanvasDimensions,
-          updateUnfoldedCanvas: () => {},
-          drawDiagonalFoldLinesOnFolded,
-          isInValidDrawingArea,
-        };
-        
-        logger.canvas.event('mode.start', points[0]);
-        mode.start(points[0], args);
-
-        // Call continue for all points from 1 to n-1 (this ensures drawing happens)
-        for (let i = 1; i < points.length; i++) {
-          logger.canvas.event('mode.continue', points[i]);
-          mode.continue(points[i], args);
-        }
-        
-        // Always call end with the last point (or first point if only 1 point)
-        const endPoint = points.length > 0 ? points[points.length - 1] : { x: 0, y: 0 };
-        logger.canvas.event('mode.end', endPoint);
-        const result = mode.end(endPoint, args);
-        logger.canvas.operation('mode.end result', result);
-      }
+      renderDrawableHistoryItems(foldedCtx, foldedCanvas, drawableItems, {
+        config: currentState.config,
+        folds: currentState.folds,
+        lineThickness: currentState.lineThickness,
+        shapeFillMode: currentState.shapeFillMode
+      });
+      CanvasService.drawDiagonalFoldLinesOnFolded({
+        foldedCanvas,
+        unfoldedCanvas,
+        foldedCtx,
+        unfoldedCtx
+      }, currentState.folds);
     },
     [
-      dispatch,
       getState,
       unfoldedCanvasRef,
       unfoldedCtxRef,
       foldedCtxRef,
       foldedCanvasRef,
-      getCanvasContext,
-      getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
-      drawDiagonalFoldLinesOnFolded,
-      isInValidDrawingArea,
     ]
   );
 

@@ -47,9 +47,15 @@ export interface UndoableHistoryItem {
     action: DrawingTool | HistoryAction;
     points: Point[];
     shapeFillMode?: ShapeFillMode;
+    rotation?: number;
+    rotationCenter?: Point;
     itemId?: string;
     fromPoints?: Point[];
     toPoints?: Point[];
+    fromRotation?: number;
+    toRotation?: number;
+    fromRotationCenter?: Point;
+    toRotationCenter?: Point;
 }
 
 export interface DrawingMode {

@@ -132,7 +132,7 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
         
         if (!areValidPoints(historyItem.points)) return false;
 
-        if (historyItem.action === HistoryAction.Move) {
+        if (historyItem.action === HistoryAction.Move || historyItem.action === HistoryAction.Rotate) {
             if (typeof historyItem.itemId !== 'string' ||
                 !Array.isArray(historyItem.fromPoints) ||
                 !Array.isArray(historyItem.toPoints) ||

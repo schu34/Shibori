@@ -4,8 +4,12 @@ import { ActionType } from '../../store/shiboriCanvasState';
 import { HistoryAction } from '../../types';
 import { logger } from '../../utils/logger';
 import { CanvasService } from '../../services/CanvasService';
-import { buildDrawableHistory, DrawableHistoryItem } from '../../utils/historyOperations';
-import { translatePoints } from '../../utils/geometryMath';
+import {
+    buildDrawableHistory,
+    DrawableHistoryItem,
+    getRotatedHistoryItemPreview,
+    getTranslatedHistoryItemPreview
+} from '../../utils/historyOperations';
 import {
     clearFoldedCanvas,
     HistoryRenderOptions,
@@ -77,11 +81,15 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps  
     }, [state.redrawTrigger, state.history]);
 
-    // Preview selected-item movement while dragging without committing a history entry per frame.
+    // Preview selected-item transforms while dragging without committing a history entry per frame.
     useEffect(() => {
         const delta = state.selectionDragDelta;
+        const rotationPreview = state.selectionRotationPreview;
         const selectedId = state.selectedHistoryItemId;
-        if (!delta || !selectedId || (delta.x === 0 && delta.y === 0)) {
+        const hasMovePreview = delta && (delta.x !== 0 || delta.y !== 0);
+        const hasRotationPreview = rotationPreview && rotationPreview.angle !== 0;
+
+        if (!selectedId || (!hasMovePreview && !hasRotationPreview)) {
             movePreviewCacheRef.current = null;
             return;
         }
@@ -109,14 +117,20 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         movePreviewCacheRef.current = cache;
         if (!cache) return;
 
-        const translatedItem = {
-            ...cache.selectedItem,
-            points: translatePoints(cache.selectedItem.points, delta)
-        };
+        const previewItem = rotationPreview && hasRotationPreview
+            ? getRotatedHistoryItemPreview(
+                cache.selectedItem,
+                rotationPreview.angle,
+                rotationPreview.center
+            )
+            : delta
+                ? getTranslatedHistoryItemPreview(cache.selectedItem, delta)
+                : cache.selectedItem;
 
-        logger.canvas.operation('previewing selected item movement', {
+        logger.canvas.operation('previewing selected item transform', {
             selectedId,
             delta,
+            rotationPreview,
             cachedBase: true
         });
         context.foldedCtx.clearRect(0, 0, context.foldedCanvas.width, context.foldedCanvas.height);
@@ -124,13 +138,13 @@ export const CanvasController: React.FC<CanvasControllerProps> = ({
         renderDrawableHistoryItem(
             context.foldedCtx,
             context.foldedCanvas,
-            translatedItem,
+            previewItem,
             cache.renderOptions
         );
         CanvasService.drawDiagonalFoldLinesOnFolded(context, state.folds);
         updateUnfoldedCanvas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectionDragDelta, state.selectedHistoryItemId, state.history]);
+    }, [state.selectionDragDelta, state.selectionRotationPreview, state.selectedHistoryItemId, state.history]);
 
     // Only reset canvases when actual structural changes occur (dimensions or folds)
     useEffect(() => {

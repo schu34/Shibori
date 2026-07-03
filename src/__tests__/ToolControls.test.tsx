@@ -39,6 +39,7 @@ describe('ToolControls Component', () => {
         history: [],
         selectedHistoryItemId: null,
         selectionDragDelta: null,
+        selectionRotationPreview: null,
         redrawTrigger: 0,
         isLoadingFromUrl: false
     };

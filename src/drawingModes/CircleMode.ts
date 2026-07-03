@@ -5,6 +5,7 @@ import {
   getRectBounds,
   isPointInCircle,
   isPointNearCircleOutline,
+  translatePoint,
   translatePoints,
 } from "../utils/geometryMath";
 import { DragShapeMode } from "./DragShapeMode";
@@ -33,6 +34,9 @@ export const CircleGeometry: DrawingModeGeometry = {
     return {
       ...item,
       points: translatePoints(item.points, delta),
+      rotationCenter: item.rotationCenter
+        ? translatePoint(item.rotationCenter, delta)
+        : undefined,
     };
   },
 };

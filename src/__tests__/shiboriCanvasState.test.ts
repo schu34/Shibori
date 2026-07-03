@@ -1,7 +1,7 @@
 import { DrawingTool, HistoryAction } from '../types';
 import { initialState, ActionType, reducer } from '../store/shiboriCanvasState';
 import { UndoableHistoryItem } from '../types/DrawingMode';
-import { buildDrawableHistory, createMoveHistoryItem } from '../utils/historyOperations';
+import { buildDrawableHistory, createMoveHistoryItem, createRotateHistoryItem } from '../utils/historyOperations';
 
 const makeHistoryItem = (x: number): UndoableHistoryItem => ({
     action: DrawingTool.Paintbrush,
@@ -99,6 +99,41 @@ describe('shiboriCanvasState reducer', () => {
         const afterUndo = reducer(afterMove, { type: ActionType.UNDO });
         expect(buildDrawableHistory(afterUndo.history).find((item) => item.id === 'first')?.points)
             .toEqual(first.points);
+    });
+
+    test('rotate operations affect only the target drawable and are undoable', () => {
+        const first: UndoableHistoryItem = {
+            action: DrawingTool.Rectangle,
+            id: 'first',
+            points: [{ x: 0, y: 0 }, { x: 100, y: 20 }],
+        };
+        const second = { ...makeHistoryItem(80), id: 'second' };
+        const beforeRotate = {
+            ...initialState,
+            history: [first, second],
+            selectedHistoryItemId: 'first'
+        };
+        const rotate = createRotateHistoryItem(
+            first as typeof first & { id: string; action: DrawingTool.Rectangle },
+            Math.PI / 2,
+            { x: 50, y: 10 }
+        );
+
+        const afterRotate = reducer(beforeRotate, {
+            type: ActionType.ADD_HISTORY_ITEM,
+            payload: rotate
+        });
+        const rotatedDrawables = buildDrawableHistory(afterRotate.history);
+
+        expect(rotatedDrawables.find((item) => item.id === 'first')).toEqual(expect.objectContaining({
+            points: first.points,
+            rotation: Math.PI / 2,
+            rotationCenter: { x: 50, y: 10 }
+        }));
+        expect(rotatedDrawables.find((item) => item.id === 'second')?.points).toEqual(second.points);
+
+        const afterUndo = reducer(afterRotate, { type: ActionType.UNDO });
+        expect(buildDrawableHistory(afterUndo.history).find((item) => item.id === 'first')).toEqual(first);
     });
 
     test('clear clears selection', () => {
