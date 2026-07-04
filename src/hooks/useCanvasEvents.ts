@@ -21,6 +21,7 @@ export interface DrawingCallbacks {
   endDrawing: (point: { x: number; y: number } | null) => void;
   isDrawing: () => boolean;
   nudgeSelection: (delta: { x: number; y: number }) => void;
+  deleteSelection: () => void;
   clearSelection: () => void;
 }
 
@@ -33,7 +34,15 @@ export function useCanvasEvents(
   drawingCallbacks: DrawingCallbacks
 ): CanvasEventHandlers {
   const { foldedCanvasRef, assertCanvasRef } = canvasRefs;
-  const { startDrawing, continueDrawing, endDrawing, isDrawing, nudgeSelection, clearSelection } = drawingCallbacks;
+  const {
+    startDrawing,
+    continueDrawing,
+    endDrawing,
+    isDrawing,
+    nudgeSelection,
+    deleteSelection,
+    clearSelection
+  } = drawingCallbacks;
 
   // Helper function to get canvas coordinates from mouse/touch event
   const getCanvasCoordinates = useCallback(
@@ -100,13 +109,19 @@ export function useCanvasEvents(
         return;
       }
 
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteSelection();
+        return;
+      }
+
       const delta = keyDeltas[e.key];
       if (!delta) return;
 
       e.preventDefault();
       nudgeSelection(delta);
     },
-    [clearSelection, nudgeSelection]
+    [clearSelection, deleteSelection, nudgeSelection]
   );
 
   // Handle touch events for mobile devices

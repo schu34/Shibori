@@ -141,6 +141,10 @@ function isValidSerializableState(obj: unknown): obj is SerializableState {
                 return false;
             }
         }
+        if (historyItem.action === HistoryAction.Delete &&
+            typeof historyItem.itemId !== 'string') {
+            return false;
+        }
     }
     
     return true;

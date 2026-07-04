@@ -1,7 +1,12 @@
 import { DrawingTool, HistoryAction } from '../types';
 import { initialState, ActionType, reducer } from '../store/shiboriCanvasState';
 import { UndoableHistoryItem } from '../types/DrawingMode';
-import { buildDrawableHistory, createMoveHistoryItem, createRotateHistoryItem } from '../utils/historyOperations';
+import {
+    buildDrawableHistory,
+    createDeleteHistoryItem,
+    createMoveHistoryItem,
+    createRotateHistoryItem
+} from '../utils/historyOperations';
 
 const makeHistoryItem = (x: number): UndoableHistoryItem => ({
     action: DrawingTool.Paintbrush,
@@ -134,6 +139,29 @@ describe('shiboriCanvasState reducer', () => {
 
         const afterUndo = reducer(afterRotate, { type: ActionType.UNDO });
         expect(buildDrawableHistory(afterUndo.history).find((item) => item.id === 'first')).toEqual(first);
+    });
+
+    test('delete operations remove only the target drawable, clear selection, and are undoable', () => {
+        const first = { ...makeHistoryItem(10), id: 'first' };
+        const second = { ...makeHistoryItem(80), id: 'second' };
+        const beforeDelete = {
+            ...initialState,
+            history: [first, second],
+            selectedHistoryItemId: 'first'
+        };
+
+        const afterDelete = reducer(beforeDelete, {
+            type: ActionType.ADD_HISTORY_ITEM,
+            payload: createDeleteHistoryItem('first')
+        });
+        const remainingDrawables = buildDrawableHistory(afterDelete.history);
+
+        expect(remainingDrawables.find((item) => item.id === 'first')).toBeUndefined();
+        expect(remainingDrawables.find((item) => item.id === 'second')?.points).toEqual(second.points);
+        expect(afterDelete.selectedHistoryItemId).toBeNull();
+
+        const afterUndo = reducer(afterDelete, { type: ActionType.UNDO });
+        expect(buildDrawableHistory(afterUndo.history).map((item) => item.id)).toEqual(['first', 'second']);
     });
 
     test('clear clears selection', () => {

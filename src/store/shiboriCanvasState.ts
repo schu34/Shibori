@@ -294,7 +294,10 @@ export function reducer(state: State, action: Action): State {
                     ...state.history,
                     assignHistoryItemId(action.payload, state.history)
                 ],
-                selectedHistoryItemId: action.payload.action === HistoryAction.Clear ? null : state.selectedHistoryItemId,
+                selectedHistoryItemId: action.payload.action === HistoryAction.Clear ||
+                    action.payload.action === HistoryAction.Delete
+                    ? null
+                    : state.selectedHistoryItemId,
                 selectionDragDelta: null,
                 selectionRotationPreview: null,
                 redrawTrigger: state.redrawTrigger + 1

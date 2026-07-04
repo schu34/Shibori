@@ -80,6 +80,11 @@ export function buildDrawableHistory(history: UndoableHistoryItem[]): DrawableHi
       continue;
     }
 
+    if (item.action === HistoryAction.Delete) {
+      applyDeleteOperation(drawables, item);
+      continue;
+    }
+
     if (isDrawableHistoryItem(item)) {
       drawables.push(item);
     }
@@ -133,6 +138,14 @@ export function createRotateHistoryItem(
   };
 }
 
+export function createDeleteHistoryItem(itemId: string): UndoableHistoryItem {
+  return {
+    action: HistoryAction.Delete,
+    itemId,
+    points: [],
+  };
+}
+
 export function getTranslatedHistoryItemPreview(
   item: DrawableHistoryItem,
   delta: Point
@@ -177,6 +190,15 @@ function applyTransformOperation(drawables: DrawableHistoryItem[], operation: Un
     rotation: operation.toRotation ?? drawables[index].rotation,
     rotationCenter: operation.toRotationCenter ?? drawables[index].rotationCenter,
   };
+}
+
+function applyDeleteOperation(drawables: DrawableHistoryItem[], operation: UndoableHistoryItem): void {
+  if (!operation.itemId) return;
+
+  const index = drawables.findIndex((item) => item.id === operation.itemId);
+  if (index !== -1) {
+    drawables.splice(index, 1);
+  }
 }
 
 function usesRotationMetadata(action: DrawableHistoryItem["action"]): boolean {

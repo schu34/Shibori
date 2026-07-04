@@ -95,6 +95,10 @@ export function validateState(state: State): boolean {
                     break;
                 }
             }
+            if (historyItem.action === HistoryAction.Delete && typeof historyItem.itemId !== 'string') {
+                errors.push('Invalid delete history item');
+                break;
+            }
         }
     }
 

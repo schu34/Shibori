@@ -27,6 +27,7 @@ interface CanvasRendererProps {
     onMouseLeave: (e: React.MouseEvent<HTMLCanvasElement>) => void;
     onKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
     onClear: () => void;
+    onDeleteSelection: () => void;
     onUndo: () => void;
     onDownload: () => void;
 }
@@ -47,6 +48,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     onMouseLeave,
     onKeyDown,
     onClear,
+    onDeleteSelection,
     onUndo,
     onDownload
 }) => {
@@ -110,12 +112,24 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         <div
                             className="selection-overlay"
                             style={selectionOverlayStyle}
-                            aria-hidden="true"
                         >
-                            <span className="selection-rotate-handle selection-rotate-handle-nw" />
-                            <span className="selection-rotate-handle selection-rotate-handle-ne" />
-                            <span className="selection-rotate-handle selection-rotate-handle-se" />
-                            <span className="selection-rotate-handle selection-rotate-handle-sw" />
+                            <span className="selection-rotate-handle selection-rotate-handle-nw" aria-hidden="true" />
+                            <span className="selection-rotate-handle selection-rotate-handle-ne" aria-hidden="true" />
+                            <span className="selection-rotate-handle selection-rotate-handle-se" aria-hidden="true" />
+                            <span className="selection-rotate-handle selection-rotate-handle-sw" aria-hidden="true" />
+                            <button
+                                type="button"
+                                className="selection-delete-button"
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    onDeleteSelection();
+                                }}
+                                aria-label="Delete selected drawing"
+                                title="Delete selected drawing"
+                            >
+                                X
+                            </button>
                         </div>
                     )}
                     {showDiagonalMask && (

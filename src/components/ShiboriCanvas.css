@@ -338,6 +338,35 @@ canvas {
     bottom: -7px;
 }
 
+.selection-delete-button {
+    position: absolute;
+    right: -14px;
+    top: -34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 2px solid #7f1d1d;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 2px 6px rgba(23, 32, 51, 0.35);
+}
+
+.selection-delete-button:hover,
+.selection-delete-button:focus-visible {
+    background: #b91c1c;
+    outline: 2px solid rgba(220, 38, 38, 0.35);
+    outline-offset: 2px;
+}
+
 .controls {
     max-width: 500px;
     margin: 0 auto;

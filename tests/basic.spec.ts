@@ -286,6 +286,70 @@ test.describe('Shibori Canvas App', () => {
     expect(foldedChangedPixels).toBeGreaterThan(50);
   });
 
+  test('select move tool deletes selected stroke with Delete key and undo restores it', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    const undoButton = page.getByRole('button', { name: 'Undo' });
+    await expect(foldedCanvas).toBeVisible();
+
+    await selectDrawingTool(page, 'paintbrush');
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 40, y: 220 },
+      endOffset: { x: 120, y: 220 }
+    });
+    await page.waitForTimeout(500);
+
+    await selectDrawingTool(page, 'selectMove');
+    await clickCanvasAtOffset(foldedCanvas, { x: 80, y: 220 });
+    await page.waitForTimeout(100);
+    await expect(page.locator('.selection-overlay')).toBeVisible();
+    await storeWhiteMask(page, 0, '__foldedBeforeDeleteKeyMask');
+    const beforeDeleteWhite = await getWhitePixelCount(page, 0);
+
+    await page.keyboard.press('Delete');
+    await page.waitForTimeout(500);
+
+    const afterDeleteWhite = await getWhitePixelCount(page, 0);
+    const deleteChangedPixels = await compareWhiteMask(page, 0, '__foldedBeforeDeleteKeyMask');
+    expect(afterDeleteWhite).toBeLessThan(beforeDeleteWhite - 100);
+    expect(deleteChangedPixels).toBeGreaterThan(100);
+    await expect(page.locator('.selection-overlay')).toHaveCount(0);
+
+    await undoButton.click();
+    await page.waitForTimeout(500);
+
+    const afterUndoWhite = await getWhitePixelCount(page, 0);
+    expect(afterUndoWhite).toBeGreaterThan(afterDeleteWhite + 100);
+  });
+
+  test('select move tool deletes selected rectangle with overlay delete button', async ({ page }) => {
+    await page.goto('/');
+
+    const foldedCanvas = page.locator('canvas').first();
+    await expect(foldedCanvas).toBeVisible();
+
+    await selectDrawingTool(page, 'rectangle');
+    await drawOnCanvas(foldedCanvas, {
+      startOffset: { x: 20, y: 20 },
+      endOffset: { x: 120, y: 80 }
+    });
+    await page.waitForTimeout(500);
+
+    await selectDrawingTool(page, 'selectMove');
+    await clickCanvasAtOffset(foldedCanvas, { x: 70, y: 50 });
+    await page.waitForTimeout(100);
+    await expect(page.getByRole('button', { name: 'Delete selected drawing' })).toBeVisible();
+
+    const beforeDeleteWhite = await getWhitePixelCount(page, 0);
+    await page.getByRole('button', { name: 'Delete selected drawing' }).click();
+    await page.waitForTimeout(500);
+
+    const afterDeleteWhite = await getWhitePixelCount(page, 0);
+    expect(afterDeleteWhite).toBeLessThan(beforeDeleteWhite - 100);
+    await expect(page.locator('.selection-overlay')).toHaveCount(0);
+  });
+
   test('select move tool rotates a selected rectangle by dragging a corner', async ({ page }) => {
     await page.goto('/');
 

@@ -32,7 +32,8 @@ export enum DrawingTool {
 export enum HistoryAction {
     Clear = 'clear',
     Move = 'move',
-    Rotate = 'rotate'
+    Rotate = 'rotate',
+    Delete = 'delete'
 }
 
 export enum ShapeFillMode {

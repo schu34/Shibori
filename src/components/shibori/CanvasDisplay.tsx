@@ -33,6 +33,7 @@ export const CanvasDisplay: React.FC = () => {
         handleTouchEnd,
         handleTouchCancel,
         downloadUnfoldedCanvas,
+        deleteSelection,
         undo,
         drawFromHistory,
         updateUnfoldedCanvas,
@@ -86,6 +87,7 @@ export const CanvasDisplay: React.FC = () => {
                 onMouseLeave={handleMouseLeave}
                 onKeyDown={handleKeyDown}
                 onClear={handleClearCanvas}
+                onDeleteSelection={deleteSelection}
                 onUndo={undo}
                 onDownload={downloadUnfoldedCanvas}
             />

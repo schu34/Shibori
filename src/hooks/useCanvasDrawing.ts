@@ -16,6 +16,7 @@ import { WebGLCanvasService } from "../services/WebGLCanvasService";
 import { logger } from "../utils/logger";
 import {
   buildDrawableHistory,
+  createDeleteHistoryItem,
   createMoveHistoryItem,
   createRotateHistoryItem,
   DrawableHistoryItem,
@@ -42,6 +43,7 @@ export interface DrawingOperations {
   isUsingWebGL: () => boolean;
   getWebGLInfo: () => string | null;
   nudgeSelection: (delta: Point) => void;
+  deleteSelection: () => void;
   clearSelection: () => void;
 }
 
@@ -212,6 +214,27 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
           movedItem.rotationCenter
         ),
       });
+    },
+    [dispatch, getState]
+  );
+
+  const deleteSelection = useCallback(
+    () => {
+      const currentState = getState();
+      const selectedId = currentState.selectedHistoryItemId;
+      if (!selectedId) return;
+
+      const selectedItem = buildDrawableHistory(currentState.history)
+        .find((item) => item.id === selectedId);
+      if (!selectedItem) return;
+
+      selectionDragRef.current = null;
+      selectionRotationRef.current = null;
+      dispatch({
+        type: ActionType.ADD_HISTORY_ITEM,
+        payload: createDeleteHistoryItem(selectedId),
+      });
+      dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
     },
     [dispatch, getState]
   );
@@ -488,6 +511,7 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
     isUsingWebGL,
     getWebGLInfo,
     nudgeSelection,
+    deleteSelection,
     clearSelection,
   };
 }

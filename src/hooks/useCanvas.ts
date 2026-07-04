@@ -71,6 +71,7 @@ export function useCanvas() {
     endDrawing: drawingOps.endDrawing,
     isDrawing: drawingOps.isDrawing,
     nudgeSelection: drawingOps.nudgeSelection,
+    deleteSelection: drawingOps.deleteSelection,
     clearSelection: drawingOps.clearSelection,
   };
   const eventHandlers = useCanvasEvents(canvasRefs, drawingCallbacks);
@@ -97,6 +98,7 @@ export function useCanvas() {
     isUsingWebGL,
     getWebGLInfo,
     ...eventHandlers,
+    deleteSelection: drawingOps.deleteSelection,
     undo,
     drawFromHistory,
   };
