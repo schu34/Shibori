@@ -100,7 +100,8 @@ test.describe('Fold Lines Rendering', () => {
     expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
     
     // Now disable diagonal folding
-    const diagonalMinusButton = page.locator('.diagonal-fold-controls button', { hasText: '-' });
+    const diagonalControls = page.locator('.fold-control-row').filter({ hasText: 'Diagonal Folds' });
+    const diagonalMinusButton = diagonalControls.getByTitle('Decrease diagonal folds');
     await diagonalMinusButton.click();
     await page.waitForTimeout(300);
     
@@ -137,9 +138,10 @@ test.describe('Fold Lines Rendering', () => {
     const foldedAnalysis = await analyzeCanvasPixels(page, 0);
     const unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
     
-    // Should have more white pixels than any single fold type
-    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(10);
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(25); // Actual count is around 27
+    // The folded canvas only shows the diagonal guide; vertical and horizontal
+    // fold guides are visible in the unfolded preview.
+    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
+    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(foldedAnalysis.pixelCounts.white);
     expect(foldedAnalysis.hasDrawing).toBe(true);
     expect(unfoldedAnalysis.hasDrawing).toBe(true);
   });

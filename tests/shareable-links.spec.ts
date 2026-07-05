@@ -213,6 +213,9 @@ test.describe('Shareable Links', () => {
     await drawOnCanvas(foldedCanvas);
     await page.waitForTimeout(500);
 
+    const originalDrawing = await analyzeCanvasPixels(page, 0);
+    expect(originalDrawing.hasDrawing).toBe(true);
+
     // Generate share link
     const generateButton = page.locator('button', { hasText: 'Generate Share Link' });
     await generateButton.click();
@@ -229,8 +232,13 @@ test.describe('Shareable Links', () => {
     await expect(newPage.locator('text=Vertical Folds: 2')).toBeVisible();
 
     // Verify canvas still has drawing
-    const loadedDrawing = await analyzeCanvasPixels(newPage, 0);
-    expect(loadedDrawing.hasDrawing).toBe(true);
+    await expect.poll(async () => {
+      const loadedDrawing = await analyzeCanvasPixels(newPage, 0);
+      return loadedDrawing.pixelCounts.white;
+    }, {
+      message: 'shared link should replay the saved drawing',
+      timeout: 5000
+    }).toBeGreaterThan(0);
 
     await newContext.close();
   });

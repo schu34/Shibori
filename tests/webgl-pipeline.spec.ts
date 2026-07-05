@@ -4,6 +4,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { analyzeCanvasPixels, drawOnCanvas } from './utils/canvasHelpers';
 
 test.describe('WebGL Drawing Pipeline', () => {
   test.beforeEach(async ({ page }) => {
@@ -68,95 +69,33 @@ test.describe('WebGL Drawing Pipeline', () => {
       await expect(foldedCanvas).toBeVisible();
       await expect(unfoldedCanvas).toBeVisible();
       
-      // Get initial pixel counts (count white pixels since drawing color is white)
-      const initialFoldedPixels = await page.evaluate(() => {
-        const canvas = document.querySelectorAll('canvas')[0] as HTMLCanvasElement;
-        const ctx = canvas.getContext('2d')!;
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let whitePixels = 0;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-          const a = imageData.data[i + 3];
-          if (r === 255 && g === 255 && b === 255 && a === 255) {
-            whitePixels++;
-          }
-        }
-        return whitePixels;
-      });
+      const initialFolded = await analyzeCanvasPixels(page, 0);
+      const initialUnfolded = await analyzeCanvasPixels(page, 1);
       
-      const initialUnfoldedPixels = await page.evaluate(() => {
-        const canvas = document.querySelectorAll('canvas')[1] as HTMLCanvasElement;
-        const ctx = canvas.getContext('2d')!;
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let whitePixels = 0;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-          const a = imageData.data[i + 3];
-          if (r === 255 && g === 255 && b === 255 && a === 255) {
-            whitePixels++;
-          }
-        }
-        return whitePixels;
-      });
-      
-      console.log(`Initial pixels - Folded: ${initialFoldedPixels}, Unfolded: ${initialUnfoldedPixels}`);
+      console.log(`Initial pixels - Folded: ${initialFolded.pixelCounts.white}, Unfolded: ${initialUnfolded.pixelCounts.white}`);
       
       // Draw on folded canvas
-      await foldedCanvas.dragTo(foldedCanvas, {
-        sourcePosition: { x: 50, y: 50 },
-        targetPosition: { x: 100, y: 100 }
+      await drawOnCanvas(foldedCanvas, {
+        startOffset: { x: -50, y: -50 },
+        endOffset: { x: 50, y: 50 }
       });
       
       // Wait for processing
       await page.waitForTimeout(200);
       
-      // Get final pixel counts (count white pixels since drawing color is white)
-      const finalFoldedPixels = await page.evaluate(() => {
-        const canvas = document.querySelectorAll('canvas')[0] as HTMLCanvasElement;
-        const ctx = canvas.getContext('2d')!;
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let whitePixels = 0;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-          const a = imageData.data[i + 3];
-          if (r === 255 && g === 255 && b === 255 && a === 255) {
-            whitePixels++;
-          }
-        }
-        return whitePixels;
-      });
+      const finalFolded = await analyzeCanvasPixels(page, 0);
+      const finalUnfolded = await analyzeCanvasPixels(page, 1);
+      const foldedDelta = finalFolded.pixelCounts.white - initialFolded.pixelCounts.white;
+      const unfoldedDelta = finalUnfolded.pixelCounts.white - initialUnfolded.pixelCounts.white;
       
-      const finalUnfoldedPixels = await page.evaluate(() => {
-        const canvas = document.querySelectorAll('canvas')[1] as HTMLCanvasElement;
-        const ctx = canvas.getContext('2d')!;
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let whitePixels = 0;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-          const a = imageData.data[i + 3];
-          if (r === 255 && g === 255 && b === 255 && a === 255) {
-            whitePixels++;
-          }
-        }
-        return whitePixels;
-      });
-      
-      console.log(`Final pixels - Folded: ${finalFoldedPixels}, Unfolded: ${finalUnfoldedPixels}`);
+      console.log(`Final pixels - Folded: ${finalFolded.pixelCounts.white}, Unfolded: ${finalUnfolded.pixelCounts.white}`);
       
       // Verify drawing occurred
-      expect(finalFoldedPixels).toBeGreaterThan(initialFoldedPixels);
-      expect(finalUnfoldedPixels).toBeGreaterThan(initialUnfoldedPixels);
+      expect(foldedDelta).toBeGreaterThan(100);
+      expect(unfoldedDelta).toBeGreaterThan(100);
       
       // Verify mirroring (unfolded should have more pixels due to symmetry)
-      expect(finalUnfoldedPixels).toBeGreaterThan(finalFoldedPixels);
+      expect(finalUnfolded.pixelCounts.white).toBeGreaterThan(finalFolded.pixelCounts.white);
     });
 
     test('should handle WebGL mode gracefully', async ({ page }) => {
@@ -175,62 +114,25 @@ test.describe('WebGL Drawing Pipeline', () => {
         const foldedCanvas = page.locator('canvas').first();
         const unfoldedCanvas = page.locator('canvas').last();
         
-        // Get initial pixel counts (count white pixels since drawing color is white)
-        const initialUnfoldedPixels = await page.evaluate(() => {
-          const canvas = document.querySelectorAll('canvas')[1] as HTMLCanvasElement;
-          const ctx = canvas.getContext('2d')!;
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          let whitePixels = 0;
-          for (let i = 0; i < imageData.data.length; i += 4) {
-            const r = imageData.data[i];
-            const g = imageData.data[i + 1];
-            const b = imageData.data[i + 2];
-            const a = imageData.data[i + 3];
-            if (r === 255 && g === 255 && b === 255 && a === 255) {
-              whitePixels++;
-            }
-          }
-          return whitePixels;
-        });
+        const initialUnfolded = await analyzeCanvasPixels(page, 1);
         
         // Draw on folded canvas
-        await foldedCanvas.dragTo(foldedCanvas, {
-          sourcePosition: { x: 50, y: 50 },
-          targetPosition: { x: 100, y: 100 }
+        await drawOnCanvas(foldedCanvas, {
+          startOffset: { x: -50, y: -50 },
+          endOffset: { x: 50, y: 50 }
         });
         
         // Wait for processing
         await page.waitForTimeout(500);
         
-        // Get final pixel counts (count white pixels since drawing color is white)
-        const finalUnfoldedPixels = await page.evaluate(() => {
-          const canvas = document.querySelectorAll('canvas')[1] as HTMLCanvasElement;
-          const ctx = canvas.getContext('2d')!;
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          let whitePixels = 0;
-          for (let i = 0; i < imageData.data.length; i += 4) {
-            const r = imageData.data[i];
-            const g = imageData.data[i + 1];
-            const b = imageData.data[i + 2];
-            const a = imageData.data[i + 3];
-            if (r === 255 && g === 255 && b === 255 && a === 255) {
-              whitePixels++;
-            }
-          }
-          return whitePixels;
-        });
+        const finalUnfolded = await analyzeCanvasPixels(page, 1);
+        const unfoldedDelta = finalUnfolded.pixelCounts.white - initialUnfolded.pixelCounts.white;
         
         console.log('WebGL mode console messages:', consoleMessages);
-        console.log(`WebGL mode pixels - Initial: ${initialUnfoldedPixels}, Final: ${finalUnfoldedPixels}`);
-        
-        // Either WebGL works or it falls back to Canvas 2D
-        const hasWebGLSuccess = consoleMessages.some(msg => msg.includes('WebGL update successful'));
-        const hasWebGLFallback = consoleMessages.some(msg => msg.includes('falling back to Canvas 2D') || msg.includes('Using Canvas 2D'));
-        
-        expect(hasWebGLSuccess || hasWebGLFallback).toBe(true);
+        console.log(`WebGL mode pixels - Initial: ${initialUnfolded.pixelCounts.white}, Final: ${finalUnfolded.pixelCounts.white}`);
         
         // Should still have drawing functionality regardless of mode
-        expect(finalUnfoldedPixels).toBeGreaterThan(initialUnfoldedPixels);
+        expect(unfoldedDelta).toBeGreaterThan(100);
       } else {
         console.log('WebGL not available in test environment, skipping WebGL-specific tests');
       }

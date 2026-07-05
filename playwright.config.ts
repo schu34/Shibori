@@ -39,6 +39,7 @@ export default defineConfig({
         }
       },
       testDir: './tests',
+      testIgnore: '**/dual-mode/**',
     },
     {
       name: 'chromium-webgl',
@@ -59,6 +60,7 @@ export default defineConfig({
         }
       },
       testDir: './tests',
+      testIgnore: '**/dual-mode/**',
     },
     // Dual-mode project for compatibility testing
     ...(process.env.SHIBORI_TEST_DUAL_MODE === 'true' ? [{
