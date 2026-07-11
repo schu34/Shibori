@@ -8,8 +8,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { WebGLControls } from '../components/shibori/WebGLControls';
-import { initialState, reducer as shiboriReducer } from '../store/shiboriCanvasState';
+import { Action, initialState, reducer as shiboriReducer } from '../store/shiboriCanvasState';
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
+import { WebGLCanvasService } from '../services/WebGLCanvasService';
 
 // Mock WebGL services
 jest.mock('../services/WebGLCanvasService', () => ({
@@ -33,7 +34,7 @@ jest.mock('../drawingModes/DrawingModeFactory', () => ({
 const createTestStore = () => {
   return configureStore({
     reducer: {
-      shibori: (state = initialState, action) => shiboriReducer(state, action as any),
+      shibori: (state = initialState, action) => shiboriReducer(state, action as Action),
     },
   });
 };
@@ -50,11 +51,10 @@ const renderWithProvider = (component: React.ReactElement) => {
 describe('WebGLControls', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    const { WebGLCanvasService } = require('../services/WebGLCanvasService');
-    WebGLCanvasService.isWebGLAvailable.mockReturnValue(true);
-    WebGLCanvasService.hasWebGLInitializationFailed.mockReturnValue(false);
-    WebGLCanvasService.isWebGLInitialized.mockReturnValue(false);
-    WebGLCanvasService.getWebGLInfo.mockReturnValue('WebGL 2.0 - Test Renderer');
+    jest.mocked(WebGLCanvasService.isWebGLAvailable).mockReturnValue(true);
+    jest.mocked(WebGLCanvasService.hasWebGLInitializationFailed).mockReturnValue(false);
+    jest.mocked(WebGLCanvasService.isWebGLInitialized).mockReturnValue(false);
+    jest.mocked(WebGLCanvasService.getWebGLInfo).mockReturnValue('WebGL 2.0 - Test Renderer');
     (DrawingModeFactory.getConfig as jest.Mock).mockReturnValue({ renderingMode: 'auto' });
   });
 
@@ -119,8 +119,7 @@ describe('WebGLControls', () => {
 
   describe('WebGL Availability States', () => {
     it('disables WebGL button when WebGL is not available', () => {
-      const { WebGLCanvasService } = require('../services/WebGLCanvasService');
-      WebGLCanvasService.isWebGLAvailable.mockReturnValue(false);
+      jest.mocked(WebGLCanvasService.isWebGLAvailable).mockReturnValue(false);
       
       renderWithProvider(<WebGLControls />);
       

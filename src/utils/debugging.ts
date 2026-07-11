@@ -11,11 +11,11 @@ const usePrevious = (value: unknown[], initialValue: unknown[]) => {
 export const useEffectDebugger = (
   effectHook: EffectCallback,
   dependencies: unknown[],
-  dependencyNames = []
+  dependencyNames: Array<string | number> = []
 ) => {
   const previousDeps = usePrevious(dependencies, []);
 
-  const changedDeps = dependencies.reduce<{}>((accum, dependency, index) => {
+  const changedDeps = dependencies.reduce<Record<PropertyKey, { before: unknown; after: unknown }>>((accum, dependency, index) => {
     if (dependency !== previousDeps[index]) {
       const keyName = dependencyNames[index] || index;
       return {
@@ -34,5 +34,5 @@ export const useEffectDebugger = (
     console.log("[use-effect-debugger] ", changedDeps);
   }
 
-  useEffect(effectHook, dependencies);
+  useEffect(effectHook, dependencies); // eslint-disable-line react-hooks/exhaustive-deps -- This debugging utility intentionally proxies a caller-provided dependency list.
 };

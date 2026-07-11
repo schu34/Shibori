@@ -1,11 +1,12 @@
 import {
   DrawingMode,
   DrawingModeContext,
+  DrawableDrawingTool,
   Point,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
 import { ActionType } from "../store/shiboriCanvasState";
-import { DrawingTool, ShapeFillMode } from "../types";
+import { ShapeFillMode } from "../types";
 import { CanvasService } from "../services/CanvasService";
 
 export abstract class DragShapeMode implements DrawingMode {
@@ -13,7 +14,7 @@ export abstract class DragShapeMode implements DrawingMode {
   private originalUnfoldedCanvasState: ImageData | null = null;
   private lastPoint: Point | null = null;
 
-  protected abstract readonly tool: DrawingTool;
+  protected abstract readonly tool: DrawableDrawingTool;
 
   protected abstract drawShape(
     ctx: CanvasRenderingContext2D,
@@ -69,7 +70,7 @@ export abstract class DragShapeMode implements DrawingMode {
 
   end(point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
     const { getState, dispatch } = context;
-    const { isDrawing, lineStartPoint } = getState();
+    const { isDrawing, lineStartPoint, lineThickness, config } = getState();
 
     if (!isDrawing || !lineStartPoint) return null;
 
@@ -86,6 +87,11 @@ export abstract class DragShapeMode implements DrawingMode {
       action: this.tool,
       points: [lineStartPoint, endPoint],
       shapeFillMode: this.getFillMode(context),
+      style: {
+        lineThickness,
+        color: config.lineColor,
+        shapeFillMode: this.getFillMode(context),
+      },
     };
   }
 
@@ -139,7 +145,9 @@ export abstract class DragShapeMode implements DrawingMode {
   }
 
   private getFillMode(context: DrawingModeContext): ShapeFillMode {
-    return context.historyItem?.shapeFillMode ?? context.getState().shapeFillMode;
+    return context.historyItem?.style?.shapeFillMode ??
+      context.historyItem?.shapeFillMode ??
+      context.getState().shapeFillMode;
   }
 
   private clearStoredCanvasState(): void {

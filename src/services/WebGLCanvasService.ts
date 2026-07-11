@@ -4,6 +4,7 @@
  */
 
 import { WebGLRenderer } from '../webgl/WebGLRenderer';
+import type { BufferManager } from '../webgl/BufferManager';
 import { WebGLMirrorRenderer, GridMirrorConfig } from '../webgl/WebGLMirrorRenderer';
 import { WebGLCapabilities } from '../webgl/WebGLCapabilities';
 import { FoldState, CanvasContext } from './CanvasService';
@@ -426,7 +427,7 @@ export class WebGLCanvasService {
    * Get memory usage statistics
    */
   static getMemoryUsage(): {
-    buffers: any;
+    buffers: ReturnType<BufferManager['getMemoryUsage']> | null;
     webglInfo: string | null;
   } | null {
     if (!this.webglRenderer) {

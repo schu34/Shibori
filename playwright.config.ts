@@ -1,5 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const appOrigin = 'http://localhost:5173';
+const debugSpecs = '**/debug-*.spec.ts';
+const standardProjectIgnores = ['**/dual-mode/**', debugSpecs];
+
+const renderingModeStorageState = (mode: 'canvas2d' | 'webgl') => ({
+  cookies: [],
+  origins: [{
+    origin: appOrigin,
+    localStorage: [{ name: 'shibori:test-rendering-mode', value: mode }],
+  }],
+});
+
 /**
  * Shibori Canvas Testing Configuration
  * Supports both Canvas 2D and WebGL testing modes
@@ -33,13 +45,10 @@ export default defineConfig({
       name: 'chromium-canvas2d',
       use: { 
         ...devices['Desktop Chrome'],
-        // Force Canvas 2D mode for baseline testing
-        extraHTTPHeaders: {
-          'X-Shibori-Test-Mode': 'canvas2d'
-        }
+        storageState: renderingModeStorageState('canvas2d'),
       },
       testDir: './tests',
-      testIgnore: '**/dual-mode/**',
+      testIgnore: standardProjectIgnores,
     },
     {
       name: 'chromium-webgl',
@@ -55,16 +64,13 @@ export default defineConfig({
             '--disable-web-security', // For testing purposes
           ]
         },
-        extraHTTPHeaders: {
-          'X-Shibori-Test-Mode': 'webgl'
-        }
+        storageState: renderingModeStorageState('webgl'),
       },
       testDir: './tests',
-      testIgnore: '**/dual-mode/**',
+      testIgnore: standardProjectIgnores,
     },
-    // Dual-mode project for compatibility testing
-    ...(process.env.SHIBORI_TEST_DUAL_MODE === 'true' ? [{
-      name: 'chromium-dual-mode',
+    ...(process.env.SHIBORI_TEST_BACKEND_PARITY === 'true' ? [{
+      name: 'chromium-backend-parity',
       use: { 
         ...devices['Desktop Chrome'],
         launchOptions: {
@@ -75,18 +81,16 @@ export default defineConfig({
             '--enable-accelerated-2d-canvas',
           ]
         },
-        extraHTTPHeaders: {
-          'X-Shibori-Test-Mode': 'dual'
-        }
       },
       testDir: './tests/dual-mode',
+      testIgnore: debugSpecs,
     }] : []),
   ],
 
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: appOrigin,
     reuseExistingServer: !process.env.CI,
   },
 });

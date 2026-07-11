@@ -1,6 +1,5 @@
-import { useRef, useEffect, useCallback, RefObject } from "react";
+import { useRef, useCallback, RefObject } from "react";
 import { CanvasContext } from "../services/CanvasService";
-import { logger } from "../utils/logger";
 
 export interface CanvasRefs {
   unfoldedCanvasRef: RefObject<HTMLCanvasElement | null>;
@@ -31,25 +30,6 @@ export function useCanvasRefs() {
   const foldedCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const unfoldedCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  // Initialize canvas contexts when canvas refs are available
-  useEffect(() => {
-    if (foldedCanvasRef.current && !foldedCtxRef.current) {
-      const ctx = foldedCanvasRef.current.getContext("2d", {
-        willReadFrequently: true,
-      });
-      foldedCtxRef.current = ctx;
-      logger.canvas.operation("initialized folded canvas context");
-    }
-    
-    if (unfoldedCanvasRef.current && !unfoldedCtxRef.current) {
-      const ctx = unfoldedCanvasRef.current.getContext("2d", {
-        willReadFrequently: true,
-      });
-      unfoldedCtxRef.current = ctx;
-      logger.canvas.operation("initialized unfolded canvas context");
-    }
-  });
-
   // Helper to get complete canvas context - used by CanvasService
   const getCanvasContext = useCallback((): CanvasContext | null => {
     const unfoldedCanvas = unfoldedCanvasRef.current;
@@ -58,15 +38,6 @@ export function useCanvasRefs() {
     const foldedCtx = foldedCtxRef.current;
 
     if (!unfoldedCanvas || !foldedCanvas || !unfoldedCtx || !foldedCtx) {
-      logger.warn("Canvas context not ready", {
-        component: "useCanvasRefs",
-        data: {
-          unfoldedCanvas: !!unfoldedCanvas,
-          foldedCanvas: !!foldedCanvas,
-          unfoldedCtx: !!unfoldedCtx,
-          foldedCtx: !!foldedCtx
-        }
-      });
       return null;
     }
 

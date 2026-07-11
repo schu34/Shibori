@@ -1,21 +1,40 @@
 import { DrawingTool, HistoryAction } from "../types";
-import { Point, UndoableHistoryItem } from "../types/DrawingMode";
+import {
+  DrawableDrawingTool,
+  DrawableHistoryItem as DrawableCommand,
+  DrawingStyle,
+  Point,
+  TransformHistoryItem,
+  UndoableHistoryItem,
+} from "../types/DrawingMode";
 import { rotatePoints, translatePoint, translatePoints } from "./geometryMath";
 
-export type DrawableHistoryItem = UndoableHistoryItem & {
+export type DrawableHistoryItem = DrawableCommand & {
   id: string;
-  action: Exclude<DrawingTool, DrawingTool.SelectMove>;
 };
 
+export interface DrawingStyleDefaults {
+  lineThickness: number;
+  color: string;
+  shapeFillMode: DrawingStyle["shapeFillMode"];
+}
+
 export function isDrawableHistoryItem(item: UndoableHistoryItem): item is DrawableHistoryItem {
-  return Object.values(DrawingTool).includes(item.action as DrawingTool) &&
-    item.action !== DrawingTool.SelectMove &&
+  return isDrawableCommand(item) &&
     typeof item.id === "string" &&
     item.id.length > 0;
 }
 
-export function isDrawableAction(action: UndoableHistoryItem["action"]): action is DrawableHistoryItem["action"] {
-  return Object.values(DrawingTool).includes(action as DrawingTool) && action !== DrawingTool.SelectMove;
+export function isDrawableAction(action: UndoableHistoryItem["action"]): action is DrawableDrawingTool {
+  return action === DrawingTool.Paintbrush ||
+    action === DrawingTool.Line ||
+    action === DrawingTool.Rectangle ||
+    action === DrawingTool.Square ||
+    action === DrawingTool.Circle;
+}
+
+export function isDrawableCommand(item: UndoableHistoryItem): item is DrawableCommand {
+  return isDrawableAction(item.action);
 }
 
 export function ensureHistoryItemIds(history: UndoableHistoryItem[]): UndoableHistoryItem[] {
@@ -23,7 +42,7 @@ export function ensureHistoryItemIds(history: UndoableHistoryItem[]): UndoableHi
   let changed = false;
 
   const normalizedHistory = history.map((item, index) => {
-    if (!isDrawableAction(item.action)) {
+    if (!isDrawableCommand(item)) {
       return item;
     }
 
@@ -49,13 +68,13 @@ export function assignHistoryItemId(
   item: UndoableHistoryItem,
   history: UndoableHistoryItem[]
 ): UndoableHistoryItem {
-  if (!isDrawableAction(item.action) || item.id) {
+  if (!isDrawableCommand(item) || item.id) {
     return item;
   }
 
   const usedIds = new Set(
     history
-      .map((historyItem) => historyItem.id)
+      .map((historyItem) => isDrawableCommand(historyItem) ? historyItem.id : undefined)
       .filter((id): id is string => typeof id === "string" && id.length > 0)
   );
   const id = createHistoryItemId(usedIds, history.length);
@@ -66,7 +85,34 @@ export function assignHistoryItemId(
   };
 }
 
-export function buildDrawableHistory(history: UndoableHistoryItem[]): DrawableHistoryItem[] {
+/**
+ * Adds stable IDs and complete style snapshots without mutating the input log.
+ * This is used both when producing v2 shares and while migrating legacy links.
+ */
+export function materializeDrawableStyles(
+  history: UndoableHistoryItem[],
+  defaults: DrawingStyleDefaults
+): UndoableHistoryItem[] {
+  return ensureHistoryItemIds(history).map((item) => {
+    if (!isDrawableHistoryItem(item)) return item;
+
+    const shapeFillMode = isShapeAction(item.action)
+      ? item.style?.shapeFillMode ?? item.shapeFillMode ?? defaults.shapeFillMode
+      : undefined;
+
+    return {
+      ...item,
+      style: {
+        lineThickness: item.style?.lineThickness ?? defaults.lineThickness,
+        color: item.style?.color ?? defaults.color,
+        ...(shapeFillMode === undefined ? {} : { shapeFillMode }),
+      },
+    };
+  });
+}
+
+/** Resolves the operation log into the drawables visible at that history boundary. */
+export function resolveScene(history: UndoableHistoryItem[]): DrawableHistoryItem[] {
   const drawables: DrawableHistoryItem[] = [];
 
   for (const item of ensureHistoryItemIds(history)) {
@@ -81,16 +127,21 @@ export function buildDrawableHistory(history: UndoableHistoryItem[]): DrawableHi
     }
 
     if (item.action === HistoryAction.Delete) {
-      applyDeleteOperation(drawables, item);
+      applyDeleteOperation(drawables, item.itemId);
       continue;
     }
 
     if (isDrawableHistoryItem(item)) {
-      drawables.push(item);
+      drawables.push(cloneDrawable(item));
     }
   }
 
   return drawables;
+}
+
+/** @deprecated Prefer the domain-oriented resolveScene name. */
+export function buildDrawableHistory(history: UndoableHistoryItem[]): DrawableHistoryItem[] {
+  return resolveScene(history);
 }
 
 export function createMoveHistoryItem(
@@ -101,8 +152,8 @@ export function createMoveHistoryItem(
   toRotation?: number,
   fromRotationCenter?: Point,
   toRotationCenter?: Point
-): UndoableHistoryItem {
-  const historyItem: UndoableHistoryItem = {
+): TransformHistoryItem {
+  const historyItem: TransformHistoryItem = {
     action: HistoryAction.Move,
     itemId,
     points: [],
@@ -122,7 +173,7 @@ export function createRotateHistoryItem(
   item: DrawableHistoryItem,
   angleRadians: number,
   center: Point
-): UndoableHistoryItem {
+): TransformHistoryItem {
   const rotatedItem = getRotatedHistoryItemPreview(item, angleRadians, center);
 
   return {
@@ -178,30 +229,34 @@ export function getRotatedHistoryItemPreview(
   };
 }
 
-function applyTransformOperation(drawables: DrawableHistoryItem[], operation: UndoableHistoryItem): void {
-  if (!operation.itemId || !operation.toPoints) return;
-
+function applyTransformOperation(drawables: DrawableHistoryItem[], operation: TransformHistoryItem): void {
   const index = drawables.findIndex((item) => item.id === operation.itemId);
   if (index === -1) return;
 
   drawables[index] = {
     ...drawables[index],
-    points: operation.toPoints,
+    points: operation.toPoints.map(clonePoint),
     rotation: operation.toRotation ?? drawables[index].rotation,
-    rotationCenter: operation.toRotationCenter ?? drawables[index].rotationCenter,
+    rotationCenter: operation.toRotationCenter
+      ? clonePoint(operation.toRotationCenter)
+      : drawables[index].rotationCenter,
   };
 }
 
-function applyDeleteOperation(drawables: DrawableHistoryItem[], operation: UndoableHistoryItem): void {
-  if (!operation.itemId) return;
-
-  const index = drawables.findIndex((item) => item.id === operation.itemId);
+function applyDeleteOperation(drawables: DrawableHistoryItem[], itemId: string): void {
+  const index = drawables.findIndex((item) => item.id === itemId);
   if (index !== -1) {
     drawables.splice(index, 1);
   }
 }
 
 function usesRotationMetadata(action: DrawableHistoryItem["action"]): boolean {
+  return action === DrawingTool.Rectangle ||
+    action === DrawingTool.Square ||
+    action === DrawingTool.Circle;
+}
+
+function isShapeAction(action: DrawableHistoryItem["action"]): boolean {
   return action === DrawingTool.Rectangle ||
     action === DrawingTool.Square ||
     action === DrawingTool.Circle;
@@ -217,4 +272,17 @@ function createHistoryItemId(usedIds: Set<string>, preferredIndex: number): stri
   }
 
   return id;
+}
+
+function cloneDrawable(item: DrawableHistoryItem): DrawableHistoryItem {
+  return {
+    ...item,
+    points: item.points.map(clonePoint),
+    style: item.style ? { ...item.style } : undefined,
+    rotationCenter: item.rotationCenter ? clonePoint(item.rotationCenter) : undefined,
+  };
+}
+
+function clonePoint(point: Point): Point {
+  return { x: point.x, y: point.y };
 }

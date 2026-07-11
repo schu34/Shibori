@@ -104,7 +104,7 @@ export class PaintbrushMode implements DrawingMode {
     end(_point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
         const { dispatch, getState } = context;
 
-        const { currentStrokePoints } = getState();
+        const { currentStrokePoints, lineThickness, config } = getState();
 
         dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
         dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
@@ -112,6 +112,10 @@ export class PaintbrushMode implements DrawingMode {
         return {
             action: DrawingTool.Paintbrush,
             points: currentStrokePoints,
+            style: {
+                lineThickness,
+                color: config.lineColor,
+            },
         };
     }
 

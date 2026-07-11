@@ -2,18 +2,9 @@ import { useCallback } from "react";
 import { useCanvasRefs } from "./useCanvasRefs";
 import { useCanvasEvents } from "./useCanvasEvents";
 import { useCanvasDrawing } from "./useCanvasDrawing";
-import { useCanvasHistory } from "./useCanvasHistory";
-import { useStore } from "react-redux";
-import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
+import { useCanvasRuntime } from "./useCanvasRuntime";
 export function useCanvas() {
-
-  //slightly cursed, no real need for the `shibori` namespace tbh but I don't feel like refactoring
-  const { getState: _getState } = useStore<RootState>() as {
-    getState: () => RootState;
-  };
-  const getState = useCallback(() => _getState().shibori, [_getState]);
-
   // Use the canvas refs hook
   const canvasRefs = useCanvasRefs();
   const {
@@ -21,48 +12,12 @@ export function useCanvas() {
     foldedCanvasRef,
     foldedCtxRef,
     unfoldedCtxRef,
-    getCanvasContext,
   } = canvasRefs;
 
+  const runtime = useCanvasRuntime(canvasRefs);
+
   // Use the canvas drawing hook
-  const drawingOps = useCanvasDrawing(canvasRefs);
-  const {
-    updateUnfoldedCanvas,
-    isUsingWebGL,
-    getWebGLInfo,
-  } = drawingOps;
-
-  // Use the canvas history hook
-  const historyOps = useCanvasHistory(canvasRefs, updateUnfoldedCanvas);
-  const {
-    undo,
-    drawFromHistory,
-    resetCanvases,
-  } = historyOps;
-
-  // Function to clear both canvases
-  const clearCanvases = useCallback((backgroundColor?: string) => {
-    const context = getCanvasContext();
-    if (!context) return;
-    CanvasService.clearCanvases(context, backgroundColor);
-  }, [getCanvasContext]);
-
-  // Function to draw fold lines on the unfolded canvas
-  const drawFoldLines = useCallback(() => {
-    const context = getCanvasContext();
-    if (!context) return;
-    CanvasService.drawFoldLines(context, getState().folds);
-  }, [getState, getCanvasContext]);
-
-  // Function to update folded canvas dimensions
-  const updateFoldedCanvasDimensions = useCallback(() => {
-    const context = getCanvasContext();
-    if (!context) return;
-    CanvasService.updateFoldedCanvasDimensions(context, getState().folds);
-  }, [getState, getCanvasContext, foldedCtxRef]);
-
-
-
+  const drawingOps = useCanvasDrawing(canvasRefs, runtime);
 
   // Canvas event handlers - extract only the drawing callbacks needed  
   const drawingCallbacks = {
@@ -89,17 +44,10 @@ export function useCanvas() {
     foldedCanvasRef,
     foldedCtxRef,
     unfoldedCtxRef,
-    clearCanvases,
-    updateFoldedCanvasDimensions,
-    drawFoldLines,
-    updateUnfoldedCanvas,
-    resetCanvases,
     downloadUnfoldedCanvas,
-    isUsingWebGL,
-    getWebGLInfo,
+    isUsingWebGL: drawingOps.isUsingWebGL,
+    getWebGLInfo: drawingOps.getWebGLInfo,
     ...eventHandlers,
     deleteSelection: drawingOps.deleteSelection,
-    undo,
-    drawFromHistory,
   };
 }

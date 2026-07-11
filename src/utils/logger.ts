@@ -3,7 +3,7 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 interface LogContext {
   component?: string;
   action?: string;
-  data?: any;
+  data?: unknown;
 }
 
 class Logger {
@@ -49,7 +49,7 @@ class Logger {
     }
   }
 
-  error(message: string, error?: Error, context?: LogContext): void {
+  error(message: string, error?: unknown, context?: LogContext): void {
     if (this.shouldLog('error')) {
       console.error(this.formatMessage('error', message, context), error, context?.data);
     }
@@ -57,7 +57,7 @@ class Logger {
 
   // Canvas-specific logging methods
   canvas = {
-    operation: (operation: string, details?: any) => {
+    operation: (operation: string, details?: unknown) => {
       this.debug(`Canvas operation: ${operation}`, { 
         component: 'Canvas', 
         action: operation,
@@ -65,7 +65,7 @@ class Logger {
       });
     },
 
-    render: (message: string, data?: any) => {
+    render: (message: string, data?: unknown) => {
       this.debug(message, { 
         component: 'Canvas', 
         action: 'render',
@@ -81,7 +81,7 @@ class Logger {
       });
     },
 
-    state: (message: string, state?: any) => {
+    state: (message: string, state?: unknown) => {
       this.debug(`State change: ${message}`, {
         component: 'Canvas',
         action: 'state',
@@ -92,7 +92,7 @@ class Logger {
 
   // Redux-specific logging methods
   redux = {
-    action: (actionType: string, payload?: any) => {
+    action: (actionType: string, payload?: unknown) => {
       this.debug(`Action dispatched: ${actionType}`, {
         component: 'Redux',
         action: actionType,
@@ -100,7 +100,7 @@ class Logger {
       });
     },
 
-    stateChange: (message: string, state?: any) => {
+    stateChange: (message: string, state?: unknown) => {
       this.debug(`State change: ${message}`, {
         component: 'Redux',
         action: 'state-change',
@@ -111,7 +111,7 @@ class Logger {
 
   // URL/Sharing specific logging
   url = {
-    load: (message: string, data?: any) => {
+    load: (message: string, data?: unknown) => {
       this.info(`URL Loading: ${message}`, {
         component: 'URLService',
         action: 'load',
@@ -119,7 +119,7 @@ class Logger {
       });
     },
 
-    encode: (message: string, data?: any) => {
+    encode: (message: string, data?: unknown) => {
       this.debug(`URL Encoding: ${message}`, {
         component: 'URLService', 
         action: 'encode',
@@ -127,7 +127,7 @@ class Logger {
       });
     },
 
-    decode: (message: string, data?: any) => {
+    decode: (message: string, data?: unknown) => {
       this.debug(`URL Decoding: ${message}`, {
         component: 'URLService',
         action: 'decode', 
@@ -138,7 +138,7 @@ class Logger {
 
   // History/Undo specific logging
   history = {
-    add: (item: any) => {
+    add: (item: unknown) => {
       this.debug(`History item added`, {
         component: 'History',
         action: 'add',

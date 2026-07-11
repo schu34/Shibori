@@ -5,10 +5,20 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', '.pnp.loader.mjs', '.pnp.cjs'] },
+  {
+    ignores: [
+      'dist',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      'tests/debug-*.spec.ts',
+      '.pnp.loader.mjs',
+      '.pnp.cjs',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.ts', '*.config.{js,cjs,ts}', 'jest.setup.cjs'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -23,6 +33,35 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ['tests/**/*.ts', '*.config.{js,cjs,ts}', 'jest.setup.cjs'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+  {
+    files: ['*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
+    files: ['src/utils/logger.ts'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['src/__tests__/**/*.{ts,tsx}', 'tests/**/*.ts'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 )

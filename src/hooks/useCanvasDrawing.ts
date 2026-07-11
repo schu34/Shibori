@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
 import { useAppDispatch } from "./useReduxHooks";
 import { CanvasRefs } from "./useCanvasRefs";
@@ -14,6 +14,7 @@ import { RootState } from "../store";
 import { CanvasService } from "../services/CanvasService";
 import { WebGLCanvasService } from "../services/WebGLCanvasService";
 import { logger } from "../utils/logger";
+import { CanvasRuntime } from "./useCanvasRuntime";
 import {
   buildDrawableHistory,
   createDeleteHistoryItem,
@@ -51,9 +52,15 @@ export interface DrawingOperations {
  * Hook for managing drawing operations
  * Handles the drawing lifecycle (start, continue, end) and canvas updates
  */
-export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
+export function useCanvasDrawing(
+  canvasRefs: CanvasRefs,
+  runtime: CanvasRuntime
+): DrawingOperations {
   const dispatch = useAppDispatch();
-  const updateFrameRef = useRef<number | null>(null);
+  const {
+    drawDiagonalFoldedGuidance,
+    scheduleUnfoldedUpdate,
+  } = runtime;
   const selectionDragRef = useRef<{
     itemId: string;
     startPoint: Point;
@@ -75,95 +82,16 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
     foldedCanvasRef,
     foldedCtxRef,
     unfoldedCtxRef,
-    getCanvasContext,
     getFoldedCanvasDimensions,
     getUnfoldedCanvasDimensions,
   } = canvasRefs;
 
-  useEffect(() => {
-    return () => {
-      if (updateFrameRef.current !== null) {
-        cancelAnimationFrame(updateFrameRef.current);
-      }
-    };
-  }, []);
-
   // Function to draw diagonal fold lines on the folded canvas
   const drawDiagonalFoldLinesOnFolded = useCallback(() => {
-    if (!foldedCtxRef.current || !unfoldedCtxRef.current || !foldedCanvasRef.current) return;
-    
-    // Create proper CanvasContext for CanvasService
-    const canvasContext = {
-      foldedCtx: foldedCtxRef.current,
-      unfoldedCtx: unfoldedCtxRef.current,
-      foldedCanvas: foldedCanvasRef.current,
-      unfoldedCanvas: unfoldedCtxRef.current.canvas
-    };
-    
-    CanvasService.drawDiagonalFoldLinesOnFolded(canvasContext, getState().folds);
-  }, [getState, foldedCtxRef, unfoldedCtxRef, foldedCanvasRef]);
+    drawDiagonalFoldedGuidance();
+  }, [drawDiagonalFoldedGuidance]);
 
-  // Function to update the unfolded canvas by mirroring the folded canvas
-  const updateUnfoldedCanvasUnthrottled = useCallback(() => {
-    const foldedContext = getCanvasContext();
-    if (!foldedContext || !foldedCtxRef.current || !unfoldedCtxRef.current || !foldedCanvasRef.current) return;
-
-    // Check if WebGL should be used based on user selection and browser support
-    const config = DrawingModeFactory.getConfig();
-    const shouldUseWebGL = (
-      WebGLCanvasService.isWebGLAvailable() && 
-      !WebGLCanvasService.hasWebGLInitializationFailed() &&
-      (config.renderingMode === 'webgl' || 
-       (config.renderingMode === 'auto' && config.useWebGL))
-    );
-    
-    if (!shouldUseWebGL) {
-      logger.canvas.operation('Using Canvas 2D (WebGL not available or failed)');
-      
-      // Create proper CanvasContext for CanvasService
-      const canvasContext = {
-        foldedCtx: foldedCtxRef.current,
-        unfoldedCtx: unfoldedCtxRef.current,
-        foldedCanvas: foldedCanvasRef.current,
-        unfoldedCanvas: unfoldedCtxRef.current.canvas
-      };
-      
-      CanvasService.updateUnfoldedCanvas(canvasContext, getState().folds);
-      return;
-    }
-
-    // Try WebGL first, fall back to Canvas 2D if needed
-    logger.canvas.render('Attempting WebGL update');
-    const webglSuccess = WebGLCanvasService.updateUnfoldedCanvasWebGL(foldedContext, getState().folds);
-    
-    if (!webglSuccess) {
-      // Fallback to Canvas 2D
-      logger.canvas.operation('WebGL update failed, using Canvas 2D fallback');
-      
-      // Create proper CanvasContext for CanvasService
-      const canvasContext = {
-        foldedCtx: foldedCtxRef.current,
-        unfoldedCtx: unfoldedCtxRef.current,
-        foldedCanvas: foldedCanvasRef.current,
-        unfoldedCanvas: unfoldedCtxRef.current.canvas
-      };
-      
-      CanvasService.updateUnfoldedCanvas(canvasContext, getState().folds);
-    } else {
-      logger.canvas.operation('WebGL update successful');
-    }
-  }, [getState, getCanvasContext, foldedCtxRef, unfoldedCtxRef, foldedCanvasRef]);
-
-  const updateUnfoldedCanvas = useCallback(() => {
-    if (updateFrameRef.current !== null) {
-      return;
-    }
-
-    updateFrameRef.current = requestAnimationFrame(() => {
-      updateFrameRef.current = null;
-      updateUnfoldedCanvasUnthrottled();
-    });
-  }, [updateUnfoldedCanvasUnthrottled]);
+  const updateUnfoldedCanvas = scheduleUnfoldedUpdate;
 
   // Function to check if a point is in the valid drawing area based on diagonal fold
   const isInValidDrawingArea = useCallback(
@@ -396,7 +324,6 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
       updateUnfoldedCanvas,
       drawDiagonalFoldLinesOnFolded,
       isInValidDrawingArea,
-      isUsingWebGL,
     ]
   );
 
@@ -483,8 +410,6 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
         dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: result });
         logger.history.add(result);
       }
-      // Update the unfolded canvas after the final drawing operation
-      updateUnfoldedCanvas();
     },
     [
       getState,
@@ -497,7 +422,6 @@ export function useCanvasDrawing(canvasRefs: CanvasRefs): DrawingOperations {
       updateUnfoldedCanvas,
       drawDiagonalFoldLinesOnFolded,
       isInValidDrawingArea,
-      isUsingWebGL,
     ]
   );
 

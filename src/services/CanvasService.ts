@@ -70,7 +70,6 @@ export class CanvasService {
     unfoldedCtx.lineWidth = 2;
 
     // Draw vertical fold lines
-    let verticalLinesDrawn = 0;
     for (let i = 1; i <= folds.vertical; i++) {
       const segments = Math.pow(2, i);
       for (let j = 1; j < segments; j++) {
@@ -79,7 +78,6 @@ export class CanvasService {
         unfoldedCtx.moveTo(x, 0);
         unfoldedCtx.lineTo(x, height);
         unfoldedCtx.stroke();
-        verticalLinesDrawn++;
       }
     }
 

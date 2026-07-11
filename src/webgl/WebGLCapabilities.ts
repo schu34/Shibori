@@ -97,7 +97,7 @@ export class WebGLCapabilities {
       if (gl) {
         isWebGL2 = true;
       }
-    } catch (error) {
+    } catch {
       // WebGL2 not supported
     }
 
@@ -106,7 +106,7 @@ export class WebGLCapabilities {
       try {
         gl = canvas.getContext('webgl') as WebGLRenderingContext || 
              canvas.getContext('experimental-webgl') as WebGLRenderingContext;
-      } catch (error) {
+      } catch {
         // WebGL not supported
       }
     }

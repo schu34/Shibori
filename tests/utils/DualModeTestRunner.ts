@@ -1,294 +1,207 @@
-import { Page } from '@playwright/test';
-import { 
-  CanvasTestAdapter, 
-  CanvasAnalysis, 
-  CanvasComparison,
-  getCanvasAdapterWithPreference 
-} from './CanvasTestAdapter';
+import { expect, Page, TestInfo } from '@playwright/test';
+import {
+  drawOnCanvas,
+  expectRenderingBackend,
+  getWhitePixelCount,
+  RenderingBackend,
+} from './canvasHelpers';
 
-/**
- * Interface for dual-mode test results comparing Canvas 2D vs WebGL
- */
-export interface DualModeComparison {
-  canvas2d: CanvasAnalysis;
-  webgl: CanvasAnalysis;
-  pixelDifference: {
-    whiteDelta: number;
-    navyDelta: number;
-    otherDelta: number;
-    totalDelta: number;
-  };
-  isCompatible: boolean;
-  compatibilityScore: number; // 0-100, higher is better
-  notes: string[];
+interface WhitePixelMask {
+  width: number;
+  height: number;
+  bits: string;
+  whitePixels: number;
 }
 
-export interface DualModeDrawingComparison {
-  canvas2d: CanvasComparison;
-  webgl: CanvasComparison;
-  drawingCompatibility: {
-    bothDrawingOccurred: boolean;
-    whitePixelDelta: number;
-    percentageDifference: number;
-  };
-  isCompatible: boolean;
-  notes: string[];
+export interface BackendParityResult {
+  canvas2d: Omit<WhitePixelMask, 'bits'>;
+  webgl: Omit<WhitePixelMask, 'bits'>;
+  intersectionPixels: number;
+  unionPixels: number;
+  differingPixels: number;
+  similarity: number;
+  transformedSimilarities: Record<string, number>;
 }
 
 /**
- * Test runner that compares Canvas 2D and WebGL implementations
- * Useful for validating pixel-perfect compatibility during migration
+ * Runs the same user interaction in fresh app states and compares the visible
+ * unfolded output. The visible output is intentionally read through Canvas 2D:
+ * the production WebGL path renders to a hidden WebGL canvas and copies the
+ * final image to the user-visible 2D canvas.
  */
 export class DualModeTestRunner {
-  private page: Page;
-  private toleranceThreshold: number;
+  constructor(
+    private readonly page: Page,
+    private readonly testInfo?: TestInfo
+  ) {}
 
-  constructor(page: Page, toleranceThreshold: number = 5) {
-    this.page = page;
-    this.toleranceThreshold = toleranceThreshold; // Acceptable pixel difference percentage
-  }
+  async compareDrawingOutput(
+    operation: () => Promise<void>,
+    canvasIndex: number = 1
+  ): Promise<BackendParityResult> {
+    const canvas2d = await this.renderWithBackend('canvas2d', operation, canvasIndex);
+    const webgl = await this.renderWithBackend('webgl', operation, canvasIndex);
 
-  /**
-   * Compare canvas analysis between Canvas 2D and WebGL implementations
-   * @param canvasIndex Which canvas to analyze (0 = folded, 1 = unfolded)
-   * @returns Dual-mode comparison results
-   */
-  async compareCanvasAnalysis(canvasIndex: number = 0): Promise<DualModeComparison> {
-    // Get analysis from both rendering modes
-    const canvas2dAnalysis = await this.analyzeWithMode(canvasIndex, '2d');
-    const webglAnalysis = await this.analyzeWithMode(canvasIndex, 'webgl');
+    expect(webgl.width).toBe(canvas2d.width);
+    expect(webgl.height).toBe(canvas2d.height);
 
-    // Calculate pixel differences
-    const pixelDifference = {
-      whiteDelta: Math.abs(webglAnalysis.pixelCounts.white - canvas2dAnalysis.pixelCounts.white),
-      navyDelta: Math.abs(webglAnalysis.pixelCounts.navy - canvas2dAnalysis.pixelCounts.navy),
-      otherDelta: Math.abs(webglAnalysis.pixelCounts.other - canvas2dAnalysis.pixelCounts.other),
-      totalDelta: Math.abs(webglAnalysis.pixelCounts.total - canvas2dAnalysis.pixelCounts.total)
-    };
+    const canvas2dBits = Buffer.from(canvas2d.bits, 'base64');
+    const webglBits = Buffer.from(webgl.bits, 'base64');
+    let intersectionPixels = 0;
+    let unionPixels = 0;
+    let differingPixels = 0;
 
-    // Calculate compatibility score
-    const maxPixels = Math.max(canvas2dAnalysis.pixelCounts.total, webglAnalysis.pixelCounts.total);
-    const totalDifference = pixelDifference.whiteDelta + pixelDifference.navyDelta + pixelDifference.otherDelta;
-    const compatibilityScore = maxPixels > 0 ? Math.max(0, 100 - (totalDifference / maxPixels * 100)) : 100;
-
-    // Determine compatibility
-    const percentageDifference = maxPixels > 0 ? (totalDifference / maxPixels * 100) : 0;
-    const isCompatible = percentageDifference <= this.toleranceThreshold;
-
-    // Generate notes
-    const notes: string[] = [];
-    if (!isCompatible) {
-      notes.push(`Pixel difference (${percentageDifference.toFixed(2)}%) exceeds tolerance (${this.toleranceThreshold}%)`);
+    for (let byteIndex = 0; byteIndex < canvas2dBits.length; byteIndex++) {
+      const canvas2dByte = canvas2dBits[byteIndex];
+      const webglByte = webglBits[byteIndex];
+      intersectionPixels += countSetBits(canvas2dByte & webglByte);
+      unionPixels += countSetBits(canvas2dByte | webglByte);
+      differingPixels += countSetBits(canvas2dByte ^ webglByte);
     }
-    if (pixelDifference.totalDelta > 0) {
-      notes.push(`Total pixel count mismatch: ${pixelDifference.totalDelta} pixels`);
-    }
-    if (Math.abs(canvas2dAnalysis.drawingDensity - webglAnalysis.drawingDensity) > 1) {
-      notes.push(`Drawing density difference: ${Math.abs(canvas2dAnalysis.drawingDensity - webglAnalysis.drawingDensity).toFixed(2)}%`);
-    }
+
+    const transformedSimilarities = Object.fromEntries(
+      Object.entries(pixelTransforms).map(([name, transform]) => [
+        name,
+        calculateSimilarity(canvas2dBits, webglBits, canvas2d.width, canvas2d.height, transform),
+      ])
+    );
 
     return {
-      canvas2d: canvas2dAnalysis,
-      webgl: webglAnalysis,
-      pixelDifference,
-      isCompatible,
-      compatibilityScore,
-      notes
+      canvas2d: withoutBits(canvas2d),
+      webgl: withoutBits(webgl),
+      intersectionPixels,
+      unionPixels,
+      differingPixels,
+      similarity: unionPixels === 0 ? 1 : intersectionPixels / unionPixels,
+      transformedSimilarities,
     };
   }
 
-  /**
-   * Compare drawing operations between Canvas 2D and WebGL
-   * @param canvasIndex Which canvas to analyze
-   * @param drawingOperation Function that performs the drawing
-   * @returns Dual-mode drawing comparison
-   */
-  async compareDrawingOperation(
-    canvasIndex: number,
-    drawingOperation: () => Promise<void>
-  ): Promise<DualModeDrawingComparison> {
-    // Get before/after analysis for Canvas 2D
-    const canvas2dComparison = await this.compareDrawingWithMode(canvasIndex, drawingOperation, '2d');
-    
-    // Get before/after analysis for WebGL
-    const webglComparison = await this.compareDrawingWithMode(canvasIndex, drawingOperation, 'webgl');
+  private async renderWithBackend(
+    backend: RenderingBackend,
+    operation: () => Promise<void>,
+    canvasIndex: number
+  ): Promise<WhitePixelMask> {
+    await this.page.goto('/');
+    await expect(this.page.getByRole('heading', { name: 'Shibori Folding' })).toBeVisible();
 
-    // Calculate drawing compatibility
-    const bothDrawingOccurred = canvas2dComparison.drawingOccurred && webglComparison.drawingOccurred;
-    const whitePixelDelta = Math.abs(webglComparison.whitePixelsDelta - canvas2dComparison.whitePixelsDelta);
-    
-    const maxWhitePixels = Math.max(canvas2dComparison.whitePixelsDelta, webglComparison.whitePixelsDelta);
-    const percentageDifference = maxWhitePixels > 0 ? (whitePixelDelta / maxWhitePixels * 100) : 0;
-    
-    const isCompatible = bothDrawingOccurred && percentageDifference <= this.toleranceThreshold;
+    const label = backend === 'canvas2d' ? 'Canvas 2D' : 'WebGL';
+    await this.page.getByRole('button', { name: label, exact: true }).click();
+    const initialWhitePixels = await getWhitePixelCount(this.page, canvasIndex);
+    await operation();
+    await expect.poll(() => getWhitePixelCount(this.page, canvasIndex), { timeout: 10_000 })
+      .toBeGreaterThan(initialWhitePixels + 200);
+    await expectRenderingBackend(this.page, backend, { verifyRequestedMode: false });
 
-    // Generate notes
-    const notes: string[] = [];
-    if (!bothDrawingOccurred) {
-      notes.push(`Drawing inconsistency: Canvas2D=${canvas2dComparison.drawingOccurred}, WebGL=${webglComparison.drawingOccurred}`);
-    }
-    if (percentageDifference > this.toleranceThreshold) {
-      notes.push(`White pixel difference (${percentageDifference.toFixed(2)}%) exceeds tolerance`);
-    }
-
-    return {
-      canvas2d: canvas2dComparison,
-      webgl: webglComparison,
-      drawingCompatibility: {
-        bothDrawingOccurred,
-        whitePixelDelta,
-        percentageDifference
-      },
-      isCompatible,
-      notes
-    };
-  }
-
-  /**
-   * Run comprehensive compatibility test suite
-   * @param drawingOperations Array of drawing operations to test
-   * @returns Comprehensive test results
-   */
-  async runCompatibilityTestSuite(
-    drawingOperations: Array<{
-      name: string;
-      operation: () => Promise<void>;
-    }>
-  ): Promise<{
-    overallCompatible: boolean;
-    staticAnalysis: DualModeComparison;
-    drawingTests: Array<DualModeDrawingComparison & { testName: string }>;
-    summary: {
-      totalTests: number;
-      passedTests: number;
-      failedTests: number;
-      averageCompatibilityScore: number;
-    };
-  }> {
-    // Static analysis (comparing current canvas state)
-    const staticAnalysis = await this.compareCanvasAnalysis(0);
-
-    // Drawing operation tests
-    const drawingTests: Array<DualModeDrawingComparison & { testName: string }> = [];
-    
-    for (const test of drawingOperations) {
-      const result = await this.compareDrawingOperation(0, test.operation);
-      drawingTests.push({
-        ...result,
-        testName: test.name
+    if (this.testInfo) {
+      await this.testInfo.attach(`${backend}-visible-canvas`, {
+        body: await this.page.locator('canvas').nth(canvasIndex).screenshot(),
+        contentType: 'image/png',
       });
     }
 
-    // Calculate summary
-    const totalTests = drawingTests.length + 1; // +1 for static analysis
-    const passedTests = drawingTests.filter(t => t.isCompatible).length + (staticAnalysis.isCompatible ? 1 : 0);
-    const failedTests = totalTests - passedTests;
-    
-    const allScores = [staticAnalysis.compatibilityScore, ...drawingTests.map(t => t.drawingCompatibility.percentageDifference)];
-    const averageCompatibilityScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
-
-    const overallCompatible = staticAnalysis.isCompatible && drawingTests.every(t => t.isCompatible);
-
-    return {
-      overallCompatible,
-      staticAnalysis,
-      drawingTests,
-      summary: {
-        totalTests,
-        passedTests,
-        failedTests,
-        averageCompatibilityScore
-      }
-    };
+    return this.captureWhitePixelMask(canvasIndex);
   }
 
-  /**
-   * Analyze canvas with specific rendering mode
-   * @param canvasIndex Canvas to analyze
-   * @param mode Rendering mode preference
-   * @returns Canvas analysis
-   */
-  private async analyzeWithMode(canvasIndex: number, mode: '2d' | 'webgl'): Promise<CanvasAnalysis> {
-    return await this.page.evaluate(async ([index, preferredMode]) => {
-      const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
-      
-      // We'll implement adapter selection logic here
-      // For now, use Canvas 2D logic as fallback
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        return {
-          pixelCounts: { total: 0, white: 0, navy: 0, other: 0 },
-          hasDrawing: false,
-          drawingDensity: 0
-        };
+  private async captureWhitePixelMask(canvasIndex: number): Promise<WhitePixelMask> {
+    return this.page.evaluate((index) => {
+      const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement | undefined;
+      const context = canvas?.getContext('2d');
+      if (!canvas || !context) {
+        throw new Error(`Visible canvas ${index} is unavailable`);
       }
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
+      const pixelData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const bitMask = new Uint8Array(Math.ceil((pixelData.length / 4) / 8));
       let whitePixels = 0;
-      let navyPixels = 0;
-      let otherPixels = 0;
-      const totalPixels = data.length / 4;
 
-      const classifyPixel = (r: number, g: number, b: number): 'white' | 'navy' | 'other' => {
-        if (r > 240 && g > 240 && b > 240) return 'white';
-        if (r < 50 && g < 50 && b > 100) return 'navy';
-        return 'other';
-      };
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        
-        const pixelType = classifyPixel(r, g, b);
-        switch (pixelType) {
-          case 'white': whitePixels++; break;
-          case 'navy': navyPixels++; break;
-          case 'other': otherPixels++; break;
+      for (let pixelIndex = 0; pixelIndex < pixelData.length / 4; pixelIndex++) {
+        const dataIndex = pixelIndex * 4;
+        if (
+          pixelData[dataIndex] > 240 &&
+          pixelData[dataIndex + 1] > 240 &&
+          pixelData[dataIndex + 2] > 240
+        ) {
+          bitMask[Math.floor(pixelIndex / 8)] |= 1 << (pixelIndex % 8);
+          whitePixels++;
         }
       }
 
-      return {
-        pixelCounts: { total: totalPixels, white: whitePixels, navy: navyPixels, other: otherPixels },
-        hasDrawing: whitePixels > 0,
-        drawingDensity: (whitePixels / totalPixels) * 100
-      };
-    }, [canvasIndex, mode] as const);
-  }
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let offset = 0; offset < bitMask.length; offset += chunkSize) {
+        binary += String.fromCharCode(...bitMask.subarray(offset, offset + chunkSize));
+      }
 
-  /**
-   * Compare drawing operation with specific rendering mode
-   * @param canvasIndex Canvas to analyze
-   * @param operation Drawing operation
-   * @param mode Rendering mode preference
-   * @returns Canvas comparison
-   */
-  private async compareDrawingWithMode(
-    canvasIndex: number,
-    operation: () => Promise<void>,
-    mode: '2d' | 'webgl'
-  ): Promise<CanvasComparison> {
-    // Get before state
-    const before = await this.analyzeWithMode(canvasIndex, mode);
-    
-    // Perform drawing operation
-    await operation();
-    
-    // Wait for rendering to complete
-    await this.page.waitForTimeout(500);
-    
-    // Get after state
-    const after = await this.analyzeWithMode(canvasIndex, mode);
-    
-    const whitePixelsDelta = after.pixelCounts.white - before.pixelCounts.white;
-    
-    return {
-      before,
-      after,
-      whitePixelsDelta,
-      drawingOccurred: whitePixelsDelta > 0
-    };
+      return {
+        width: canvas.width,
+        height: canvas.height,
+        bits: btoa(binary),
+        whitePixels,
+      };
+    }, canvasIndex);
   }
+}
+
+export async function drawDeterministicStroke(page: Page): Promise<void> {
+  await drawOnCanvas(page.locator('canvas').first(), {
+    // The default diagonal fold makes the upper-left half non-drawable.
+    // Keep this gesture wholly inside the lower-right drawable triangle.
+    startOffset: { x: 40, y: 20 },
+    endOffset: { x: 100, y: 80 },
+  });
+}
+
+function countSetBits(value: number): number {
+  let remaining = value;
+  let count = 0;
+  while (remaining !== 0) {
+    remaining &= remaining - 1;
+    count++;
+  }
+  return count;
+}
+
+function withoutBits(mask: WhitePixelMask): Omit<WhitePixelMask, 'bits'> {
+  return {
+    width: mask.width,
+    height: mask.height,
+    whitePixels: mask.whitePixels,
+  };
+}
+
+type PixelTransform = (x: number, y: number, width: number, height: number) => [number, number];
+
+const pixelTransforms: Record<string, PixelTransform> = {
+  horizontalFlip: (x, y, width) => [width - 1 - x, y],
+  verticalFlip: (x, y, _width, height) => [x, height - 1 - y],
+  rotate180: (x, y, width, height) => [width - 1 - x, height - 1 - y],
+  transpose: (x, y) => [y, x],
+  rotate90: (x, y, _width, height) => [height - 1 - y, x],
+  rotate270: (x, y, width) => [y, width - 1 - x],
+};
+
+function calculateSimilarity(
+  expected: Buffer,
+  actual: Buffer,
+  width: number,
+  height: number,
+  transform: PixelTransform
+): number {
+  let intersection = 0;
+  let union = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const expectedSet = isSet(expected, y * width + x);
+      const [actualX, actualY] = transform(x, y, width, height);
+      const actualSet = isSet(actual, actualY * width + actualX);
+      if (expectedSet && actualSet) intersection++;
+      if (expectedSet || actualSet) union++;
+    }
+  }
+  return union === 0 ? 1 : intersection / union;
+}
+
+function isSet(bits: Buffer, pixelIndex: number): boolean {
+  return (bits[Math.floor(pixelIndex / 8)] & (1 << (pixelIndex % 8))) !== 0;
 }

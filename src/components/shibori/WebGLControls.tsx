@@ -8,6 +8,7 @@ import { DrawingModeFactory, RenderingMode } from '../../drawingModes/DrawingMod
 import { WebGLCanvasService } from '../../services/WebGLCanvasService';
 import { WebGLStatus } from './WebGLStatus';
 import { PerformanceMonitor } from './PerformanceMonitor';
+import { reportRequestedRenderingMode } from '../../utils/renderingBackend';
 import './WebGLControls.css';
 
 export const WebGLControls: React.FC = () => {
@@ -20,6 +21,7 @@ export const WebGLControls: React.FC = () => {
   const handleModeChange = (mode: RenderingMode) => {
     setCurrentMode(mode);
     DrawingModeFactory.configure({ renderingMode: mode });
+    reportRequestedRenderingMode(mode);
     
     // Force a WebGL context recreation if needed
     if (mode === 'webgl' || mode === 'canvas2d') {

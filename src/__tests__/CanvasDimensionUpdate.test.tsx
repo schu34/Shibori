@@ -45,9 +45,8 @@ describe('Canvas Dimension Reducer Tests', () => {
             payload: { width: 50, height: 800 }
         });
 
-        // The width should be updated to the new value
-        // (The constraint is applied in the component before dispatching)
-        expect(afterWidthUpdate.canvasDimensions.width).toBe(50);
+        // The reducer enforces the 100px domain minimum.
+        expect(afterWidthUpdate.canvasDimensions.width).toBe(100);
 
         // Try to set height below minimum
         const afterHeightUpdate = reducer(afterWidthUpdate, {
@@ -55,9 +54,8 @@ describe('Canvas Dimension Reducer Tests', () => {
             payload: { width: 50, height: 50 }
         });
 
-        // The height should be updated to the new value
-        expect(afterHeightUpdate.canvasDimensions.width).toBe(50);
-        expect(afterHeightUpdate.canvasDimensions.height).toBe(50);
+        expect(afterHeightUpdate.canvasDimensions.width).toBe(100);
+        expect(afterHeightUpdate.canvasDimensions.height).toBe(100);
     });
 });
 
@@ -71,4 +69,4 @@ describe('DimensionControls Constraints', () => {
         // for a test that would check the min attribute on the input elements
         expect(true).toBe(true);
     });
-}); 
+});

@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { expect, Page, Locator } from '@playwright/test';
 // Import types only to avoid module loading issues in Playwright context
 import type { 
   CanvasAnalysis, 
@@ -19,6 +19,20 @@ import type {
 
 // Re-export types for backward compatibility
 export { PixelCounts, CanvasAnalysis, CanvasComparison };
+
+export type RenderingBackend = 'canvas2d' | 'webgl';
+
+export async function expectRenderingBackend(
+  page: Page,
+  expected: RenderingBackend,
+  options: { verifyRequestedMode?: boolean } = {}
+): Promise<void> {
+  const root = page.locator('html');
+  if (options.verifyRequestedMode !== false) {
+    await expect(root).toHaveAttribute('data-shibori-renderer-requested', expected);
+  }
+  await expect(root).toHaveAttribute('data-shibori-renderer', expected, { timeout: 10_000 });
+}
 
 /**
  * Count pixels by color in a canvas using adaptive rendering backend detection
@@ -95,13 +109,14 @@ export async function analyzeCanvasPixels(page: Page, canvasIndex: number = 0): 
 
 /**
  * Get just the white pixel count for a canvas (optimized for simple checks)
- * Updated to use adaptive rendering backend detection
+ * The app presents final output through visible Canvas 2D canvases even when
+ * WebGL performs mirroring. Backend selection is verified separately with
+ * expectRenderingBackend.
  */
 export async function getWhitePixelCount(page: Page, canvasIndex: number = 0): Promise<number> {
   return await page.evaluate((index) => {
     const canvas = document.querySelectorAll('canvas')[index] as HTMLCanvasElement;
     
-    // For now, use Canvas 2D logic directly (will be abstracted when WebGL is ready)
     const ctx = canvas.getContext('2d');
     if (!ctx) return 0;
 

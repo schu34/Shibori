@@ -23,9 +23,9 @@ export interface GeometryOptions {
 }
 
 export interface DrawingModeGeometry {
-    hitTest: (item: UndoableHistoryItem, point: Point, options: GeometryOptions) => boolean;
-    getBounds: (item: UndoableHistoryItem, options: GeometryOptions) => Bounds | null;
-    translate: (item: UndoableHistoryItem, delta: Point) => UndoableHistoryItem;
+    hitTest: (item: DrawableHistoryItem, point: Point, options: GeometryOptions) => boolean;
+    getBounds: (item: DrawableHistoryItem, options: GeometryOptions) => Bounds | null;
+    translate: (item: DrawableHistoryItem, delta: Point) => DrawableHistoryItem;
 }
 
 export interface DrawingModeContext {
@@ -39,24 +39,68 @@ export interface DrawingModeContext {
     updateUnfoldedCanvas: () => void;
     drawDiagonalFoldLinesOnFolded: () => void;
     isInValidDrawingArea: (x: number, y: number) => boolean;
-    historyItem?: UndoableHistoryItem;
+    historyItem?: DrawableHistoryItem;
 }
 
-export interface UndoableHistoryItem {
+export type DrawableDrawingTool = Exclude<DrawingTool, DrawingTool.SelectMove>;
+
+/**
+ * Rendering values captured when a drawable is committed. Keeping these values
+ * on the command makes replay independent of the currently selected controls.
+ */
+export interface DrawingStyle {
+    lineThickness: number;
+    color: string;
+    shapeFillMode?: ShapeFillMode;
+}
+
+export interface DrawableHistoryItem {
     id?: string;
-    action: DrawingTool | HistoryAction;
+    action: DrawableDrawingTool;
     points: Point[];
+    style?: DrawingStyle;
+    /** @deprecated Read only for legacy, unversioned history. Use style.shapeFillMode. */
     shapeFillMode?: ShapeFillMode;
     rotation?: number;
     rotationCenter?: Point;
-    itemId?: string;
-    fromPoints?: Point[];
-    toPoints?: Point[];
+}
+
+export interface ClearHistoryItem {
+    id?: never;
+    action: HistoryAction.Clear;
+    points: [];
+}
+
+export interface TransformHistoryItem {
+    id?: never;
+    action: HistoryAction.Move | HistoryAction.Rotate;
+    points: [];
+    itemId: string;
+    fromPoints: Point[];
+    toPoints: Point[];
     fromRotation?: number;
     toRotation?: number;
     fromRotationCenter?: Point;
     toRotationCenter?: Point;
 }
+
+export interface DeleteHistoryItem {
+    id?: never;
+    action: HistoryAction.Delete;
+    points: [];
+    itemId: string;
+}
+
+/**
+ * The persisted operation log. Each action now exposes only the fields that are
+ * meaningful for that command, while retaining the historical `points: []`
+ * marker on non-drawing commands for share-link compatibility.
+ */
+export type UndoableHistoryItem =
+    | DrawableHistoryItem
+    | ClearHistoryItem
+    | TransformHistoryItem
+    | DeleteHistoryItem;
 
 export interface DrawingMode {
     start: (point: Point, context: DrawingModeContext) => void;

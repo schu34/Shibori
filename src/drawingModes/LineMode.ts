@@ -162,6 +162,10 @@ export class LineMode implements DrawingMode {
     return {
       action: this.id,
       points: [lineStartPoint, this.lastPoint],
+      style: {
+        lineThickness,
+        color: config.lineColor,
+      },
     };
   }
 

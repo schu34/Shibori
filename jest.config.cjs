@@ -1,6 +1,8 @@
 /** @type {import('jest').Config} */
 module.exports = {
     testEnvironment: 'jsdom',
+    roots: ['<rootDir>/src/__tests__'],
+    testMatch: ['**/*.{test,spec}.{ts,tsx}'],
     moduleNameMapper: {
         '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
         '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.cjs'
@@ -23,4 +25,4 @@ module.exports = {
     transformIgnorePatterns: [
         '/node_modules/(?!.*\\.mjs$)'
     ]
-}; 
+};

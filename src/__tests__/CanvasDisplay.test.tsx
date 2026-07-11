@@ -1,6 +1,11 @@
 import { renderWithRedux } from '../testUtils';
 import '@testing-library/jest-dom';
 import { CanvasDisplay } from '../components/shibori/CanvasDisplay';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { createAppStore } from '../store';
+import { initialState, ActionType } from '../store/shiboriCanvasState';
+import { DrawingTool, HistoryAction } from '../types';
 
 // Mock the useCanvas hook
 jest.mock('../hooks/useCanvas', () => ({
@@ -14,6 +19,7 @@ jest.mock('../hooks/useCanvas', () => ({
         handleMouseMove: jest.fn(),
         handleMouseUp: jest.fn(),
         handleMouseLeave: jest.fn(),
+        handleKeyDown: jest.fn(),
         handleTouchStart: jest.fn(),
         handleTouchMove: jest.fn(),
         handleTouchEnd: jest.fn(),
@@ -50,5 +56,58 @@ describe('CanvasDisplay Component', () => {
         expect(foldedCanvas).toHaveAttribute('height', '1600');
         expect(unfoldedCanvas).toHaveAttribute('width', '1600');
         expect(unfoldedCanvas).toHaveAttribute('height', '1600');
+    });
+
+    test('Clear adds one undoable command and performs no imperative canvas reset', () => {
+        const store = createAppStore({
+            shibori: {
+                ...initialState,
+                history: [{
+                    id: 'line-1',
+                    action: DrawingTool.Line,
+                    points: [{ x: 1, y: 1 }, { x: 5, y: 5 }],
+                }],
+            },
+        });
+        const dispatch = jest.spyOn(store, 'dispatch');
+        render(<Provider store={store}><CanvasDisplay /></Provider>);
+
+        fireEvent.click(screen.getByTitle('Clear canvas'));
+
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        expect(dispatch).toHaveBeenCalledWith({
+            type: ActionType.ADD_HISTORY_ITEM,
+            payload: { action: HistoryAction.Clear, points: [] },
+        });
+    });
+
+    test('Clear is a no-op when history is already empty', () => {
+        const store = createAppStore();
+        const dispatch = jest.spyOn(store, 'dispatch');
+        render(<Provider store={store}><CanvasDisplay /></Provider>);
+
+        fireEvent.click(screen.getByTitle('Clear canvas'));
+
+        expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    test('Undo dispatches only the state transition', () => {
+        const store = createAppStore({
+            shibori: {
+                ...initialState,
+                history: [{
+                    id: 'line-1',
+                    action: DrawingTool.Line,
+                    points: [{ x: 1, y: 1 }, { x: 5, y: 5 }],
+                }],
+            },
+        });
+        const dispatch = jest.spyOn(store, 'dispatch');
+        render(<Provider store={store}><CanvasDisplay /></Provider>);
+
+        fireEvent.click(screen.getByTitle('Undo'));
+
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        expect(dispatch).toHaveBeenCalledWith({ type: ActionType.UNDO });
     });
 }); 

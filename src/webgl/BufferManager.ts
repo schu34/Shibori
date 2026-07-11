@@ -97,7 +97,13 @@ export class BufferManager {
     index?: string;
     attributes?: Record<string, string>;
   } {
-    const bufferIds: any = {};
+    const bufferIds: {
+      position: string;
+      texCoord?: string;
+      color?: string;
+      index?: string;
+      attributes?: Record<string, string>;
+    } = { position: '' };
 
     // Position buffer (required)
     bufferIds.position = this.createBuffer(geometry.positions, {

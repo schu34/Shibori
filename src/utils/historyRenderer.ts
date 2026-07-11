@@ -69,7 +69,7 @@ function renderPaintbrush(
   if (item.points.length === 0) return;
 
   const stroke = getStroke(item.points, {
-    size: options.lineThickness * 2,
+    size: getLineThickness(item, options) * 2,
     thinning: 0.5,
     smoothing: 0.5,
     streamline: 0.5,
@@ -77,7 +77,7 @@ function renderPaintbrush(
 
   if (!stroke.length) return;
 
-  ctx.fillStyle = options.config.lineColor;
+  ctx.fillStyle = getColor(item, options);
   ctx.beginPath();
   const [firstX, firstY] = stroke[0];
   ctx.moveTo(firstX, firstY);
@@ -101,8 +101,8 @@ function renderLine(
   ctx.beginPath();
   ctx.moveTo(item.points[0].x, item.points[0].y);
   ctx.lineTo(item.points[1].x, item.points[1].y);
-  ctx.strokeStyle = options.config.lineColor;
-  ctx.lineWidth = options.lineThickness;
+  ctx.strokeStyle = getColor(item, options);
+  ctx.lineWidth = getLineThickness(item, options);
   ctx.stroke();
 }
 
@@ -138,7 +138,7 @@ function renderRectLikeShape(
   width: number,
   height: number
 ): void {
-  const fillMode = item.shapeFillMode ?? options.shapeFillMode;
+  const fillMode = getShapeFillMode(item, options);
 
   ctx.save();
   if (item.rotation) {
@@ -155,11 +155,11 @@ function renderRectLikeShape(
     ctx.translate(-center.x, -center.y);
   }
 
-  ctx.strokeStyle = options.config.lineColor;
-  ctx.lineWidth = options.lineThickness;
+  ctx.strokeStyle = getColor(item, options);
+  ctx.lineWidth = getLineThickness(item, options);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.fillStyle = options.config.lineColor;
+  ctx.fillStyle = getColor(item, options);
 
   if (fillMode === ShapeFillMode.Filled) {
     ctx.fillRect(item.points[0].x, item.points[0].y, width, height);
@@ -184,12 +184,12 @@ function renderCircle(
   );
   if (radius <= 0) return;
 
-  const fillMode = item.shapeFillMode ?? options.shapeFillMode;
-  ctx.strokeStyle = options.config.lineColor;
-  ctx.lineWidth = options.lineThickness;
+  const fillMode = getShapeFillMode(item, options);
+  ctx.strokeStyle = getColor(item, options);
+  ctx.lineWidth = getLineThickness(item, options);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.fillStyle = options.config.lineColor;
+  ctx.fillStyle = getColor(item, options);
   ctx.beginPath();
   ctx.arc(item.points[0].x, item.points[0].y, radius, 0, Math.PI * 2);
 
@@ -199,4 +199,19 @@ function renderCircle(
   }
 
   ctx.stroke();
+}
+
+function getLineThickness(item: DrawableHistoryItem, options: HistoryRenderOptions): number {
+  return item.style?.lineThickness ?? options.lineThickness;
+}
+
+function getColor(item: DrawableHistoryItem, options: HistoryRenderOptions): string {
+  return item.style?.color ?? options.config.lineColor;
+}
+
+function getShapeFillMode(
+  item: DrawableHistoryItem,
+  options: HistoryRenderOptions
+): ShapeFillMode {
+  return item.style?.shapeFillMode ?? item.shapeFillMode ?? options.shapeFillMode;
 }

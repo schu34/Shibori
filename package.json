@@ -6,12 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b tsconfig.app.json tsconfig.node.json && vite build",
+    "typecheck": "tsc -b tsconfig.app.json tsconfig.node.json tsconfig.test.json && tsc --noEmit -p tsconfig.e2e.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "jest",
+    "test:unit": "jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:benchmark": "SHIBORI_RENDERER_BENCHMARK=true playwright test tests/renderer-benchmark.spec.ts --project=chromium-webgl",
+    "test:e2e:smoke": "playwright test tests/smoke.spec.ts",
+    "test:e2e:parity": "SHIBORI_TEST_BACKEND_PARITY=true playwright test --project=chromium-backend-parity",
+    "test:e2e:ui": "playwright test --ui",
+    "check": "npm run typecheck && npm run lint && npm run test:unit"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.6.1",

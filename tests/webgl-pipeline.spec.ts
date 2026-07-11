@@ -21,9 +21,14 @@ test.describe('WebGL Drawing Pipeline', () => {
       await expect(page.locator('button:has-text("Canvas 2D")')).toBeVisible();
     });
 
-    test('should start with Auto mode selected', async ({ page }) => {
-      const autoButton = page.locator('button:has-text("Auto")');
-      await expect(autoButton).toHaveClass(/active/);
+    test('should reflect the project-requested startup backend', async ({ page }, testInfo) => {
+      const expectedMode = testInfo.project.name === 'chromium-canvas2d'
+        ? 'canvas2d'
+        : 'webgl';
+      const expectedButtonName = expectedMode === 'canvas2d' ? 'Canvas 2D' : 'WebGL';
+
+      await expect(page.locator('html')).toHaveAttribute('data-shibori-renderer-requested', expectedMode);
+      await expect(page.getByRole('button', { name: expectedButtonName, exact: true })).toHaveClass(/active/);
     });
 
     test('should allow switching to WebGL mode', async ({ page }) => {
@@ -62,8 +67,8 @@ test.describe('WebGL Drawing Pipeline', () => {
       await page.locator('button:has-text("Canvas 2D")').click();
       
       // Get canvas elements
-      const foldedCanvas = page.locator('canvas').first();
-      const unfoldedCanvas = page.locator('canvas').last();
+      const foldedCanvas = page.getByLabel('Folded drawing canvas');
+      const unfoldedCanvas = page.locator('.canvas-container canvas').nth(1);
       
       // Verify canvases exist
       await expect(foldedCanvas).toBeVisible();
@@ -111,8 +116,7 @@ test.describe('WebGL Drawing Pipeline', () => {
         await webglButton.click();
         
         // Get canvas elements
-        const foldedCanvas = page.locator('canvas').first();
-        const unfoldedCanvas = page.locator('canvas').last();
+        const foldedCanvas = page.getByLabel('Folded drawing canvas');
         
         const initialUnfolded = await analyzeCanvasPixels(page, 1);
         
@@ -170,7 +174,7 @@ test.describe('WebGL Drawing Pipeline', () => {
       await page.locator('button:has-text("Canvas 2D")').click();
       
       // Perform some drawing
-      const foldedCanvas = page.locator('canvas').first();
+      const foldedCanvas = page.getByLabel('Folded drawing canvas');
       await foldedCanvas.dragTo(foldedCanvas, {
         sourcePosition: { x: 30, y: 30 },
         targetPosition: { x: 60, y: 60 }

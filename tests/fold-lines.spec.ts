@@ -11,8 +11,6 @@ test.describe('Fold Lines Rendering', () => {
     
     // Check initial state - should have diagonal fold lines
     const foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    const unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    
     // Folded canvas should have diagonal fold lines
     expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
     expect(foldedAnalysis.hasDrawing).toBe(true);

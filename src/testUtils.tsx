@@ -2,18 +2,9 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { initialState } from './store/shiboriCanvasState';
+import { createAppStore } from './store';
 
-// Create a simple mock store for testing
-export const createTestStore = () => {
-    return configureStore({
-        reducer: {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            shibori: (state = initialState, _action) => state
-        }
-    });
-};
+export const createTestStore = () => createAppStore();
 
 // Create a provider wrapper for testing
 export const ReduxProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,4 +18,4 @@ export function renderWithRedux(
     options?: Omit<RenderOptions, 'wrapper'>
 ) {
     return render(ui, { wrapper: ReduxProvider, ...options });
-} 
+}

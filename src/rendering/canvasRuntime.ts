@@ -1,0 +1,145 @@
+import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
+import { CanvasContext, CanvasService } from '../services/CanvasService';
+import { WebGLCanvasService } from '../services/WebGLCanvasService';
+import { State } from '../store/shiboriCanvasState';
+import { HistoryAction } from '../types';
+import { Point } from '../types/DrawingMode';
+import {
+  buildDrawableHistory,
+  getRotatedHistoryItemPreview,
+  getTranslatedHistoryItemPreview,
+} from '../utils/historyOperations';
+import { renderDrawableHistoryItems } from '../utils/historyRenderer';
+import { logger } from '../utils/logger';
+import { reportActiveRenderingBackend } from '../utils/renderingBackend';
+
+export interface CanvasElements {
+  foldedCanvas: HTMLCanvasElement;
+  unfoldedCanvas: HTMLCanvasElement;
+}
+
+export interface CanvasRuntimeRefs {
+  foldedCtxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
+  unfoldedCtxRef: React.MutableRefObject<CanvasRenderingContext2D | null>;
+}
+
+export interface CanvasPreview {
+  selectedHistoryItemId: string | null;
+  selectionDragDelta: Point | null;
+  selectionRotationPreview: { angle: number; center: Point } | null;
+}
+
+export interface CanvasTransactionState {
+  history: State['history'];
+  folds: State['folds'];
+  config: State['config'];
+  lineThickness: State['lineThickness'];
+  shapeFillMode: State['shapeFillMode'];
+  preview?: CanvasPreview;
+}
+
+export interface CanvasTransactionServices {
+  clear: typeof CanvasService.clearCanvases;
+  renderHistory: typeof renderDrawableHistoryItems;
+  drawFoldedGuidance: typeof CanvasService.drawDiagonalFoldLinesOnFolded;
+  mirror: (context: CanvasContext, folds: State['folds']) => void;
+}
+
+const defaultTransactionServices: CanvasTransactionServices = {
+  clear: CanvasService.clearCanvases,
+  renderHistory: renderDrawableHistoryItems,
+  drawFoldedGuidance: CanvasService.drawDiagonalFoldLinesOnFolded,
+  mirror: mirrorUnfoldedCanvas,
+};
+
+/**
+ * Own the canvas backing stores and their 2D contexts. Resizing a canvas clears
+ * its context, so this is deliberately called only by the runtime transaction.
+ */
+export function ensureCanvasContext(
+  elements: CanvasElements,
+  refs: CanvasRuntimeRefs,
+  dimensions: State['canvasDimensions']
+): CanvasContext | null {
+  const { foldedCanvas, unfoldedCanvas } = elements;
+
+  if (unfoldedCanvas.width !== dimensions.width) unfoldedCanvas.width = dimensions.width;
+  if (unfoldedCanvas.height !== dimensions.height) unfoldedCanvas.height = dimensions.height;
+  if (foldedCanvas.width !== dimensions.width) foldedCanvas.width = dimensions.width;
+  if (foldedCanvas.height !== dimensions.height) foldedCanvas.height = dimensions.height;
+
+  const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
+  const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });
+  refs.foldedCtxRef.current = foldedCtx;
+  refs.unfoldedCtxRef.current = unfoldedCtx;
+
+  if (!foldedCtx || !unfoldedCtx) return null;
+  return { foldedCanvas, unfoldedCanvas, foldedCtx, unfoldedCtx };
+}
+
+/**
+ * The single committed/preview render transaction. Every caller gets the same
+ * ordering and at most one unfolded update.
+ */
+export function renderCanvasTransaction(
+  context: CanvasContext,
+  state: CanvasTransactionState,
+  services: CanvasTransactionServices = defaultTransactionServices
+): void {
+  services.clear(context);
+
+  let drawables = buildDrawableHistory(state.history);
+  const preview = state.preview;
+  if (preview?.selectedHistoryItemId) {
+    drawables = drawables.map((item) => {
+      if (item.id !== preview.selectedHistoryItemId) return item;
+      if (preview.selectionRotationPreview) {
+        return getRotatedHistoryItemPreview(
+          item,
+          preview.selectionRotationPreview.angle,
+          preview.selectionRotationPreview.center
+        );
+      }
+      if (preview.selectionDragDelta) {
+        return getTranslatedHistoryItemPreview(item, preview.selectionDragDelta);
+      }
+      return item;
+    });
+  }
+
+  services.renderHistory(context.foldedCtx, context.foldedCanvas, drawables, {
+    config: state.config,
+    folds: state.folds,
+    lineThickness: state.lineThickness,
+    shapeFillMode: state.shapeFillMode,
+  });
+  services.drawFoldedGuidance(context, state.folds);
+
+  if (state.history[state.history.length - 1]?.action === HistoryAction.Clear) return;
+  services.mirror(context, state.folds);
+}
+
+/** Preserve the existing production backend selection and fallback behavior. */
+export function mirrorUnfoldedCanvas(context: CanvasContext, folds: State['folds']): void {
+  const config = DrawingModeFactory.getConfig();
+  const shouldUseWebGL = WebGLCanvasService.isWebGLAvailable()
+    && !WebGLCanvasService.hasWebGLInitializationFailed()
+    && (config.renderingMode === 'webgl'
+      || (config.renderingMode === 'auto' && config.useWebGL));
+
+  if (!shouldUseWebGL) {
+    CanvasService.updateUnfoldedCanvas(context, folds);
+    reportActiveRenderingBackend('canvas2d');
+    return;
+  }
+
+  logger.canvas.render('Attempting WebGL update');
+  if (WebGLCanvasService.updateUnfoldedCanvasWebGL(context, folds)) {
+    reportActiveRenderingBackend('webgl');
+    return;
+  }
+
+  logger.canvas.operation('WebGL update failed, using Canvas 2D fallback');
+  CanvasService.updateUnfoldedCanvas(context, folds);
+  reportActiveRenderingBackend('canvas2d');
+}

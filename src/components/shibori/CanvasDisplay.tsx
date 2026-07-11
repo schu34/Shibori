@@ -5,14 +5,13 @@ import { ActionType } from '../../store/shiboriCanvasState';
 import { HistoryAction } from '../../types';
 import { CanvasRenderer } from './CanvasRenderer';
 import { CanvasEventHandler } from './CanvasEventHandler';
-import { CanvasController } from './CanvasController';
 import { logger } from '../../utils/logger';
 
 /**
- * Main canvas display component that orchestrates the three focused sub-components:
+ * Main canvas display component:
  * - CanvasRenderer: Handles the visual rendering of canvases
  * - CanvasEventHandler: Manages touch event listeners 
- * - CanvasController: Manages canvas lifecycle and state synchronization
+ * - useCanvas: Owns the state-driven canvas runtime and interactions
  */
 export const CanvasDisplay: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
@@ -20,9 +19,6 @@ export const CanvasDisplay: React.FC = () => {
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
-        foldedCtxRef,
-        unfoldedCtxRef,
-        resetCanvases,
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
@@ -34,15 +30,11 @@ export const CanvasDisplay: React.FC = () => {
         handleTouchCancel,
         downloadUnfoldedCanvas,
         deleteSelection,
-        undo,
-        drawFromHistory,
-        updateUnfoldedCanvas,
     } = useCanvas();
 
     logger.canvas.operation('CanvasDisplay rendering with focused components');
 
     const handleClearCanvas = () => {
-        resetCanvases();
         if (state.history.length > 0) {
             dispatch({
                 type: ActionType.ADD_HISTORY_ITEM,
@@ -51,18 +43,12 @@ export const CanvasDisplay: React.FC = () => {
         }
     };
 
+    const handleUndo = () => {
+        if (state.history.length > 0) dispatch({ type: ActionType.UNDO });
+    };
+
     return (
         <>
-            <CanvasController
-                unfoldedCanvasRef={unfoldedCanvasRef}
-                foldedCanvasRef={foldedCanvasRef}
-                foldedCtxRef={foldedCtxRef}
-                unfoldedCtxRef={unfoldedCtxRef}
-                resetCanvases={resetCanvases}
-                drawFromHistory={drawFromHistory}
-                updateUnfoldedCanvas={updateUnfoldedCanvas}
-            />
-            
             <CanvasEventHandler
                 foldedCanvasRef={foldedCanvasRef}
                 onTouchStart={handleTouchStart}
@@ -88,7 +74,7 @@ export const CanvasDisplay: React.FC = () => {
                 onKeyDown={handleKeyDown}
                 onClear={handleClearCanvas}
                 onDeleteSelection={deleteSelection}
-                onUndo={undo}
+                onUndo={handleUndo}
                 onDownload={downloadUnfoldedCanvas}
             />
         </>

@@ -11,11 +11,11 @@ export class SelectMoveMode implements DrawingMode {
     context.dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
   }
 
-  continue(_point: Point, _context: DrawingModeContext): boolean {
+  continue(): boolean {
     return false;
   }
 
-  end(_point: Point | null, _context: DrawingModeContext): UndoableHistoryItem | null {
+  end(): UndoableHistoryItem | null {
     return null;
   }
 

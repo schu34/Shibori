@@ -17,7 +17,7 @@ test.describe('Shibori Canvas App', () => {
     await expect(page.locator('h1')).toContainText('Shibori Folding');
 
     // Check that both canvas elements are present
-    const canvases = page.locator('canvas');
+    const canvases = page.locator('.canvas-container canvas');
     await expect(canvases).toHaveCount(2);
 
     // Check that the main sections are visible
@@ -766,7 +766,7 @@ async function storeWhiteMask(
       mask[i / 4] = isWhite ? 1 : 0;
     }
 
-    (window as Window & Record<string, Uint8Array>)[maskKey] = mask;
+    (window as unknown as Record<string, Uint8Array>)[maskKey] = mask;
   }, { index: canvasIndex, maskKey: key });
 }
 
@@ -780,7 +780,7 @@ async function compareWhiteMask(
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Missing canvas context');
 
-    const previous = (window as Window & Record<string, Uint8Array>)[maskKey];
+    const previous = (window as unknown as Record<string, Uint8Array>)[maskKey];
     if (!previous) throw new Error(`Missing stored mask ${maskKey}`);
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
