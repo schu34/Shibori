@@ -1,28 +1,18 @@
 import { useCallback, useRef } from "react";
+import { useStore } from "react-redux";
 import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
-import { useAppDispatch } from "./useReduxHooks";
-import { CanvasRefs } from "./useCanvasRefs";
+import { WebGLCanvasService } from "../services/WebGLCanvasService";
+import { RootState } from "../store";
+import { ActionType } from "../store/shiboriCanvasState";
+import { DrawingTool } from "../types";
 import {
   Bounds,
+  DrawableDrawingTool,
+  DrawingMode,
+  DrawingModeContext,
   Point,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
-import { ActionType } from "../store/shiboriCanvasState";
-import { DrawingTool } from "../types";
-import { useStore } from "react-redux";
-import { RootState } from "../store";
-import { CanvasService } from "../services/CanvasService";
-import { WebGLCanvasService } from "../services/WebGLCanvasService";
-import { logger } from "../utils/logger";
-import { CanvasRuntime } from "./useCanvasRuntime";
-import {
-  buildDrawableHistory,
-  createDeleteHistoryItem,
-  createMoveHistoryItem,
-  createRotateHistoryItem,
-  DrawableHistoryItem,
-  getTranslatedHistoryItemPreview,
-} from "../utils/historyOperations";
 import {
   expandBounds,
   getBoundsCenter,
@@ -31,16 +21,31 @@ import {
   getSquareEndPoint,
   rotatePoints,
 } from "../utils/geometryMath";
+import {
+  buildDrawableHistory,
+  createDeleteHistoryItem,
+  createMoveHistoryItem,
+  createRotateHistoryItem,
+  DrawableHistoryItem,
+  getTranslatedHistoryItemPreview,
+} from "../utils/historyOperations";
+import { logger } from "../utils/logger";
+import { CanvasRefs } from "./useCanvasRefs";
+import { CanvasRuntime } from "./useCanvasRuntime";
+import { useAppDispatch } from "./useReduxHooks";
 
 const ROTATION_HANDLE_HIT_TOLERANCE = 34;
+
+type GestureSession =
+  | { kind: "draw"; tool: DrawableDrawingTool; mode: DrawingMode; context: DrawingModeContext }
+  | { kind: "move"; itemId: string; startPoint: Point; fromItem: DrawableHistoryItem }
+  | { kind: "rotate"; itemId: string; center: Point; startAngle: number; fromItem: DrawableHistoryItem };
 
 export interface DrawingOperations {
   startDrawing: (x: number, y: number) => void;
   continueDrawing: (x: number, y: number) => void;
   endDrawing: (point: Point | null) => void;
-  isDrawing: () => boolean;
-  updateUnfoldedCanvas: () => void;
-  isInValidDrawingArea: (x: number, y: number) => boolean;
+  cancelDrawing: () => void;
   isUsingWebGL: () => boolean;
   getWebGLInfo: () => string | null;
   nudgeSelection: (delta: Point) => void;
@@ -48,390 +53,219 @@ export interface DrawingOperations {
   clearSelection: () => void;
 }
 
-/**
- * Hook for managing drawing operations
- * Handles the drawing lifecycle (start, continue, end) and canvas updates
- */
+/** Owns one local drawing, move, or rotate session at a time. */
 export function useCanvasDrawing(
   canvasRefs: CanvasRefs,
   runtime: CanvasRuntime
 ): DrawingOperations {
   const dispatch = useAppDispatch();
-  const {
-    drawDiagonalFoldedGuidance,
-    scheduleUnfoldedUpdate,
-  } = runtime;
-  const selectionDragRef = useRef<{
-    itemId: string;
-    startPoint: Point;
-    fromItem: DrawableHistoryItem;
-  } | null>(null);
-  const selectionRotationRef = useRef<{
-    itemId: string;
-    center: Point;
-    startAngle: number;
-    fromItem: DrawableHistoryItem;
-  } | null>(null);
-  
-  const { getState: _getState } = useStore<RootState>() as {
-    getState: () => RootState;
-  };
-  const getState = useCallback(() => _getState().shibori, [_getState]);
-
+  const sessionRef = useRef<GestureSession | null>(null);
+  const store = useStore<RootState>();
+  const getState = useCallback(() => store.getState().shibori, [store]);
   const {
     foldedCanvasRef,
     foldedCtxRef,
-    unfoldedCtxRef,
     getFoldedCanvasDimensions,
-    getUnfoldedCanvasDimensions,
   } = canvasRefs;
+  const { drawDiagonalFoldedGuidance, scheduleUnfoldedUpdate } = runtime;
 
-  // Function to draw diagonal fold lines on the folded canvas
-  const drawDiagonalFoldLinesOnFolded = useCallback(() => {
-    drawDiagonalFoldedGuidance();
-  }, [drawDiagonalFoldedGuidance]);
+  const createModeContext = useCallback((): DrawingModeContext | null => {
+    const foldedCtx = foldedCtxRef.current;
+    if (!foldedCtx) return null;
+    return {
+      getState,
+      foldedCtx,
+      foldedCanvas: foldedCanvasRef.current ?? undefined,
+      getFoldedCanvasDimensions,
+      drawDiagonalFoldLinesOnFolded: drawDiagonalFoldedGuidance,
+    };
+  }, [drawDiagonalFoldedGuidance, foldedCanvasRef, foldedCtxRef, getFoldedCanvasDimensions, getState]);
 
-  const updateUnfoldedCanvas = scheduleUnfoldedUpdate;
+  const isUsingWebGL = useCallback(() => WebGLCanvasService.isWebGLAvailable(), []);
+  const getWebGLInfo = useCallback(() => WebGLCanvasService.getWebGLInfo(), []);
 
-  // Function to check if a point is in the valid drawing area based on diagonal fold
-  const isInValidDrawingArea = useCallback(
-    (x: number, y: number): boolean => {
-      const foldedCanvas = foldedCanvasRef.current;
-      if (!foldedCanvas) return true;
-      return CanvasService.isInValidDrawingArea(x, y, getState().folds, foldedCanvas);
-    },
-    [getState, foldedCanvasRef]
-  );
+  const cancelDrawing = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    sessionRef.current = null;
 
-  // Helper to check if currently drawing
-  const isDrawing = useCallback(
-    () => getState().isDrawing || selectionDragRef.current !== null || selectionRotationRef.current !== null,
-    [getState]
-  );
+    if (session.kind === "draw") {
+      session.mode.cancel(session.context);
+      scheduleUnfoldedUpdate();
+      return;
+    }
 
-  // Helper to check if using WebGL
-  const isUsingWebGL = useCallback(() => {
-    return WebGLCanvasService.isWebGLAvailable();
-  }, []);
+    dispatch({
+      type: session.kind === "move"
+        ? ActionType.SET_SELECTION_DRAG_DELTA
+        : ActionType.SET_SELECTION_ROTATION_PREVIEW,
+      payload: null,
+    });
+  }, [dispatch, scheduleUnfoldedUpdate]);
 
-  // Helper to get WebGL info
-  const getWebGLInfo = useCallback(() => {
-    return WebGLCanvasService.getWebGLInfo();
-  }, []);
+  const nudgeSelection = useCallback((delta: Point) => {
+    const currentState = getState();
+    const selectedId = currentState.selectedHistoryItemId;
+    if (!selectedId) return;
+    const selectedItem = findDrawableById(selectedId, currentState.history);
+    if (!selectedItem) return;
+    const movedItem = getTranslatedHistoryItemPreview(selectedItem, delta);
+    dispatch({
+      type: ActionType.ADD_HISTORY_ITEM,
+      payload: createMoveHistoryItem(
+        selectedId,
+        selectedItem.points,
+        movedItem.points,
+        selectedItem.rotation,
+        movedItem.rotation,
+        selectedItem.rotationCenter,
+        movedItem.rotationCenter
+      ),
+    });
+  }, [dispatch, getState]);
 
-  const nudgeSelection = useCallback(
-    (delta: Point) => {
-      const currentState = getState();
-      const selectedId = currentState.selectedHistoryItemId;
-      if (!selectedId) return;
-
-      const selectedItem = buildDrawableHistory(currentState.history)
-        .find((item) => item.id === selectedId);
-      if (!selectedItem) return;
-      const movedItem = getTranslatedHistoryItemPreview(selectedItem, delta);
-
-      dispatch({
-        type: ActionType.ADD_HISTORY_ITEM,
-        payload: createMoveHistoryItem(
-          selectedId,
-          selectedItem.points,
-          movedItem.points,
-          selectedItem.rotation,
-          movedItem.rotation,
-          selectedItem.rotationCenter,
-          movedItem.rotationCenter
-        ),
-      });
-    },
-    [dispatch, getState]
-  );
-
-  const deleteSelection = useCallback(
-    () => {
-      const currentState = getState();
-      const selectedId = currentState.selectedHistoryItemId;
-      if (!selectedId) return;
-
-      const selectedItem = buildDrawableHistory(currentState.history)
-        .find((item) => item.id === selectedId);
-      if (!selectedItem) return;
-
-      selectionDragRef.current = null;
-      selectionRotationRef.current = null;
-      dispatch({
-        type: ActionType.ADD_HISTORY_ITEM,
-        payload: createDeleteHistoryItem(selectedId),
-      });
-      dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    },
-    [dispatch, getState]
-  );
+  const deleteSelection = useCallback(() => {
+    const currentState = getState();
+    const selectedId = currentState.selectedHistoryItemId;
+    if (!selectedId || !findDrawableById(selectedId, currentState.history)) return;
+    cancelDrawing();
+    dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: createDeleteHistoryItem(selectedId) });
+  }, [cancelDrawing, dispatch, getState]);
 
   const clearSelection = useCallback(() => {
-    selectionDragRef.current = null;
-    selectionRotationRef.current = null;
+    cancelDrawing();
     dispatch({ type: ActionType.CLEAR_SELECTION });
-  }, [dispatch]);
+  }, [cancelDrawing, dispatch]);
 
-  // Common start drawing function
-  const startDrawing = useCallback(
-    (x: number, y: number) => {
-      const currentState = getState();
-      if (currentState.currentTool === DrawingTool.SelectMove) {
-        const point = { x, y };
-        const selectedItem = currentState.selectedHistoryItemId
-          ? findDrawableById(currentState.selectedHistoryItemId, currentState.history)
-          : null;
-        const selectedRotationHandle = selectedItem
-          ? findRotationHandleHit(selectedItem, point, currentState.lineThickness)
-          : null;
+  const startDrawing = useCallback((x: number, y: number) => {
+    if (sessionRef.current) return;
+    const state = getState();
+    const point = { x, y };
 
-        if (selectedItem && selectedRotationHandle) {
-          selectionDragRef.current = null;
-          selectionRotationRef.current = {
-            itemId: selectedItem.id,
-            center: selectedRotationHandle.center,
-            startAngle: Math.atan2(point.y - selectedRotationHandle.center.y, point.x - selectedRotationHandle.center.x),
-            fromItem: selectedItem,
-          };
-          dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: selectedItem.id });
-          dispatch({
-            type: ActionType.SET_SELECTION_ROTATION_PREVIEW,
-            payload: { angle: 0, center: selectedRotationHandle.center }
-          });
-          dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
-          return;
-        }
+    if (state.currentTool === DrawingTool.SelectMove) {
+      const selectedItem = state.selectedHistoryItemId
+        ? findDrawableById(state.selectedHistoryItemId, state.history)
+        : null;
+      const handle = selectedItem
+        ? findRotationHandleHit(selectedItem, point, state.lineThickness)
+        : null;
 
-        const hitItem = findTopmostDrawable(point, currentState.history, currentState.lineThickness);
-
-        if (!hitItem) {
-          selectionDragRef.current = null;
-          selectionRotationRef.current = null;
-          dispatch({ type: ActionType.CLEAR_SELECTION });
-          dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-          return;
-        }
-
-        selectionDragRef.current = {
-          itemId: hitItem.id,
-          startPoint: point,
-          fromItem: hitItem,
+      if (selectedItem && handle) {
+        sessionRef.current = {
+          kind: "rotate",
+          itemId: selectedItem.id!,
+          center: handle.center,
+          startAngle: Math.atan2(point.y - handle.center.y, point.x - handle.center.x),
+          fromItem: selectedItem,
         };
-        selectionRotationRef.current = null;
-        dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: hitItem.id });
-        dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: { x: 0, y: 0 } });
-        dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
+        dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: selectedItem.id! });
+        dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: { angle: 0, center: handle.center } });
         return;
       }
 
-      const mode = DrawingModeFactory.getTool(getState().currentTool);
-      if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
-      
-      logger.canvas.operation("startDrawing", { 
-        x, y, 
-        tool: getState().currentTool,
-        webgl: isUsingWebGL()
+      const hitItem = findTopmostDrawable(point, state.history, state.lineThickness);
+      if (!hitItem) {
+        dispatch({ type: ActionType.CLEAR_SELECTION });
+        return;
+      }
+
+      sessionRef.current = {
+        kind: "move",
+        itemId: hitItem.id!,
+        startPoint: point,
+        fromItem: hitItem,
+      };
+      dispatch({ type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: hitItem.id! });
+      dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: { x: 0, y: 0 } });
+      return;
+    }
+
+    const context = createModeContext();
+    if (!context) return;
+    const tool = state.currentTool;
+    const mode = DrawingModeFactory.getTool(tool);
+    sessionRef.current = { kind: "draw", tool, mode, context };
+    logger.canvas.operation("startDrawing", { x, y, tool, webgl: isUsingWebGL() });
+    mode.start(point, context);
+  }, [createModeContext, dispatch, getState, isUsingWebGL]);
+
+  const continueDrawing = useCallback((x: number, y: number) => {
+    const session = sessionRef.current;
+    if (!session) return;
+
+    if (session.kind === "rotate") {
+      const angle = Math.atan2(y - session.center.y, x - session.center.x) - session.startAngle;
+      dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: { angle, center: session.center } });
+      return;
+    }
+
+    if (session.kind === "move") {
+      dispatch({
+        type: ActionType.SET_SELECTION_DRAG_DELTA,
+        payload: { x: x - session.startPoint.x, y: y - session.startPoint.y },
       });
-      
-      mode.start(
-        { x, y },
-        {
-          getState,
-          dispatch,
-          foldedCtx: foldedCtxRef.current,
-          unfoldedCtx: unfoldedCtxRef.current,
-          foldedCanvas: foldedCanvasRef.current || undefined,
-          getFoldedCanvasDimensions,
-          getUnfoldedCanvasDimensions,
-          updateUnfoldedCanvas,
-          drawDiagonalFoldLinesOnFolded,
-          isInValidDrawingArea,
-        }
-      );
-    },
-    [
-      getState,
-      dispatch,
-      foldedCtxRef,
-      unfoldedCtxRef,
-      foldedCanvasRef,
-      getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
-      updateUnfoldedCanvas,
-      drawDiagonalFoldLinesOnFolded,
-      isInValidDrawingArea,
-      isUsingWebGL,
-    ]
-  );
+      return;
+    }
 
-  // Common continue drawing function
-  const continueDrawing = useCallback(
-    (x: number, y: number) => {
-      const currentState = getState();
-      if (currentState.currentTool === DrawingTool.SelectMove) {
-        if (selectionRotationRef.current) {
-          const rotation = selectionRotationRef.current;
-          const angle = Math.atan2(y - rotation.center.y, x - rotation.center.x) - rotation.startAngle;
-          dispatch({
-            type: ActionType.SET_SELECTION_ROTATION_PREVIEW,
-            payload: { angle, center: rotation.center }
-          });
-          return;
-        }
+    logger.canvas.operation("continueDrawing", { x, y, tool: session.tool });
+    if (session.mode.continue({ x, y }, session.context)) scheduleUnfoldedUpdate();
+  }, [dispatch, scheduleUnfoldedUpdate]);
 
-        if (!selectionDragRef.current) return;
+  const endDrawing = useCallback((point: Point | null) => {
+    const session = sessionRef.current;
+    if (!session) return;
+    sessionRef.current = null;
 
-        const delta = {
-          x: x - selectionDragRef.current.startPoint.x,
-          y: y - selectionDragRef.current.startPoint.y,
-        };
-        dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: delta });
-        return;
+    if (session.kind === "rotate") {
+      const previewAngle = getState().selectionRotationPreview?.angle ?? 0;
+      const angle = point
+        ? Math.atan2(point.y - session.center.y, point.x - session.center.x) - session.startAngle
+        : previewAngle;
+      if (Math.abs(angle) > 0.0001) {
+        dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: createRotateHistoryItem(session.fromItem, angle, session.center) });
+      } else {
+        dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: null });
       }
+      return;
+    }
 
-      const mode = DrawingModeFactory.getTool(getState().currentTool);
-      if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
-      
-      logger.canvas.operation("continueDrawing", { x, y });
-      
-      const result = mode.continue(
-        { x, y },
-        {
-          getState,
-          dispatch,
-          foldedCtx: foldedCtxRef.current,
-          unfoldedCtx: unfoldedCtxRef.current,
-          foldedCanvas: foldedCanvasRef.current || undefined,
-          getFoldedCanvasDimensions,
-          getUnfoldedCanvasDimensions,
-          updateUnfoldedCanvas,
-          drawDiagonalFoldLinesOnFolded,
-          isInValidDrawingArea,
-        }
-      );
-      // Update the unfolded canvas after each drawing operation
-      if (result) updateUnfoldedCanvas();
-    },
-    [
-      getState,
-      dispatch,
-      foldedCtxRef,
-      unfoldedCtxRef,
-      foldedCanvasRef,
-      getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
-      updateUnfoldedCanvas,
-      drawDiagonalFoldLinesOnFolded,
-      isInValidDrawingArea,
-    ]
-  );
-
-  // Common end drawing function
-  const endDrawing = useCallback(
-    (point: Point | null) => {
-      const currentState = getState();
-      if (currentState.currentTool === DrawingTool.SelectMove) {
-        const rotation = selectionRotationRef.current;
-        if (rotation) {
-          const angle = point
-            ? Math.atan2(point.y - rotation.center.y, point.x - rotation.center.x) - rotation.startAngle
-            : currentState.selectionRotationPreview?.angle ?? 0;
-
-          if (Math.abs(angle) > 0.0001) {
-            dispatch({
-              type: ActionType.ADD_HISTORY_ITEM,
-              payload: createRotateHistoryItem(rotation.fromItem, angle, rotation.center),
-            });
-          } else {
-            dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: null });
-          }
-
-          dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-          selectionRotationRef.current = null;
-          return;
-        }
-
-        const drag = selectionDragRef.current;
-        if (!drag) {
-          dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-          dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: null });
-          dispatch({ type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: null });
-          return;
-        }
-
-        const delta = point
-          ? { x: point.x - drag.startPoint.x, y: point.y - drag.startPoint.y }
-          : currentState.selectionDragDelta ?? { x: 0, y: 0 };
-
-        if (delta.x !== 0 || delta.y !== 0) {
-          const movedItem = getTranslatedHistoryItemPreview(drag.fromItem, delta);
-          dispatch({
-            type: ActionType.ADD_HISTORY_ITEM,
-            payload: createMoveHistoryItem(
-              drag.itemId,
-              drag.fromItem.points,
-              movedItem.points,
-              drag.fromItem.rotation,
-              movedItem.rotation,
-              drag.fromItem.rotationCenter,
-              movedItem.rotationCenter
-            ),
-          });
-        } else {
-          dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: null });
-        }
-
-        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-        selectionDragRef.current = null;
-        selectionRotationRef.current = null;
-        return;
+    if (session.kind === "move") {
+      const delta = point
+        ? { x: point.x - session.startPoint.x, y: point.y - session.startPoint.y }
+        : getState().selectionDragDelta ?? { x: 0, y: 0 };
+      if (delta.x !== 0 || delta.y !== 0) {
+        const movedItem = getTranslatedHistoryItemPreview(session.fromItem, delta);
+        dispatch({
+          type: ActionType.ADD_HISTORY_ITEM,
+          payload: createMoveHistoryItem(
+            session.itemId,
+            session.fromItem.points,
+            movedItem.points,
+            session.fromItem.rotation,
+            movedItem.rotation,
+            session.fromItem.rotationCenter,
+            movedItem.rotationCenter
+          ),
+        });
+      } else {
+        dispatch({ type: ActionType.SET_SELECTION_DRAG_DELTA, payload: null });
       }
+      return;
+    }
 
-      const mode = DrawingModeFactory.getTool(getState().currentTool);
-      if (!foldedCtxRef.current || !unfoldedCtxRef.current) return;
-      
-      logger.canvas.operation("endDrawing", { point });
-      
-      const result = mode.end(point, {
-        getState,
-        dispatch,
-        foldedCtx: foldedCtxRef.current,
-        unfoldedCtx: unfoldedCtxRef.current,
-        foldedCanvas: foldedCanvasRef.current || undefined,
-        getFoldedCanvasDimensions,
-        getUnfoldedCanvasDimensions,
-        updateUnfoldedCanvas,
-        drawDiagonalFoldLinesOnFolded,
-        isInValidDrawingArea,
-      });
-      
-      if (result) {
-        dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: result });
-        logger.history.add(result);
-      }
-    },
-    [
-      getState,
-      dispatch,
-      foldedCtxRef,
-      unfoldedCtxRef,
-      foldedCanvasRef,
-      getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
-      updateUnfoldedCanvas,
-      drawDiagonalFoldLinesOnFolded,
-      isInValidDrawingArea,
-    ]
-  );
+    logger.canvas.operation("endDrawing", { point, tool: session.tool });
+    const result = session.mode.end(point, session.context);
+    if (result) {
+      dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: result });
+      logger.history.add(result);
+    }
+  }, [dispatch, getState]);
 
   return {
     startDrawing,
     continueDrawing,
     endDrawing,
-    isDrawing,
-    updateUnfoldedCanvas,
-    isInValidDrawingArea,
+    cancelDrawing,
     isUsingWebGL,
     getWebGLInfo,
     nudgeSelection,
@@ -446,22 +280,16 @@ function findTopmostDrawable(
   lineThickness: number
 ): DrawableHistoryItem | null {
   const drawables = buildDrawableHistory(history);
-
   for (let i = drawables.length - 1; i >= 0; i--) {
     const item = drawables[i];
-    const geometry = DrawingModeFactory.getGeometry(item.action);
-    if (geometry.hitTest(item, point, { lineThickness, hitTolerance: 8 })) {
+    if (DrawingModeFactory.getGeometry(item.action).hitTest(item, point, { lineThickness, hitTolerance: 8 })) {
       return item;
     }
   }
-
   return null;
 }
 
-function findDrawableById(
-  id: string,
-  history: UndoableHistoryItem[]
-): DrawableHistoryItem | null {
+function findDrawableById(id: string, history: UndoableHistoryItem[]): DrawableHistoryItem | null {
   return buildDrawableHistory(history).find((item) => item.id === id) ?? null;
 }
 
@@ -475,39 +303,20 @@ function findRotationHandleHit(
     const tolerance = ROTATION_HANDLE_HIT_TOLERANCE + (lineThickness / 2);
     for (const corner of shapeFrame.corners) {
       if (Math.hypot(point.x - corner.x, point.y - corner.y) <= tolerance) {
-        return {
-          center: shapeFrame.center,
-          bounds: shapeFrame.bounds
-        };
+        return { center: shapeFrame.center, bounds: shapeFrame.bounds };
       }
     }
-
     return null;
   }
 
-  const geometry = DrawingModeFactory.getGeometry(item.action);
-  const bounds = geometry.getBounds(item, { lineThickness });
+  const bounds = DrawingModeFactory.getGeometry(item.action).getBounds(item, { lineThickness });
   if (!bounds) return null;
-
-  const corners = [
-    { x: bounds.minX, y: bounds.minY },
-    { x: bounds.maxX, y: bounds.minY },
-    { x: bounds.maxX, y: bounds.maxY },
-    { x: bounds.minX, y: bounds.maxY },
-  ];
+  const corners = getBoundsCorners(bounds);
   const tolerance = ROTATION_HANDLE_HIT_TOLERANCE + (lineThickness / 2);
-  const center = {
-    x: (bounds.minX + bounds.maxX) / 2,
-    y: (bounds.minY + bounds.maxY) / 2,
-  };
-
-  for (const corner of corners) {
-    if (Math.hypot(point.x - corner.x, point.y - corner.y) <= tolerance) {
-      return { center, bounds };
-    }
-  }
-
-  return null;
+  const center = getBoundsCenter(bounds);
+  return corners.some((corner) => Math.hypot(point.x - corner.x, point.y - corner.y) <= tolerance)
+    ? { center, bounds }
+    : null;
 }
 
 function getRotatedShapeSelectionFrame(
@@ -516,12 +325,10 @@ function getRotatedShapeSelectionFrame(
 ): { bounds: Bounds; center: Point; corners: Point[] } | null {
   const bounds = getUnrotatedShapeSelectionBounds(item, lineThickness);
   if (!bounds) return null;
-
   const center = item.rotationCenter ?? getBoundsCenter(bounds);
   const corners = item.rotation
     ? rotatePoints(getBoundsCorners(bounds), center, item.rotation)
     : getBoundsCorners(bounds);
-
   return { bounds, center, corners };
 }
 
@@ -530,21 +337,17 @@ function getUnrotatedShapeSelectionBounds(
   lineThickness: number
 ): Bounds | null {
   if (item.points.length < 2) return null;
-
   if (item.action === DrawingTool.Rectangle) {
     return expandBounds(getRectBounds(item.points[0], item.points[1]), lineThickness / 2);
   }
-
   if (item.action === DrawingTool.Square) {
     return expandBounds(
       getRectBounds(item.points[0], getSquareEndPoint(item.points[0], item.points[1])),
       lineThickness / 2
     );
   }
-
   if (item.action === DrawingTool.Circle) {
     return DrawingModeFactory.getGeometry(item.action).getBounds(item, { lineThickness });
   }
-
   return null;
 }

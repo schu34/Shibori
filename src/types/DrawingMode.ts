@@ -1,4 +1,4 @@
-import { State, Action } from '../store/shiboriCanvasState';
+import { State } from '../store/shiboriCanvasState';
 import { DrawingTool, HistoryAction, ShapeFillMode } from '../types';
 export interface Point {
     x: number;
@@ -30,15 +30,10 @@ export interface DrawingModeGeometry {
 
 export interface DrawingModeContext {
     getState: () => State;
-    dispatch: React.Dispatch<Action>;
     foldedCtx: CanvasRenderingContext2D
-    unfoldedCtx: CanvasRenderingContext2D
     foldedCanvas?: HTMLCanvasElement;
     getFoldedCanvasDimensions: () => CanvasDimensions | null;
-    getUnfoldedCanvasDimensions: () => CanvasDimensions | null;
-    updateUnfoldedCanvas: () => void;
     drawDiagonalFoldLinesOnFolded: () => void;
-    isInValidDrawingArea: (x: number, y: number) => boolean;
     historyItem?: DrawableHistoryItem;
 }
 

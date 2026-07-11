@@ -1,10 +1,9 @@
 import { DrawingTool } from '../types';
-import { DrawingMode, DrawingModeGeometry } from '../types/DrawingMode';
+import { DrawableDrawingTool, DrawingMode, DrawingModeGeometry } from '../types/DrawingMode';
 import { CircleGeometry, CircleMode } from './CircleMode';
 import { LineGeometry, LineMode } from './LineMode';
 import { PaintbrushGeometry, PaintbrushMode } from './PaintbrushMode';
 import { RectangleGeometry, RectangleMode } from './RectangleMode';
-import { SelectMoveMode } from './SelectMoveMode';
 import { SquareGeometry, SquareMode } from './SquareMode';
 
 export type RenderingMode = 'canvas2d' | 'webgl' | 'auto';
@@ -23,7 +22,7 @@ interface DrawingModeDebugInfo {
 
 export class DrawingModeFactory {
     private static instances: Map<string, DrawingMode> = new Map();
-    private static geometry: Record<Exclude<DrawingTool, DrawingTool.SelectMove>, DrawingModeGeometry> = {
+    private static geometry: Record<DrawableDrawingTool, DrawingModeGeometry> = {
         [DrawingTool.Line]: LineGeometry,
         [DrawingTool.Paintbrush]: PaintbrushGeometry,
         [DrawingTool.Rectangle]: RectangleGeometry,
@@ -47,7 +46,7 @@ export class DrawingModeFactory {
     /**
      * Get drawing tool instance with current configuration
      */
-    static getTool(tool: DrawingTool): DrawingMode {
+    static getTool(tool: DrawableDrawingTool): DrawingMode {
         const key = this.getInstanceKey(tool);
         let instance = this.instances.get(key);
 
@@ -59,18 +58,14 @@ export class DrawingModeFactory {
         return instance;
     }
 
-    static getGeometry(tool: DrawingTool): DrawingModeGeometry {
-        if (tool === DrawingTool.SelectMove) {
-            throw new Error('Select/Move is an interaction tool and has no drawable geometry');
-        }
-
+    static getGeometry(tool: DrawableDrawingTool): DrawingModeGeometry {
         return this.geometry[tool];
     }
 
     /**
      * Create a new instance of the specified tool
      */
-    private static createToolInstance(tool: DrawingTool): DrawingMode {
+    private static createToolInstance(tool: DrawableDrawingTool): DrawingMode {
         switch (tool) {
             case DrawingTool.Line:
                 return new LineMode();
@@ -87,9 +82,6 @@ export class DrawingModeFactory {
             case DrawingTool.Circle:
                 return new CircleMode();
 
-            case DrawingTool.SelectMove:
-                return new SelectMoveMode();
-                
             default:
                 // asserts that this switch is exhaustive
                 assertNever(tool);
@@ -99,7 +91,7 @@ export class DrawingModeFactory {
     /**
      * Generate instance key based on tool and configuration
      */
-    private static getInstanceKey(tool: DrawingTool): string {
+    private static getInstanceKey(tool: DrawableDrawingTool): string {
         return tool;
     }
 

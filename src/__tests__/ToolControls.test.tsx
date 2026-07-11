@@ -29,9 +29,6 @@ describe('ToolControls Component', () => {
         lineThickness: 2,
         shapeFillMode: ShapeFillMode.Filled,
         currentTool: DrawingTool.Paintbrush,
-        isDrawing: false,
-        lineStartPoint: null,
-        currentStrokePoints: [],
         canvasDimensions: {
             width: 400,
             height: 400

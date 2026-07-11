@@ -20,6 +20,36 @@ const makeHistoryItem = (x: number): DrawableHistoryItem => ({
 });
 
 describe('shiboriCanvasState reducer', () => {
+    test('raw in-progress drawing state is not part of Redux', () => {
+        expect(initialState).not.toHaveProperty('isDrawing');
+        expect(initialState).not.toHaveProperty('lineStartPoint');
+        expect(initialState).not.toHaveProperty('currentStrokePoints');
+        expect(Object.values(ActionType)).not.toEqual(expect.arrayContaining([
+            'SET_IS_DRAWING',
+            'SET_LINE_START_POINT',
+            'ADD_STROKE_POINT',
+            'CLEAR_STROKE_POINTS',
+        ]));
+    });
+
+    test('render-visible selection previews remain in Redux', () => {
+        const dragged = reducer(initialState, {
+            type: ActionType.SET_SELECTION_DRAG_DELTA,
+            payload: { x: 4, y: -2 },
+        });
+        expect(dragged.selectionDragDelta).toEqual({ x: 4, y: -2 });
+
+        const rotated = reducer(dragged, {
+            type: ActionType.SET_SELECTION_ROTATION_PREVIEW,
+            payload: { angle: 0.5, center: { x: 10, y: 20 } },
+        });
+        expect(rotated.selectionDragDelta).toBeNull();
+        expect(rotated.selectionRotationPreview).toEqual({
+            angle: 0.5,
+            center: { x: 10, y: 20 },
+        });
+    });
+
     test('clear is undoable while still separating later undo from pre-clear strokes', () => {
         const beforeClear = {
             ...initialState,

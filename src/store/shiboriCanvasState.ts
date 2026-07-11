@@ -24,9 +24,6 @@ export interface State {
     lineThickness: number;
     shapeFillMode: ShapeFillMode;
     currentTool: DrawingTool;
-    isDrawing: boolean;
-    lineStartPoint: { x: number; y: number } | null;
-    currentStrokePoints: { x: number; y: number }[];
     history: UndoableHistoryItem[];
     folds: FoldState;
     canvasDimensions: {
@@ -45,9 +42,6 @@ export const initialState: State = {
     lineThickness: DEFAULT_CONFIG.defaultLineThickness,
     shapeFillMode: ShapeFillMode.Filled,
     currentTool: DrawingTool.Paintbrush,
-    isDrawing: false,
-    lineStartPoint: null,
-    currentStrokePoints: [],
     folds: {
         vertical: 1,
         horizontal: 1,
@@ -73,16 +67,12 @@ export enum ActionType {
     SET_LINE_THICKNESS = 'SET_LINE_THICKNESS',
     SET_SHAPE_FILL_MODE = 'SET_SHAPE_FILL_MODE',
     SET_CURRENT_TOOL = 'SET_CURRENT_TOOL',
-    SET_IS_DRAWING = 'SET_IS_DRAWING',
-    SET_LINE_START_POINT = 'SET_LINE_START_POINT',
     UPDATE_FOLD = 'UPDATE_FOLD',
     TOGGLE_DIAGONAL_FOLD = 'TOGGLE_DIAGONAL_FOLD',
     UPDATE_DIAGONAL_FOLD_COUNT = 'UPDATE_DIAGONAL_FOLD_COUNT',
     UPDATE_DIAGONAL_FOLD_DIRECTION = 'UPDATE_DIAGONAL_FOLD_DIRECTION',
     RESET_FOLDS = 'RESET_FOLDS',
     SET_CANVAS_DIMENSIONS = 'SET_CANVAS_DIMENSIONS',
-    ADD_STROKE_POINT = 'ADD_STROKE_POINT',
-    CLEAR_STROKE_POINTS = 'CLEAR_STROKE_POINTS',
     ADD_HISTORY_ITEM = 'ADD_HISTORY_ITEM',
     UNDO = 'UNDO',
     SET_SELECTED_HISTORY_ITEM_ID = 'SET_SELECTED_HISTORY_ITEM_ID',
@@ -99,16 +89,12 @@ export type Action =
     | { type: ActionType.SET_LINE_THICKNESS, payload: number }
     | { type: ActionType.SET_SHAPE_FILL_MODE, payload: ShapeFillMode }
     | { type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool }
-    | { type: ActionType.SET_IS_DRAWING, payload: boolean }
-    | { type: ActionType.SET_LINE_START_POINT, payload: { x: number; y: number } | null }
     | { type: ActionType.UPDATE_FOLD, payload: { axis: 'vertical' | 'horizontal', value: number } }
     | { type: ActionType.TOGGLE_DIAGONAL_FOLD, payload: boolean }
     | { type: ActionType.UPDATE_DIAGONAL_FOLD_COUNT, payload: number }
     | { type: ActionType.UPDATE_DIAGONAL_FOLD_DIRECTION, payload: DiagonalDirection }
     | { type: ActionType.RESET_FOLDS }
     | { type: ActionType.SET_CANVAS_DIMENSIONS, payload: { width: number; height: number } }
-    | { type: ActionType.ADD_STROKE_POINT, payload: { x: number; y: number } }
-    | { type: ActionType.CLEAR_STROKE_POINTS }
     | { type: ActionType.ADD_HISTORY_ITEM, payload: UndoableHistoryItem }
     | { type: ActionType.UNDO }
     | { type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: string | null }
@@ -158,18 +144,6 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
                 selectionDragDelta: action.payload === DrawingTool.SelectMove ? state.selectionDragDelta : null,
                 selectionRotationPreview: action.payload === DrawingTool.SelectMove ? state.selectionRotationPreview : null
             };
-            break;
-        case ActionType.SET_IS_DRAWING:
-            newState = { ...state, isDrawing: action.payload };
-            break;
-        case ActionType.SET_LINE_START_POINT:
-            newState = { ...state, lineStartPoint: action.payload };
-            break;
-        case ActionType.ADD_STROKE_POINT:
-            newState = { ...state, currentStrokePoints: [...state.currentStrokePoints, action.payload] };
-            break;
-        case ActionType.CLEAR_STROKE_POINTS:
-            newState = { ...state, currentStrokePoints: [] };
             break;
         case ActionType.UPDATE_FOLD: {
             const maxFolds = state.config?.maxFolds || 3;
@@ -371,10 +345,6 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
                 lineThickness: loadedState.lineThickness,
                 shapeFillMode: loadedState.shapeFillMode,
                 currentTool: loadedState.currentTool,
-                // Reset transient drawing state
-                isDrawing: false,
-                lineStartPoint: null,
-                currentStrokePoints: [],
                 selectedHistoryItemId: null,
                 selectionDragDelta: null,
                 selectionRotationPreview: null

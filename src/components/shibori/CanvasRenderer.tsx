@@ -21,10 +21,11 @@ interface CanvasRendererProps {
     selectionDragDelta: Point | null;
     selectionRotationPreview: { angle: number; center: Point } | null;
     lineThickness: number;
-    onMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-    onMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-    onMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-    onMouseLeave: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+    onPointerDown: (e: React.PointerEvent<HTMLCanvasElement>) => void;
+    onPointerMove: (e: React.PointerEvent<HTMLCanvasElement>) => void;
+    onPointerUp: (e: React.PointerEvent<HTMLCanvasElement>) => void;
+    onPointerCancel: (e: React.PointerEvent<HTMLCanvasElement>) => void;
+    onLostPointerCapture: (e: React.PointerEvent<HTMLCanvasElement>) => void;
     onKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
     onClear: () => void;
     onDeleteSelection: () => void;
@@ -42,10 +43,11 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     selectionDragDelta,
     selectionRotationPreview,
     lineThickness,
-    onMouseDown,
-    onMouseMove,
-    onMouseUp,
-    onMouseLeave,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+    onLostPointerCapture,
     onKeyDown,
     onClear,
     onDeleteSelection,
@@ -99,10 +101,11 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         ref={foldedCanvasRef}
                         width={canvasDimensions.width}
                         height={canvasDimensions.height}
-                        onMouseDown={onMouseDown}
-                        onMouseMove={onMouseMove}
-                        onMouseUp={onMouseUp}
-                        onMouseLeave={onMouseLeave}
+                        onPointerDown={onPointerDown}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
+                        onPointerCancel={onPointerCancel}
+                        onLostPointerCapture={onLostPointerCapture}
                         onKeyDown={onKeyDown}
                         tabIndex={0}
                         aria-label="Folded drawing canvas"

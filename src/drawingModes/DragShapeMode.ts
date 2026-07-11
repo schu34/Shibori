@@ -5,14 +5,14 @@ import {
   Point,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
-import { ActionType } from "../store/shiboriCanvasState";
 import { ShapeFillMode } from "../types";
 import { CanvasService } from "../services/CanvasService";
 
 export abstract class DragShapeMode implements DrawingMode {
   private originalFoldedCanvasState: ImageData | null = null;
-  private originalUnfoldedCanvasState: ImageData | null = null;
+  private startPoint: Point | null = null;
   private lastPoint: Point | null = null;
+  private active = false;
 
   protected abstract readonly tool: DrawableDrawingTool;
 
@@ -25,11 +25,8 @@ export abstract class DragShapeMode implements DrawingMode {
 
   start(point: Point, context: DrawingModeContext): void {
     const {
-      dispatch,
       foldedCtx,
-      unfoldedCtx,
       getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
     } = context;
 
     const foldedDimensions = getFoldedCanvasDimensions();
@@ -42,50 +39,36 @@ export abstract class DragShapeMode implements DrawingMode {
       );
     }
 
-    const unfoldedDimensions = getUnfoldedCanvasDimensions();
-    if (unfoldedDimensions) {
-      this.originalUnfoldedCanvasState = unfoldedCtx.getImageData(
-        0,
-        0,
-        unfoldedDimensions.width,
-        unfoldedDimensions.height
-      );
-    }
-
+    this.startPoint = point;
     this.lastPoint = point;
-    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: point });
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
+    this.active = true;
   }
 
   continue(point: Point, context: DrawingModeContext): boolean {
-    const { getState } = context;
-    const { isDrawing, lineStartPoint } = getState();
-
-    if (!isDrawing || !lineStartPoint) return false;
+    if (!this.active || !this.startPoint) return false;
 
     this.lastPoint = point;
-    this.drawPreview(context, lineStartPoint, point, 0.6);
+    this.drawPreview(context, this.startPoint, point, 0.6);
     return true;
   }
 
   end(point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
-    const { getState, dispatch } = context;
-    const { isDrawing, lineStartPoint, lineThickness, config } = getState();
+    const { getState } = context;
+    const { lineThickness, config } = getState();
 
-    if (!isDrawing || !lineStartPoint) return null;
+    if (!this.active || !this.startPoint) return null;
 
     const endPoint = point ?? this.lastPoint;
     if (!endPoint) return null;
 
-    this.drawPreview(context, lineStartPoint, endPoint, 1);
+    this.drawPreview(context, this.startPoint, endPoint, 1);
 
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
+    const startPoint = this.startPoint;
     this.clearStoredCanvasState();
 
     return {
       action: this.tool,
-      points: [lineStartPoint, endPoint],
+      points: [startPoint, endPoint],
       shapeFillMode: this.getFillMode(context),
       style: {
         lineThickness,
@@ -96,18 +79,12 @@ export abstract class DragShapeMode implements DrawingMode {
   }
 
   cancel(context: DrawingModeContext): void {
-    const { dispatch, foldedCtx, unfoldedCtx } = context;
+    const { foldedCtx } = context;
 
     if (this.originalFoldedCanvasState) {
       foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
     }
 
-    if (this.originalUnfoldedCanvasState) {
-      unfoldedCtx.putImageData(this.originalUnfoldedCanvasState, 0, 0);
-    }
-
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
     this.clearStoredCanvasState();
   }
 
@@ -117,15 +94,11 @@ export abstract class DragShapeMode implements DrawingMode {
     endPoint: Point,
     alpha: number
   ): void {
-    const { getState, foldedCtx, unfoldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
+    const { getState, foldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
     const { config, folds, lineThickness } = getState();
 
     if (this.originalFoldedCanvasState) {
       foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
-    }
-
-    if (this.originalUnfoldedCanvasState) {
-      unfoldedCtx.putImageData(this.originalUnfoldedCanvasState, 0, 0);
     }
 
     foldedCtx.save();
@@ -152,7 +125,8 @@ export abstract class DragShapeMode implements DrawingMode {
 
   private clearStoredCanvasState(): void {
     this.originalFoldedCanvasState = null;
-    this.originalUnfoldedCanvasState = null;
+    this.startPoint = null;
     this.lastPoint = null;
+    this.active = false;
   }
 }

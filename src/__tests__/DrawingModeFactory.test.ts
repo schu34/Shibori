@@ -5,6 +5,7 @@
 
 import { DrawingModeFactory, RenderingMode } from '../drawingModes/DrawingModeFactory';
 import { DrawingTool } from '../types';
+import { DrawableDrawingTool } from '../types/DrawingMode';
 
 describe('DrawingModeFactory', () => {
   beforeEach(() => {
@@ -38,13 +39,13 @@ describe('DrawingModeFactory', () => {
 
   describe('Tool Selection', () => {
     test('should return paintbrush mode for paintbrush tool', () => {
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       expect(mode).toBeDefined();
       expect(mode.constructor.name).toMatch(/PaintbrushMode/);
     });
 
     test('should return line mode for line tool', () => {
-      const mode = DrawingModeFactory.getTool('line' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Line);
       expect(mode).toBeDefined();
       expect(mode.constructor.name).toMatch(/LineMode/);
     });
@@ -53,7 +54,7 @@ describe('DrawingModeFactory', () => {
       [DrawingTool.Rectangle, 'RectangleMode'],
       [DrawingTool.Square, 'SquareMode'],
       [DrawingTool.Circle, 'CircleMode'],
-    ])('should return %s mode', (tool, expectedModeName) => {
+    ] satisfies Array<[DrawableDrawingTool, string]>)('should return %s mode', (tool, expectedModeName) => {
       const mode = DrawingModeFactory.getTool(tool);
       expect(mode).toBeDefined();
       expect(mode.constructor.name).toBe(expectedModeName);
@@ -61,7 +62,7 @@ describe('DrawingModeFactory', () => {
 
     test('should throw error for unknown tool', () => {
       expect(() => {
-        DrawingModeFactory.getTool('unknown' as DrawingTool);
+        DrawingModeFactory.getTool('unknown' as DrawableDrawingTool);
       }).toThrow('Unknown drawing tool: unknown');
     });
   });
@@ -70,7 +71,7 @@ describe('DrawingModeFactory', () => {
     test('should keep paintbrush drawing on Canvas 2D when WebGL unfolding is configured', () => {
       DrawingModeFactory.configure({ renderingMode: 'webgl' });
       
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       expect(mode.constructor.name).toBe('PaintbrushMode');
     });
@@ -78,7 +79,7 @@ describe('DrawingModeFactory', () => {
     test('should use Canvas 2D mode when explicitly configured', () => {
       DrawingModeFactory.configure({ renderingMode: 'canvas2d' });
       
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       // Should not return WebGL version
       expect(mode.constructor.name).not.toMatch(/WebGL/);
@@ -87,7 +88,7 @@ describe('DrawingModeFactory', () => {
     test('should choose appropriate mode for auto configuration', () => {
       DrawingModeFactory.configure({ renderingMode: 'auto' });
       
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       // Should return some valid mode
       expect(mode).toBeDefined();
@@ -98,7 +99,7 @@ describe('DrawingModeFactory', () => {
     test('should keep paintbrush mode independent of WebGL availability', () => {
       DrawingModeFactory.configure({ renderingMode: 'webgl' });
       
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       expect(mode.constructor.name).toBe('PaintbrushMode');
     });
@@ -106,7 +107,7 @@ describe('DrawingModeFactory', () => {
     test('should respect user preference when WebGL is available', () => {
       DrawingModeFactory.configure({ renderingMode: 'canvas2d' });
       
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       // Should respect Canvas 2D preference even when WebGL is available
       expect(mode.constructor.name).not.toMatch(/WebGL/);
@@ -117,8 +118,8 @@ describe('DrawingModeFactory', () => {
     test('should maintain consistent state across multiple tool requests', () => {
       DrawingModeFactory.configure({ renderingMode: 'webgl' });
       
-      const mode1 = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
-      const mode2 = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode1 = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
+      const mode2 = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       // Should return same type of mode
       expect(mode1.constructor.name).toBe(mode2.constructor.name);
@@ -126,10 +127,10 @@ describe('DrawingModeFactory', () => {
 
     test('should update mode type when configuration changes', () => {
       DrawingModeFactory.configure({ renderingMode: 'canvas2d' });
-      const canvasMode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const canvasMode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       DrawingModeFactory.configure({ renderingMode: 'webgl' });
-      const webglMode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const webglMode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       
       expect(DrawingModeFactory.getConfig().renderingMode).toBe('webgl');
       expect(canvasMode.constructor.name).toBe('PaintbrushMode');
@@ -146,13 +147,13 @@ describe('DrawingModeFactory', () => {
       
       // Should still be able to get tools
       expect(() => {
-        DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+        DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       }).not.toThrow();
     });
 
     test('should provide fallback when mode creation fails', () => {
       // This should always return a valid mode
-      const mode = DrawingModeFactory.getTool('paintbrush' as DrawingTool);
+      const mode = DrawingModeFactory.getTool(DrawingTool.Paintbrush);
       expect(mode).toBeDefined();
       expect(typeof mode.start).toBe('function');
       expect(typeof mode.continue).toBe('function');

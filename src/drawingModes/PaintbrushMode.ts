@@ -1,5 +1,4 @@
 import { DrawingMode, Point, DrawingModeContext, UndoableHistoryItem } from '../types/DrawingMode';
-import { ActionType } from '../store/shiboriCanvasState';
 import { getStroke } from 'perfect-freehand';
 import { DrawingTool } from '../types';
 import { CanvasService } from '../services/CanvasService';
@@ -28,9 +27,11 @@ export const PaintbrushGeometry: DrawingModeGeometry = {
 
 export class PaintbrushMode implements DrawingMode {
     private originalFoldedCanvasState: ImageData | null = null;
+    private points: Point[] = [];
+    private active = false;
 
     start(point: Point, context: DrawingModeContext): void {
-        const { dispatch, foldedCtx, getFoldedCanvasDimensions } = context;
+        const { foldedCtx, getFoldedCanvasDimensions } = context;
 
         // Store canvas states for preview
         if (foldedCtx) {
@@ -40,27 +41,22 @@ export class PaintbrushMode implements DrawingMode {
             }
         }
 
-        dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
-        dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
-        dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
+        this.active = true;
+        this.points = [point];
     }
 
     continue(point: Point, context: DrawingModeContext): boolean {
-        const { getState, dispatch, foldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
+        const { getState, foldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
 
-        const { isDrawing, folds, lineThickness, config } = getState();
-        if (!isDrawing) return false;
-
-        dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
-
-        //call getState() again to get the latest state so we read currentStrokePoints _AFTER_ the dispatch
-        const { currentStrokePoints } = getState();
+        const { folds, lineThickness, config } = getState();
+        if (!this.active) return false;
+        this.points.push(point);
 
         // Draw the stroke
-        if (!foldedCtx || currentStrokePoints.length === 0) return false;
+        if (!foldedCtx || this.points.length === 0) return false;
 
         // Get the stroke outline points from perfect-freehand
-        const stroke = getStroke(currentStrokePoints, {
+        const stroke = getStroke(this.points, {
             size: lineThickness * 2,
             thinning: 0.5,
             smoothing: 0.5,
@@ -102,16 +98,16 @@ export class PaintbrushMode implements DrawingMode {
     }
 
     end(_point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
-        const { dispatch, getState } = context;
-
-        const { currentStrokePoints, lineThickness, config } = getState();
-
-        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-        dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
+        const { getState } = context;
+        if (!this.active) return null;
+        const { lineThickness, config } = getState();
+        const points = this.points;
+        this.active = false;
+        this.points = [];
         this.originalFoldedCanvasState = null;
         return {
             action: DrawingTool.Paintbrush,
-            points: currentStrokePoints,
+            points,
             style: {
                 lineThickness,
                 color: config.lineColor,
@@ -120,10 +116,11 @@ export class PaintbrushMode implements DrawingMode {
     }
 
     cancel(context: DrawingModeContext): void {
-        const { dispatch } = context;
-
-        dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-        dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
+        if (this.originalFoldedCanvasState) {
+            context.foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
+        }
+        this.active = false;
+        this.points = [];
         this.originalFoldedCanvasState = null;
     }
 } 

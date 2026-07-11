@@ -1,6 +1,6 @@
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
 import { DrawingTool, ShapeFillMode } from '../types';
-import { UndoableHistoryItem } from '../types/DrawingMode';
+import { DrawableDrawingTool, UndoableHistoryItem } from '../types/DrawingMode';
 
 const options = { lineThickness: 10, hitTolerance: 2 };
 
@@ -11,16 +11,12 @@ describe('drawing mode geometry', () => {
     DrawingTool.Rectangle,
     DrawingTool.Square,
     DrawingTool.Circle,
-  ])('%s exposes geometry', (tool) => {
+  ] satisfies DrawableDrawingTool[])('%s exposes geometry', (tool) => {
     expect(DrawingModeFactory.getGeometry(tool)).toEqual({
       hitTest: expect.any(Function),
       getBounds: expect.any(Function),
       translate: expect.any(Function),
     });
-  });
-
-  test('select/move has no drawable geometry', () => {
-    expect(() => DrawingModeFactory.getGeometry(DrawingTool.SelectMove)).toThrow('no drawable geometry');
   });
 
   test('line geometry hit tests, bounds, and translates', () => {

@@ -1,202 +1,157 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { CanvasService } from "../services/CanvasService";
+import { Point } from "../types/DrawingMode";
 import { logger } from "../utils/logger";
 import { CanvasRefs } from "./useCanvasRefs";
 
 export interface CanvasEventHandlers {
-  handleMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  handleMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  handleMouseUp: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  handleMouseLeave: () => void;
-  handleKeyDown: (e: React.KeyboardEvent<HTMLCanvasElement>) => void;
-  handleTouchStart: (e: React.TouchEvent<HTMLCanvasElement>) => void;
-  handleTouchMove: (e: React.TouchEvent<HTMLCanvasElement>) => void;
-  handleTouchEnd: (e: React.TouchEvent<HTMLCanvasElement>) => void;
-  handleTouchCancel: (e: React.TouchEvent<HTMLCanvasElement>) => void;
+  handlePointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  handlePointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  handlePointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  handlePointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  handleLostPointerCapture: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  handleKeyDown: (event: React.KeyboardEvent<HTMLCanvasElement>) => void;
 }
 
 export interface DrawingCallbacks {
   startDrawing: (x: number, y: number) => void;
   continueDrawing: (x: number, y: number) => void;
-  endDrawing: (point: { x: number; y: number } | null) => void;
-  isDrawing: () => boolean;
-  nudgeSelection: (delta: { x: number; y: number }) => void;
+  endDrawing: (point: Point | null) => void;
+  cancelDrawing: () => void;
+  nudgeSelection: (delta: Point) => void;
   deleteSelection: () => void;
   clearSelection: () => void;
 }
 
-/**
- * Hook for handling mouse and touch events on canvas
- * Converts browser events to drawing coordinates and delegates to drawing callbacks
- */
+export interface PointerStartLike {
+  pointerType: string;
+  button: number;
+  isPrimary: boolean;
+}
+
+export function isSupportedPointerStart(event: PointerStartLike): boolean {
+  return event.isPrimary && (event.pointerType !== "mouse" || event.button === 0);
+}
+
+export function getPointerCanvasCoordinates(
+  clientX: number,
+  clientY: number,
+  canvas: HTMLCanvasElement
+): Point {
+  return CanvasService.getCanvasCoordinates(clientX, clientY, canvas);
+}
+
+/** Converts one captured primary pointer into canvas drawing operations. */
 export function useCanvasEvents(
   canvasRefs: CanvasRefs,
   drawingCallbacks: DrawingCallbacks
 ): CanvasEventHandlers {
+  const activePointerIdRef = useRef<number | null>(null);
   const { foldedCanvasRef, assertCanvasRef } = canvasRefs;
   const {
     startDrawing,
     continueDrawing,
     endDrawing,
-    isDrawing,
+    cancelDrawing,
     nudgeSelection,
     deleteSelection,
-    clearSelection
+    clearSelection,
   } = drawingCallbacks;
 
-  // Helper function to get canvas coordinates from mouse/touch event
-  const getCanvasCoordinates = useCallback(
-    (clientX: number, clientY: number, foldedCanvas: HTMLCanvasElement) => {
-      const coords = CanvasService.getCanvasCoordinates(clientX, clientY, foldedCanvas);
-      logger.canvas.event("coordinate conversion", coords);
-      return coords;
-    },
-    []
-  );
+  const coordinatesFor = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = assertCanvasRef(foldedCanvasRef);
+    const coordinates = getPointerCanvasCoordinates(event.clientX, event.clientY, canvas);
+    logger.canvas.event("pointer coordinate conversion", coordinates);
+    return coordinates;
+  }, [assertCanvasRef, foldedCanvasRef]);
 
-  // Handle mouse events for the folded canvas
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      e.currentTarget.focus();
-      const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-      const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
-      logger.canvas.event("mouseDown", coords);
-      startDrawing(coords.x, coords.y);
-    },
-    [getCanvasCoordinates, startDrawing, assertCanvasRef, foldedCanvasRef]
-  );
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-      const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
-      logger.canvas.event("mouseMove", coords);
-      continueDrawing(coords.x, coords.y);
-    },
-    [getCanvasCoordinates, continueDrawing, assertCanvasRef, foldedCanvasRef]
-  );
-
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-      const coords = getCanvasCoordinates(e.clientX, e.clientY, foldedCanvas);
-      logger.canvas.event("mouseUp", coords);
-      endDrawing(coords);
-    },
-    [getCanvasCoordinates, endDrawing, assertCanvasRef, foldedCanvasRef]
-  );
-
-  const handleMouseLeave = useCallback(() => {
-    if (isDrawing()) {
-      logger.canvas.event("mouseLeave", { x: 0, y: 0 });
-      endDrawing(null);
+  const releasePointer = useCallback((canvas: HTMLCanvasElement, pointerId: number) => {
+    if (typeof canvas.hasPointerCapture === "function" && canvas.hasPointerCapture(pointerId)) {
+      canvas.releasePointerCapture(pointerId);
     }
-  }, [isDrawing, endDrawing]);
+  }, []);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLCanvasElement>) => {
-      const step = e.shiftKey ? 10 : 1;
-      const keyDeltas: Record<string, { x: number; y: number }> = {
-        ArrowUp: { x: 0, y: -step },
-        ArrowDown: { x: 0, y: step },
-        ArrowLeft: { x: -step, y: 0 },
-        ArrowRight: { x: step, y: 0 },
-      };
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== null || !isSupportedPointerStart(event)) return;
+    event.preventDefault();
+    event.currentTarget.focus();
+    activePointerIdRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = coordinatesFor(event);
+    logger.canvas.event("pointerDown", point);
+    startDrawing(point.x, point.y);
+  }, [coordinatesFor, startDrawing]);
 
-      if (e.key === "Escape") {
-        e.preventDefault();
-        clearSelection();
-        return;
-      }
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
+    const point = coordinatesFor(event);
+    logger.canvas.event("pointerMove", point);
+    continueDrawing(point.x, point.y);
+  }, [continueDrawing, coordinatesFor]);
 
-      if (e.key === "Delete" || e.key === "Backspace") {
-        e.preventDefault();
-        deleteSelection();
-        return;
-      }
+  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
+    const point = coordinatesFor(event);
+    activePointerIdRef.current = null;
+    releasePointer(event.currentTarget, event.pointerId);
+    logger.canvas.event("pointerUp", point);
+    endDrawing(point);
+  }, [coordinatesFor, endDrawing, releasePointer]);
 
-      const delta = keyDeltas[e.key];
-      if (!delta) return;
+  const cancelPointer = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
+    activePointerIdRef.current = null;
+    releasePointer(event.currentTarget, event.pointerId);
+    logger.canvas.event("pointerCancel");
+    cancelDrawing();
+  }, [cancelDrawing, releasePointer]);
 
-      e.preventDefault();
-      nudgeSelection(delta);
-    },
-    [clearSelection, deleteSelection, nudgeSelection]
-  );
+  const handleLostPointerCapture = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    activePointerIdRef.current = null;
+    logger.canvas.event("lostPointerCapture");
+    cancelDrawing();
+  }, [cancelDrawing]);
 
-  // Handle touch events for mobile devices
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-        const coords = getCanvasCoordinates(
-          touch.clientX,
-          touch.clientY,
-          foldedCanvas
-        );
-        logger.canvas.event("touchStart", coords);
-        startDrawing(coords.x, coords.y);
-      }
-    },
-    [getCanvasCoordinates, startDrawing, assertCanvasRef, foldedCanvasRef]
-  );
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const step = event.shiftKey ? 10 : 1;
+    const keyDeltas: Record<string, Point> = {
+      ArrowUp: { x: 0, y: -step },
+      ArrowDown: { x: 0, y: step },
+      ArrowLeft: { x: -step, y: 0 },
+      ArrowRight: { x: step, y: 0 },
+    };
 
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-        const coords = getCanvasCoordinates(
-          touch.clientX,
-          touch.clientY,
-          foldedCanvas
-        );
-        logger.canvas.event("touchMove", coords);
-        continueDrawing(coords.x, coords.y);
-      }
-    },
-    [getCanvasCoordinates, continueDrawing, assertCanvasRef, foldedCanvasRef]
-  );
+    if (event.key === "Escape") {
+      event.preventDefault();
+      clearSelection();
+      return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      deleteSelection();
+      return;
+    }
+    const delta = keyDeltas[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    nudgeSelection(delta);
+  }, [clearSelection, deleteSelection, nudgeSelection]);
 
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      if (isDrawing() && e.changedTouches && e.changedTouches.length > 0) {
-        const touch = e.changedTouches[0];
-        const foldedCanvas = assertCanvasRef(foldedCanvasRef);
-        const coords = getCanvasCoordinates(
-          touch.clientX,
-          touch.clientY,
-          foldedCanvas
-        );
-        logger.canvas.event("touchEnd", coords);
-        endDrawing(coords);
-      }
-    },
-    [isDrawing, getCanvasCoordinates, endDrawing, assertCanvasRef, foldedCanvasRef]
-  );
-
-  const handleTouchCancel = useCallback(
-    (e: React.TouchEvent<HTMLCanvasElement>) => {
-      e.preventDefault(); // Prevent scrolling
-      logger.canvas.event("touchCancel");
-      endDrawing(null);
-    },
-    [endDrawing]
-  );
+  useEffect(() => () => {
+    activePointerIdRef.current = null;
+    cancelDrawing();
+  }, [cancelDrawing]);
 
   return {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    handleMouseLeave,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel: cancelPointer,
+    handleLostPointerCapture,
     handleKeyDown,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-    handleTouchCancel,
   };
 }

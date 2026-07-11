@@ -24,7 +24,7 @@ export function useCanvas() {
     startDrawing: drawingOps.startDrawing,
     continueDrawing: drawingOps.continueDrawing,
     endDrawing: drawingOps.endDrawing,
-    isDrawing: drawingOps.isDrawing,
+    cancelDrawing: drawingOps.cancelDrawing,
     nudgeSelection: drawingOps.nudgeSelection,
     deleteSelection: drawingOps.deleteSelection,
     clearSelection: drawingOps.clearSelection,

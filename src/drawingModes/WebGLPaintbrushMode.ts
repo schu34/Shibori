@@ -4,7 +4,6 @@
  */
 
 import { DrawingMode, Point, DrawingModeContext, UndoableHistoryItem } from '../types/DrawingMode';
-import { ActionType } from '../store/shiboriCanvasState';
 import { DrawingTool } from '../types';
 import { WebGLRenderer } from '../webgl/WebGLRenderer';
 import { WebGLStrokeRenderer, StrokeConfig, StrokePoint } from '../webgl/WebGLStrokeRenderer';
@@ -30,6 +29,7 @@ export class WebGLPaintbrushMode implements DrawingMode {
   private webglCanvas: HTMLCanvasElement | null = null;
   private isWebGLSupported: boolean = false;
   private currentStrokePoints: StrokePoint[] = [];
+  private active = false;
   private canvasCopy: ImageData | null = null;
   private fallbackMode: PaintbrushMode | null = null;
   private usingFallback: boolean = false;
@@ -182,10 +182,7 @@ export class WebGLPaintbrushMode implements DrawingMode {
     // Store current canvas state for WebGL preview
     this.storeCanvasState(context);
 
-    const { dispatch } = context;
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
-    dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
-    dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
+    this.active = true;
 
     // Start WebGL stroke if available
     if (this.strokeRenderer) {
@@ -202,12 +199,8 @@ export class WebGLPaintbrushMode implements DrawingMode {
       return this.fallbackMode.continue(point, context);
     }
 
-    const { getState, dispatch, drawDiagonalFoldLinesOnFolded } = context;
-
-    const { isDrawing } = getState();
-    if (!isDrawing) return false;
-
-    dispatch({ type: ActionType.ADD_STROKE_POINT, payload: point });
+    const { drawDiagonalFoldLinesOnFolded } = context;
+    if (!this.active) return false;
 
     // Handle WebGL rendering
     if (this.strokeRenderer && this.webglRenderer) {
@@ -266,8 +259,9 @@ export class WebGLPaintbrushMode implements DrawingMode {
       return this.fallbackMode.end(_point, context);
     }
 
-    const { dispatch, getState } = context;
-    const { currentStrokePoints } = getState();
+    const { getState } = context;
+    const { lineThickness, config } = getState();
+    const currentStrokePoints = this.currentStrokePoints.map(({ x, y }) => ({ x, y }));
 
     // Finish WebGL stroke
     if (this.strokeRenderer) {
@@ -285,16 +279,18 @@ export class WebGLPaintbrushMode implements DrawingMode {
       this.strokeRenderer.clearStroke();
     }
 
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
-    
     // Clean up
+    this.active = false;
     this.canvasCopy = null;
     this.currentStrokePoints = [];
 
     return {
       action: DrawingTool.Paintbrush,
       points: currentStrokePoints,
+      style: {
+        lineThickness,
+        color: config.lineColor,
+      },
     };
   }
 
@@ -305,8 +301,6 @@ export class WebGLPaintbrushMode implements DrawingMode {
       return;
     }
 
-    const { dispatch } = context;
-
     // Cancel WebGL stroke
     if (this.strokeRenderer) {
       this.strokeRenderer.clearStroke();
@@ -315,10 +309,8 @@ export class WebGLPaintbrushMode implements DrawingMode {
     // Restore original canvas state
     this.restoreCanvasState(context);
 
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    dispatch({ type: ActionType.CLEAR_STROKE_POINTS });
-    
     // Clean up
+    this.active = false;
     this.canvasCopy = null;
     this.currentStrokePoints = [];
   }

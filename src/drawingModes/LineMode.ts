@@ -4,7 +4,6 @@ import {
   DrawingModeContext,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
-import { ActionType } from "../store/shiboriCanvasState";
 import { DrawingTool } from "../types";
 import { CanvasService } from "../services/CanvasService";
 import { DrawingModeGeometry } from "../types/DrawingMode";
@@ -39,7 +38,8 @@ export const LineGeometry: DrawingModeGeometry = {
 
 export class LineMode implements DrawingMode {
   private originalFoldedCanvasState: ImageData | null = null;
-  private originalUnfoldedCanvasState: ImageData | null = null;
+  private startPoint: Point | null = null;
+  private active = false;
 
   readonly id = DrawingTool.Line;
 
@@ -47,17 +47,12 @@ export class LineMode implements DrawingMode {
 
   start(point: Point, context: DrawingModeContext): void {
     const {
-      dispatch,
       foldedCtx,
-      unfoldedCtx,
       getFoldedCanvasDimensions,
-      getUnfoldedCanvasDimensions,
     } = context;
 
     // Store canvas states for preview
     const foldedDimensions = getFoldedCanvasDimensions();
-    const unfoldedDimensions = getUnfoldedCanvasDimensions();
-
     if (foldedDimensions) {
       this.originalFoldedCanvasState = foldedCtx.getImageData(
         0,
@@ -67,46 +62,33 @@ export class LineMode implements DrawingMode {
       );
     }
 
-    if (unfoldedDimensions) {
-      this.originalUnfoldedCanvasState = unfoldedCtx.getImageData(
-        0,
-        0,
-        unfoldedDimensions.width,
-        unfoldedDimensions.height
-      );
-    }
-
-    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: point });
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: true });
+    this.startPoint = point;
+    this.lastPoint = point;
+    this.active = true;
   }
 
   continue(point: Point, context: DrawingModeContext): boolean {
     const {
       getState,
       foldedCtx,
-      unfoldedCtx,
       drawDiagonalFoldLinesOnFolded,
       foldedCanvas,
     } = context;
 
-    const { isDrawing, lineStartPoint, config, folds, lineThickness } = getState();
-    if (!isDrawing || !lineStartPoint) return false;
+    const { config, folds, lineThickness } = getState();
+    if (!this.active || !this.startPoint) return false;
 
     // Restore original states
     if (this.originalFoldedCanvasState) {
       foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
     }
-    if (this.originalUnfoldedCanvasState) {
-      unfoldedCtx.putImageData(this.originalUnfoldedCanvasState, 0, 0);
-    }
-
     // Draw preview line
     foldedCtx.save();
     if (foldedCanvas) {
       CanvasService.clipToDrawableRegion(foldedCtx, foldedCanvas, folds);
     }
     foldedCtx.beginPath();
-    foldedCtx.moveTo(lineStartPoint.x, lineStartPoint.y);
+    foldedCtx.moveTo(this.startPoint.x, this.startPoint.y);
     foldedCtx.lineTo(point.x, point.y);
     foldedCtx.strokeStyle = config.lineColor;
     foldedCtx.lineWidth = lineThickness;
@@ -125,14 +107,13 @@ export class LineMode implements DrawingMode {
   ): UndoableHistoryItem | null {
     const {
       getState,
-      dispatch,
       foldedCtx,
       foldedCanvas,
       drawDiagonalFoldLinesOnFolded,
     } = context;
 
-    const { isDrawing, lineStartPoint, config, folds, lineThickness } = getState();
-    if (!isDrawing || !lineStartPoint || !this.lastPoint) return null;
+    const { config, folds, lineThickness } = getState();
+    if (!this.active || !this.startPoint || !this.lastPoint) return null;
 
     if (point) {
       this.lastPoint = point;
@@ -144,7 +125,7 @@ export class LineMode implements DrawingMode {
       CanvasService.clipToDrawableRegion(foldedCtx, foldedCanvas, folds);
     }
     foldedCtx.beginPath();
-    foldedCtx.moveTo(lineStartPoint.x, lineStartPoint.y);
+    foldedCtx.moveTo(this.startPoint.x, this.startPoint.y);
     foldedCtx.lineTo(this.lastPoint.x, this.lastPoint.y);
     foldedCtx.strokeStyle = config.lineColor;
     foldedCtx.lineWidth = lineThickness;
@@ -154,14 +135,16 @@ export class LineMode implements DrawingMode {
     drawDiagonalFoldLinesOnFolded();
 
     // Reset state
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
+    const startPoint = this.startPoint;
+    const lastPoint = this.lastPoint;
+    this.active = false;
+    this.startPoint = null;
+    this.lastPoint = null;
     this.originalFoldedCanvasState = null;
-    this.originalUnfoldedCanvasState = null;
 
     return {
       action: this.id,
-      points: [lineStartPoint, this.lastPoint],
+      points: [startPoint, lastPoint],
       style: {
         lineThickness,
         color: config.lineColor,
@@ -170,21 +153,16 @@ export class LineMode implements DrawingMode {
   }
 
   cancel(context: DrawingModeContext): void {
-    const { dispatch, foldedCtx, unfoldedCtx } = context;
+    const { foldedCtx } = context;
 
     // Restore original states if they exist
     if (this.originalFoldedCanvasState && foldedCtx) {
       foldedCtx.putImageData(this.originalFoldedCanvasState, 0, 0);
     }
 
-    if (this.originalUnfoldedCanvasState && unfoldedCtx) {
-      unfoldedCtx.putImageData(this.originalUnfoldedCanvasState, 0, 0);
-    }
-
-    // Reset state
-    dispatch({ type: ActionType.SET_IS_DRAWING, payload: false });
-    dispatch({ type: ActionType.SET_LINE_START_POINT, payload: null });
+    this.active = false;
+    this.startPoint = null;
+    this.lastPoint = null;
     this.originalFoldedCanvasState = null;
-    this.originalUnfoldedCanvasState = null;
   }
 }

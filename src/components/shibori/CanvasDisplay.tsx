@@ -4,13 +4,11 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
 import { HistoryAction } from '../../types';
 import { CanvasRenderer } from './CanvasRenderer';
-import { CanvasEventHandler } from './CanvasEventHandler';
 import { logger } from '../../utils/logger';
 
 /**
  * Main canvas display component:
  * - CanvasRenderer: Handles the visual rendering of canvases
- * - CanvasEventHandler: Manages touch event listeners 
  * - useCanvas: Owns the state-driven canvas runtime and interactions
  */
 export const CanvasDisplay: React.FC = () => {
@@ -19,15 +17,12 @@ export const CanvasDisplay: React.FC = () => {
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
-        handleMouseDown,
-        handleMouseMove,
-        handleMouseUp,
-        handleMouseLeave,
+        handlePointerDown,
+        handlePointerMove,
+        handlePointerUp,
+        handlePointerCancel,
+        handleLostPointerCapture,
         handleKeyDown,
-        handleTouchStart,
-        handleTouchMove,
-        handleTouchEnd,
-        handleTouchCancel,
         downloadUnfoldedCanvas,
         deleteSelection,
     } = useCanvas();
@@ -49,14 +44,6 @@ export const CanvasDisplay: React.FC = () => {
 
     return (
         <>
-            <CanvasEventHandler
-                foldedCanvasRef={foldedCanvasRef}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchCancel}
-            />
-            
             <CanvasRenderer
                 foldedCanvasRef={foldedCanvasRef}
                 unfoldedCanvasRef={unfoldedCanvasRef}
@@ -67,10 +54,11 @@ export const CanvasDisplay: React.FC = () => {
                 selectionDragDelta={state.selectionDragDelta}
                 selectionRotationPreview={state.selectionRotationPreview}
                 lineThickness={state.lineThickness}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerCancel}
+                onLostPointerCapture={handleLostPointerCapture}
                 onKeyDown={handleKeyDown}
                 onClear={handleClearCanvas}
                 onDeleteSelection={deleteSelection}
