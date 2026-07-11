@@ -1,196 +1,91 @@
-# AGENTS.md - Shibori React Drawing App
+# AGENTS.md — Shibori repository guidance
 
-## Project Overview
-This is a React-based digital shibori (Japanese tie-dye) drawing application that allows users to draw on a folded canvas and see the symmetric patterns created on an unfolded canvas. The app includes shareable links functionality to save and restore drawing sessions.
+## Non-negotiable product invariant
 
-**🚨 CRITICAL: The mirroring/unfolding functionality is the CORE PURPOSE of this application. If drawing on the folded canvas does not result in symmetric patterns appearing on the unfolded canvas, the app is completely broken and unusable. Any implementation work must ensure both drawing AND mirroring work correctly in all modes (Canvas 2D, WebGL, Auto). 🚨**
+**🚨 Mirroring and unfolding are the core purpose of this application. A committed mark on the folded canvas must produce the corresponding symmetric pattern on the unfolded canvas. If folded drawing works but unfolding does not, the application is broken. 🚨**
 
-## Tech Stack
-- **Framework**: React 19 with TypeScript  
-- **State Management**: Redux Toolkit with custom reducer
-- **Canvas Drawing**: HTML5 Canvas with perfect-freehand library
-- **Build Tool**: Vite
-- **Testing**: Jest (unit) + Playwright (E2E)
-- **Styling**: CSS with CSS-in-JS support
+Preserve this invariant for every drawing tool, history replay, undo, clear, move, rotate, share-link load, fold configuration, and canvas dimension.
 
-## Key Commands
+## Stack and ownership
+
+- React 19 and TypeScript, built with Vite.
+- Redux Toolkit with the `shibori` reducer as the durable application state boundary.
+- HTML Canvas 2D plus `perfect-freehand` for drawing.
+- Jest and React Testing Library for unit/component tests; Playwright for rendered browser behavior.
+- npm is the only supported package manager. Use Node.js 20 or newer.
+
+The current data flow is:
+
+`shared URL bootstrap -> Redux command log/domain -> Pointer Event gesture session/drawing mode -> one canvas runtime transaction -> folded replay/guidance -> transform Canvas 2D mirror`
+
+There is one production renderer. Do not introduce a renderer selector or a second replay/mirroring path without a new architectural decision and parity evidence.
+
+## Critical files
+
+- `src/main.tsx` and `src/services/bootstrapSharedState.ts` — synchronous shared-link bootstrap before React mount.
+- `src/store/index.ts` and `src/store/shiboriCanvasState.ts` — store construction, application state, and reducer invariants.
+- `src/types/DrawingMode.ts` — discriminated history commands and drawing-mode contracts.
+- `src/utils/historyOperations.ts` — stable IDs, command creation, and command-log scene resolution.
+- `src/utils/historyRenderer.ts` — replay of resolved drawable history.
+- `src/utils/urlStateUtils.ts` — share schema v2, strict validation, encoding, decoding, and legacy migration.
+- `src/hooks/useCanvasEvents.ts` — primary Pointer Event capture and coordinate conversion.
+- `src/hooks/useCanvasDrawing.ts` — one local draw/move/rotate gesture session and committed commands.
+- `src/drawingModes/DrawingModeFactory.ts` and `src/drawingModes/*Mode.ts` — tool behavior and geometry.
+- `src/hooks/useCanvasRuntime.ts` and `src/rendering/canvasRuntime.ts` — sole owner of sizing, contexts, replay, previews, guidance, scheduling, and mirror transactions.
+- `src/rendering/CanvasMirror.ts` — sole transform-based Canvas 2D unfolded renderer.
+- `src/services/CanvasService.ts` — shared canvas clearing, clipping, coordinates, guidance, and download operations.
+- `tests/smoke.spec.ts` and `tests/utils/canvasHelpers.ts` — required browser pixel checks for the core invariant.
+- `docs/architecture/adr-001-mirroring-backend.md` — renderer decision and benchmark evidence.
+
+## Interaction rules
+
+- Use Pointer Events for mouse, touch, and pen. Do not add parallel mouse and touch handler stacks.
+- Accept one primary pointer gesture at a time, capture it on pointer down, and handle pointer up, pointer cancel, and lost capture.
+- Keep the in-progress gesture session local to the drawing hook. Persist only committed history commands and intentional application previews.
+- Convert client coordinates through the displayed-to-backing-store scale before passing them to a drawing mode.
+- Preserve the existing selection keyboard behavior: arrows nudge, Shift increases the step, Delete/Backspace deletes, and Escape clears selection.
+
+## History and sharing invariants
+
+- History is a discriminated command log. Do not add fields to every command when they apply to only one command family.
+- Every drawable must have a stable ID before it can be targeted by move, rotate, or delete.
+- A drawable commit must snapshot its rendering style. Later control changes must not alter replayed history.
+- Clear remains an undoable history command; it is not permission to erase the log.
+- Structural fold or dimension changes clear incompatible history atomically.
+- Share schema v2 is strict and bounded. Validate untrusted input at the URL/Redux boundary, not on every internal action.
+- New share links always encode v2. Keep original unversioned links working only through the explicit migration path.
+- Shared state must be loaded synchronously before React mounts so the first canvas transaction sees the restored command log.
+
+Any new drawing-affecting state must be considered in all of: the history command/style snapshot, scene replay, URL serialization and migration, undo behavior, and folded-to-unfolded browser coverage.
+
+## Canvas and mirroring rules
+
+- `useCanvasRuntime` is the only React owner of context acquisition, backing-store sizing, state replay, and unfolded scheduling.
+- A committed replay is one transaction: clear once, resolve/replay once, draw folded guidance once, and mirror at most once.
+- Live previews and committed replay must use the same drawing semantics.
+- Preserve full gesture geometry, clip rendering to the drawable folded region, and keep invalid-region guidance out of the folded backing store.
+- The accepted top-right-to-bottom-left diagonal preserves the lower-right triangle and reflects it into the upper-left. Focused semantic tests protect this orientation.
+
+## Validation sequence
+
+Use this sequence after changes:
+
 ```bash
-# Development
-npm run dev              # Start dev server (http://localhost:5173)
-npm run build           # Build for production
-npm run preview         # Preview production build
-
-# Testing  
-npm test               # Run Jest unit tests
-npm run test:watch     # Run Jest in watch mode
-npm run test:e2e       # Run Playwright E2E tests
-npm run test:e2e:ui    # Run Playwright with UI
-
-# Code Quality
-npm run lint           # ESLint checking  
-npm run build          # TypeScript build checking (IMPORTANT: Always run after changes)
-
-# Playwright E2E Test Commands (IMPORTANT: Use these for /tests directory)
-npm run test:e2e                    # Run all E2E tests
-npm run test:e2e tests/basic.spec.ts  # Run specific test file
-npm run test:e2e -- --grep "test name"  # Run specific test by name
-npm run test:e2e:ui                 # Run with Playwright UI
-npm run test:e2e -- --timeout 60000 # Run with custom timeout
+npm run build
+npm run check
+npm run test:e2e:smoke
+npm run test:e2e
 ```
 
-## Architecture
+Also run `git diff --check`. Use `npx playwright test --list` when changing Playwright configuration without needing to start a server. Run `npm run test:e2e:benchmark` for mirroring or renderer-performance changes; it is opt-in and machine-dependent.
 
-### State Management (`src/store/`)
-- **Redux store** with single `shibori` slice
-- **Custom reducer** in `shiboriCanvasState.ts` handles all drawing state
-- **Key state properties**:
-  - `history`: Array of drawing operations for undo/replay
-  - `folds`: Folding configuration (vertical/horizontal/diagonal) 
-  - `currentTool`: Drawing tool (paintbrush/line)
-  - `canvasDimensions`: Canvas size settings
-  - `redrawTrigger`: Used to trigger canvas redraws from URL state
+For a focused Playwright test:
 
-### Drawing System (`src/drawingModes/`)
-- **Factory pattern** for drawing tools (`DrawingModeFactory.ts`)
-- **Drawing modes**: PaintbrushMode, LineMode, CircleMode
-- **History tracking**: Each drawing operation stored as `UndoableHistoryItem`
-- **Canvas mirroring**: Folded canvas automatically mirrors to unfolded canvas
-
-### Canvas Management (`src/hooks/useCanvas.ts`)
-- **Custom hook** manages both folded and unfolded canvases
-- **Key functions**:
-  - `drawFromHistory()`: Replays drawing operations (critical for URL sharing)
-  - `resetCanvases()`: Clears canvases and redraws fold lines
-  - `updateUnfoldedCanvas()`: Creates mirrored symmetric pattern
-  - `undo()`: Removes last operation and redraws
-
-### Component Structure (`src/components/`)
-- **ShiboriCanvas**: Main app container
-- **CanvasDisplay**: Renders both canvases and handles interactions
-- **Controls**: FoldControls, ToolControls, DimensionControls
-- **ShareControls**: Generates and manages shareable links
-
-## Shareable Links Implementation
-
-### URL Serialization (`src/utils/urlStateUtils.ts`)
-- **Encodes state** to base64 URL parameters
-- **Validates and decodes** URL parameters back to app state
-- **Handles errors** gracefully with fallback to default state
-- **State structure**:
-  ```typescript
-  interface SerializableState {
-    history: UndoableHistoryItem[];
-    folds: FoldState;
-    canvasDimensions: { width: number; height: number };
-    circleRadius: number;
-    lineThickness: number;
-    currentTool: DrawingTool;
-  }
-  ```
-
-### Redux Actions for URL Loading
-- `LOAD_STATE_FROM_URL`: Restores shared state and increments `redrawTrigger`
-- `REDRAW_FROM_HISTORY`: Triggers canvas redraw without state change
-
-### URL Loading Flow
-1. **App.tsx** checks for `?shared=` parameter on load
-2. **Decodes** base64 parameter to state object  
-3. **Dispatches** `LOAD_STATE_FROM_URL` action
-4. **CanvasDisplay** detects `redrawTrigger` change
-5. **Calls** `resetCanvases()` → `drawFromHistory()` → `updateUnfoldedCanvas()`
-6. **Cleans** URL parameter after successful load
-
-## Testing Setup
-
-### Jest Unit Tests (`src/__tests__/`)
-- **Component testing** with React Testing Library
-- **Mock useCanvas hook** for isolated testing
-- **Redux integration** via `testUtils.tsx`
-
-### Playwright E2E Tests (`tests/`)
-- **Canvas interaction testing** using `dragTo()` method
-- **Pixel-level verification** to confirm actual drawing occurs  
-- **Visual regression** capabilities with screenshots
-- **Key learnings**:
-  - ❌ Manual `page.mouse` events don't trigger React canvas handlers
-  - ✅ `locator.dragTo()` properly fires synthetic events
-  - ✅ Pixel data comparison confirms drawing worked
-
-#### Canvas Drawing Test Pattern
-```typescript
-// Correct way to test canvas drawing
-await foldedCanvas.dragTo(foldedCanvas, {
-  sourcePosition: { x: centerX - 30, y: centerY - 30 },
-  targetPosition: { x: centerX + 30, y: centerY + 30 }
-});
-
-// Verify with pixel data
-const whitePixelCount = await page.evaluate(() => {
-  const canvas = document.querySelector('canvas');
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  // Count white pixels (drawing color)
-});
+```bash
+npm run test:e2e -- tests/basic.spec.ts
+npm run test:e2e -- --grep "test name"
 ```
 
-## Known Issues
+`npm run build` and `npm run check` are required for all code/configuration work. Browser pixel checks are required for every canvas-visible change. A passing unit test, DOM assertion, aggregate log, or type check is not enough to establish that mirroring still works.
 
-### Shareable Links - History Clearing Fixed ✅
-- **Original Problem**: When visiting shared URLs, canvas remained blank
-- **Root cause**: `CanvasDisplay` component was clearing history immediately after URL loading
-- **Solution**: Added `urlLoadTracker` global flag and `isLoadingFromUrl` state to prevent history clearing during URL loads
-- **Status**: ✅ History preservation is working - Redux state shows `historyLength: 1` after URL load
-
-### Remaining Issue: Canvas Rendering 
-- **Problem**: History is preserved and drawing functions execute, but canvas shows 0 white pixels
-- **Evidence**: Console shows `drawFromHistory`, `updateUnfoldedCanvasUnthrottled`, `flipHorizontal/Vertical` are called
-- **Investigation needed**: 
-  - Canvas context or rendering timing issues
-  - Coordinate transformation problems during redraw
-  - Canvas clearing happening after drawing operations
-
-### Debugging Tools
-- **Playwright screenshots**: Visual verification of rendering
-- **Console logging**: Added throughout URL loading flow
-- **Redux DevTools**: Monitor state changes
-- **Browser DevTools**: Check canvas pixel data manually
-
-## Development Notes
-
-### Canvas Coordinate System
-- **Folded canvas**: Smaller dimensions based on fold count
-- **Unfolded canvas**: Full size shows mirrored pattern
-- **Coordinate mapping**: Drawing coordinates must account for canvas scaling
-
-### Drawing History Format
-```typescript
-interface UndoableHistoryItem {
-  action: DrawingTool;        // 'paintbrush' | 'line'
-  points: Point[];           // All mouse/touch points
-}
-```
-
-### CSS Architecture
-- **Component-scoped CSS** files
-- **Responsive design** for canvas layouts
-- **Control panel** with collapsible sections
-
-## Future Enhancements
-- **Visual regression testing** with image comparison
-- **Touch device support** testing
-- **Performance optimization** for large drawing histories
-- **Export functionality** testing (download button verification)
-- **Cross-browser compatibility** testing
-
-## Dependencies of Note
-- **perfect-freehand**: Smooth brush stroke rendering
-- **lodash-es**: Utility functions (debounce for canvas updates)
-- **@reduxjs/toolkit**: Modern Redux implementation
-- **@playwright/test**: E2E testing framework
-
-## Important File Locations
-- **Main app**: `src/App.tsx` (handles URL parameter detection)
-- **Canvas logic**: `src/hooks/useCanvas.ts` (core drawing functionality)  
-- **State management**: `src/store/shiboriCanvasState.ts` (Redux state/actions)
-- **URL utilities**: `src/utils/urlStateUtils.ts` (sharing functionality)
-- **E2E tests**: `tests/basic.spec.ts` (canvas interaction tests)
-- **Configuration**: `playwright.config.ts`, `vite.config.ts`, `tsconfig.json`
+When browser execution is unavailable because of the environment, report that limitation explicitly; do not claim rendered verification from non-browser gates.

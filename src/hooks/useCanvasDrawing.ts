@@ -1,7 +1,6 @@
 import { useCallback, useRef } from "react";
 import { useStore } from "react-redux";
 import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
-import { WebGLCanvasService } from "../services/WebGLCanvasService";
 import { RootState } from "../store";
 import { ActionType } from "../store/shiboriCanvasState";
 import { DrawingTool } from "../types";
@@ -46,8 +45,6 @@ export interface DrawingOperations {
   continueDrawing: (x: number, y: number) => void;
   endDrawing: (point: Point | null) => void;
   cancelDrawing: () => void;
-  isUsingWebGL: () => boolean;
-  getWebGLInfo: () => string | null;
   nudgeSelection: (delta: Point) => void;
   deleteSelection: () => void;
   clearSelection: () => void;
@@ -80,9 +77,6 @@ export function useCanvasDrawing(
       drawDiagonalFoldLinesOnFolded: drawDiagonalFoldedGuidance,
     };
   }, [drawDiagonalFoldedGuidance, foldedCanvasRef, foldedCtxRef, getFoldedCanvasDimensions, getState]);
-
-  const isUsingWebGL = useCallback(() => WebGLCanvasService.isWebGLAvailable(), []);
-  const getWebGLInfo = useCallback(() => WebGLCanvasService.getWebGLInfo(), []);
 
   const cancelDrawing = useCallback(() => {
     const session = sessionRef.current;
@@ -185,9 +179,9 @@ export function useCanvasDrawing(
     const tool = state.currentTool;
     const mode = DrawingModeFactory.getTool(tool);
     sessionRef.current = { kind: "draw", tool, mode, context };
-    logger.canvas.operation("startDrawing", { x, y, tool, webgl: isUsingWebGL() });
+    logger.canvas.operation("startDrawing", { x, y, tool });
     mode.start(point, context);
-  }, [createModeContext, dispatch, getState, isUsingWebGL]);
+  }, [createModeContext, dispatch, getState]);
 
   const continueDrawing = useCallback((x: number, y: number) => {
     const session = sessionRef.current;
@@ -266,8 +260,6 @@ export function useCanvasDrawing(
     continueDrawing,
     endDrawing,
     cancelDrawing,
-    isUsingWebGL,
-    getWebGLInfo,
     nudgeSelection,
     deleteSelection,
     clearSelection,

@@ -1,6 +1,4 @@
-import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
 import { CanvasContext, CanvasService } from '../services/CanvasService';
-import { WebGLCanvasService } from '../services/WebGLCanvasService';
 import { State } from '../store/shiboriCanvasState';
 import { HistoryAction } from '../types';
 import { Point } from '../types/DrawingMode';
@@ -10,8 +8,7 @@ import {
   getTranslatedHistoryItemPreview,
 } from '../utils/historyOperations';
 import { renderDrawableHistoryItems } from '../utils/historyRenderer';
-import { logger } from '../utils/logger';
-import { reportActiveRenderingBackend } from '../utils/renderingBackend';
+import { renderUnfoldedCanvas } from './CanvasMirror';
 
 export interface CanvasElements {
   foldedCanvas: HTMLCanvasElement;
@@ -119,27 +116,6 @@ export function renderCanvasTransaction(
   services.mirror(context, state.folds);
 }
 
-/** Preserve the existing production backend selection and fallback behavior. */
 export function mirrorUnfoldedCanvas(context: CanvasContext, folds: State['folds']): void {
-  const config = DrawingModeFactory.getConfig();
-  const shouldUseWebGL = WebGLCanvasService.isWebGLAvailable()
-    && !WebGLCanvasService.hasWebGLInitializationFailed()
-    && (config.renderingMode === 'webgl'
-      || (config.renderingMode === 'auto' && config.useWebGL));
-
-  if (!shouldUseWebGL) {
-    CanvasService.updateUnfoldedCanvas(context, folds);
-    reportActiveRenderingBackend('canvas2d');
-    return;
-  }
-
-  logger.canvas.render('Attempting WebGL update');
-  if (WebGLCanvasService.updateUnfoldedCanvasWebGL(context, folds)) {
-    reportActiveRenderingBackend('webgl');
-    return;
-  }
-
-  logger.canvas.operation('WebGL update failed, using Canvas 2D fallback');
-  CanvasService.updateUnfoldedCanvas(context, folds);
-  reportActiveRenderingBackend('canvas2d');
+  renderUnfoldedCanvas(context, folds);
 }

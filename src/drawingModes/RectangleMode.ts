@@ -20,7 +20,7 @@ export const RectangleGeometry: DrawingModeGeometry = {
     const localPoint = item.rotation
       ? rotatePoint(point, item.rotationCenter ?? getBoundsCenter(bounds), -item.rotation)
       : point;
-    const fillMode = item.shapeFillMode ?? ShapeFillMode.Filled;
+    const fillMode = item.style?.shapeFillMode ?? item.shapeFillMode ?? ShapeFillMode.Filled;
     const tolerance = (options.lineThickness / 2) + (options.hitTolerance ?? 8);
 
     return fillMode === ShapeFillMode.Filled

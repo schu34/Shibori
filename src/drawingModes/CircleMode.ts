@@ -14,7 +14,7 @@ export const CircleGeometry: DrawingModeGeometry = {
   hitTest(item, point, options) {
     if (item.points.length < 2) return false;
     const radius = Math.hypot(item.points[1].x - item.points[0].x, item.points[1].y - item.points[0].y);
-    const fillMode = item.shapeFillMode ?? ShapeFillMode.Filled;
+    const fillMode = item.style?.shapeFillMode ?? item.shapeFillMode ?? ShapeFillMode.Filled;
     const tolerance = (options.lineThickness / 2) + (options.hitTolerance ?? 8);
 
     return fillMode === ShapeFillMode.Filled

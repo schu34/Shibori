@@ -4,7 +4,6 @@ import './index.css'
 import App from './App.tsx'
 import { Provider } from 'react-redux'
 import { store } from './store'
-import { applyTestRenderingModeOverride } from './utils/renderingBackend'
 import { bootstrapSharedState } from './services/bootstrapSharedState'
 
 declare global {
@@ -13,7 +12,6 @@ declare global {
   }
 }
 
-applyTestRenderingModeOverride()
 bootstrapSharedState(window.location, window.history, document.title, store.dispatch)
 
 // Expose store to window for debugging (development only)

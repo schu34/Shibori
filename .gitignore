@@ -13,6 +13,11 @@ dist
 dist-ssr
 *.local
 
+# npm is the canonical package manager
+yarn.lock
+.yarn/
+.pnp.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

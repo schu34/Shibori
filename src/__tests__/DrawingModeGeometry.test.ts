@@ -1,6 +1,6 @@
 import { DrawingModeFactory } from '../drawingModes/DrawingModeFactory';
 import { DrawingTool, ShapeFillMode } from '../types';
-import { DrawableDrawingTool, UndoableHistoryItem } from '../types/DrawingMode';
+import { DrawableDrawingTool, DrawableHistoryItem, UndoableHistoryItem } from '../types/DrawingMode';
 
 const options = { lineThickness: 10, hitTolerance: 2 };
 
@@ -62,6 +62,38 @@ describe('drawing mode geometry', () => {
     expect(geometry.hitTest(filled, { x: 50, y: 50 }, options)).toBe(true);
     expect(geometry.hitTest(outline, { x: 50, y: 50 }, options)).toBe(false);
     expect(geometry.hitTest(outline, { x: 10, y: 50 }, options)).toBe(true);
+  });
+
+  test('v2 shape style controls outline hit testing without a legacy top-level field', () => {
+    const rectangle: DrawableHistoryItem = {
+      id: 'rect-v2-outline',
+      action: DrawingTool.Rectangle,
+      points: [{ x: 10, y: 20 }, { x: 110, y: 80 }],
+      style: {
+        lineThickness: 10,
+        color: 'white',
+        shapeFillMode: ShapeFillMode.Outline,
+      },
+    };
+    const circle: DrawableHistoryItem = {
+      id: 'circle-v2-outline',
+      action: DrawingTool.Circle,
+      points: [{ x: 100, y: 100 }, { x: 150, y: 100 }],
+      style: {
+        lineThickness: 10,
+        color: 'white',
+        shapeFillMode: ShapeFillMode.Outline,
+      },
+    };
+
+    expect(DrawingModeFactory.getGeometry(DrawingTool.Rectangle)
+      .hitTest(rectangle, { x: 50, y: 50 }, options)).toBe(false);
+    expect(DrawingModeFactory.getGeometry(DrawingTool.Rectangle)
+      .hitTest(rectangle, { x: 10, y: 50 }, options)).toBe(true);
+    expect(DrawingModeFactory.getGeometry(DrawingTool.Circle)
+      .hitTest(circle, { x: 110, y: 100 }, options)).toBe(false);
+    expect(DrawingModeFactory.getGeometry(DrawingTool.Circle)
+      .hitTest(circle, { x: 150, y: 100 }, options)).toBe(true);
   });
 
   test('rectangle geometry hit tests and bounds rotated rectangles', () => {

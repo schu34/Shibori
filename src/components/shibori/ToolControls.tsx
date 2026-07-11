@@ -2,7 +2,6 @@ import React from 'react';
 import { ToolSelector } from './ToolSelector';
 import { SizeControl } from './SizeControl';
 import { ShapeFillControl } from './ShapeFillControl';
-import { WebGLControls } from './WebGLControls';
 import { useAppSelector } from '../../hooks/useReduxHooks';
 import { DrawingTool } from '../../types';
 
@@ -36,7 +35,6 @@ export const ToolControls: React.FC = () => {
             {shapeTools.has(state.currentTool) && (
                 <ShapeFillControl fillMode={state.shapeFillMode} />
             )}
-            <WebGLControls />
         </div>
     );
 }; 

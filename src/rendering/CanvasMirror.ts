@@ -3,23 +3,22 @@ import type { CanvasContext, FoldState } from '../services/CanvasService';
 
 const BACKGROUND_COLOR = 'navy';
 
-export interface Canvas2DTransformMirrorOptions {
+export interface CanvasMirrorOptions {
   includeFoldLines?: boolean;
 }
 
 /**
- * Experimental Canvas 2D mirror implementation used by the renderer benchmark.
+ * Render the unfolded pattern with Canvas 2D transforms.
  *
- * It deliberately lives outside the production CanvasService. The folded
- * canvas is downsampled once, diagonal symmetry is composed with a clipped
- * drawImage transform, and grid symmetry is produced by drawing that cell with
- * alternating context transforms. No ImageData allocation or per-pixel loop is
- * required.
+ * The folded canvas is downsampled once. Diagonal symmetry is composed with a
+ * clipped drawImage transform, then the completed cell is tiled with
+ * alternating horizontal and vertical transforms. This is the sole production
+ * unfolded renderer.
  */
-export function renderCanvas2DTransformMirror(
+export function renderUnfoldedCanvas(
   context: CanvasContext,
   folds: FoldState,
-  options: Canvas2DTransformMirrorOptions = {}
+  options: CanvasMirrorOptions = {}
 ): void {
   const { foldedCanvas, unfoldedCanvas, unfoldedCtx } = context;
   const gridWidth = Math.pow(2, folds.vertical);
@@ -88,9 +87,6 @@ function createDiagonalCell(
   ctx.beginPath();
 
   if (folds.diagonal.direction === 'topRightToBottomLeft') {
-    // Drawing is clipped to the lower-right triangle. Reflect it across the
-    // anti-diagonal into the upper-left triangle without allowing the navy
-    // background of the source to overwrite the original drawing.
     ctx.moveTo(0, 0);
     ctx.lineTo(width, 0);
     ctx.lineTo(0, height);
@@ -98,8 +94,6 @@ function createDiagonalCell(
     ctx.clip();
     ctx.setTransform(0, -1, -1, 0, width, height);
   } else {
-    // Drawing is clipped above the main diagonal. Reflect it into the
-    // lower-left triangle.
     ctx.moveTo(0, 0);
     ctx.lineTo(0, height);
     ctx.lineTo(width, height);
@@ -145,8 +139,6 @@ function createCanvas(width: number, height: number): HTMLCanvasElement {
 
 function get2DContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const context = canvas.getContext('2d');
-  if (!context) {
-    throw new Error('Canvas 2D context is unavailable');
-  }
+  if (!context) throw new Error('Canvas 2D context is unavailable');
   return context;
 }

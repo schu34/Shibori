@@ -1,4 +1,4 @@
-import { renderCanvas2DTransformMirror } from '../rendering/Canvas2DTransformMirror';
+import { renderUnfoldedCanvas } from '../rendering/CanvasMirror';
 import type { CanvasContext, FoldState } from '../services/CanvasService';
 
 interface ContextRecorder {
@@ -7,7 +7,7 @@ interface ContextRecorder {
   context: CanvasRenderingContext2D;
 }
 
-describe('Canvas2DTransformMirror', () => {
+describe('CanvasMirror', () => {
   const recorders = new WeakMap<HTMLCanvasElement, ContextRecorder>();
   const allRecorders: ContextRecorder[] = [];
 
@@ -50,7 +50,7 @@ describe('Canvas2DTransformMirror', () => {
       },
     };
 
-    renderCanvas2DTransformMirror(context, folds, { includeFoldLines: false });
+    renderUnfoldedCanvas(context, folds, { includeFoldLines: false });
 
     const targetTransforms = recorderFor(unfoldedCanvas).transforms;
     expect(targetTransforms).toContainEqual([1, 0, 0, 1, 0, 0]);
@@ -61,6 +61,35 @@ describe('Canvas2DTransformMirror', () => {
     expect(allRecorders.some((recorder) =>
       recorder.transforms.some((transform) =>
         transform.join(',') === [0, -1, -1, 0, 64, 64].join(',')
+      )
+    )).toBe(true);
+  });
+
+  test('uses the intended main-diagonal reflection transform', () => {
+    const foldedCanvas = document.createElement('canvas');
+    const unfoldedCanvas = document.createElement('canvas');
+    foldedCanvas.width = unfoldedCanvas.width = 128;
+    foldedCanvas.height = unfoldedCanvas.height = 128;
+    const context: CanvasContext = {
+      foldedCanvas,
+      unfoldedCanvas,
+      foldedCtx: contextFor(foldedCanvas),
+      unfoldedCtx: contextFor(unfoldedCanvas),
+    };
+
+    renderUnfoldedCanvas(context, {
+      vertical: 0,
+      horizontal: 0,
+      diagonal: {
+        enabled: true,
+        count: 1,
+        direction: 'topLeftToBottomRight',
+      },
+    }, { includeFoldLines: false });
+
+    expect(allRecorders.some((recorder) =>
+      recorder.transforms.some((transform) =>
+        transform.join(',') === [0, 1, 1, 0, 0, 0].join(',')
       )
     )).toBe(true);
   });

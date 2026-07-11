@@ -45,8 +45,6 @@ export function useCanvas() {
     foldedCtxRef,
     unfoldedCtxRef,
     downloadUnfoldedCanvas,
-    isUsingWebGL: drawingOps.isUsingWebGL,
-    getWebGLInfo: drawingOps.getWebGLInfo,
     ...eventHandlers,
     deleteSelection: drawingOps.deleteSelection,
   };

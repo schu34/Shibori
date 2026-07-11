@@ -1,4 +1,3 @@
-import { ImageUtils } from '../utils/imageUtils';
 import { logger } from '../utils/logger';
 
 export interface CanvasContext {
@@ -19,18 +18,6 @@ export interface FoldState {
 }
 
 const BACKGROUND_COLOR = "navy";
-
-function cachedLazy<T>(fn: () => T): () => T {
-  let isCachePopulated = false;
-  let returnValue: T | null = null;
-  return () => {
-    if (!isCachePopulated || returnValue === null) {
-      returnValue = fn();
-      isCachePopulated = true;
-    }
-    return returnValue;
-  };
-}
 
 export class CanvasService {
   /**
@@ -237,130 +224,6 @@ export class CanvasService {
   }
 
   /**
-   * Update the unfolded canvas by mirroring the folded canvas
-   */
-  static updateUnfoldedCanvas(context: CanvasContext, folds: FoldState): void {
-    logger.canvas.render('updateUnfoldedCanvas started');
-    
-    const { unfoldedCtx, foldedCanvas, unfoldedCanvas } = context;
-
-    // Clear the unfolded canvas and apply navy background
-    unfoldedCtx.clearRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
-    unfoldedCtx.fillStyle = BACKGROUND_COLOR;
-    unfoldedCtx.fillRect(0, 0, unfoldedCanvas.width, unfoldedCanvas.height);
-
-    // Calculate the total grid size based on folds
-    const gridWidth = Math.pow(2, folds.vertical);
-    const gridHeight = Math.pow(2, folds.horizontal);
-
-    // Determine each cell's dimensions and downsample the full-resolution
-    // folded canvas into that cell size before creating mirrored variations.
-    const cellWidth = Math.max(1, Math.floor(unfoldedCanvas.width / gridWidth));
-    const cellHeight = Math.max(1, Math.floor(unfoldedCanvas.height / gridHeight));
-    const sourceCanvas = CanvasService.createDownsampledFoldedCell(
-      foldedCanvas,
-      cellWidth,
-      cellHeight
-    );
-    const sourceCtx = sourceCanvas.getContext("2d", {
-      willReadFrequently: true,
-    });
-
-    if (!sourceCtx) {
-      logger.error('Failed to create downsampled folded canvas context');
-      return;
-    }
-
-    const originalImage = sourceCtx.getImageData(0, 0, cellWidth, cellHeight);
-
-    // Create the other pattern variations we'll need based on horizontal and vertical folds
-    const getOriginal = cachedLazy(() => {
-      if (folds.diagonal.count === 1) {
-        return folds.diagonal.direction === 'topRightToBottomLeft'
-          ? ImageUtils.mirrorDiagonalTopRightToBottomLeft(originalImage)
-          : ImageUtils.mirrorDiagonalTopLeftToBottomRight(originalImage);
-      }
-      return originalImage;
-    });
-    
-    const getHorizontalFlipped = cachedLazy(() =>
-      ImageUtils.flipHorizontal(getOriginal())
-    );
-    
-    const getVerticalFlipped = cachedLazy(() =>
-      ImageUtils.flipVertical(getOriginal())
-    );
-    
-    const getBothFlipped = cachedLazy(() =>
-      ImageUtils.flipVertical(getHorizontalFlipped())
-    );
-
-    // For each cell in the grid, determine which pattern to use
-    for (let row = 0; row < gridHeight; row++) {
-      for (let col = 0; col < gridWidth; col++) {
-        let patternToUse: ImageData;
-
-        const isRowEven = row % 2 === 0;
-        const isColEven = col % 2 === 0;
-
-        if (isRowEven && isColEven) {
-          patternToUse = getOriginal();
-        } else if (isRowEven && !isColEven) {
-          patternToUse = getHorizontalFlipped();
-        } else if (!isRowEven && isColEven) {
-          patternToUse = getVerticalFlipped();
-        } else {
-          patternToUse = getBothFlipped();
-        }
-
-        // Calculate the position to place this pattern
-        const x = col * cellWidth;
-        const y = row * cellHeight;
-
-        // Draw the pattern at this position
-        unfoldedCtx.putImageData(patternToUse, x, y);
-      }
-    }
-
-    // Draw fold lines
-    CanvasService.drawFoldLines(context, folds);
-    
-    logger.canvas.render('updateUnfoldedCanvas completed');
-  }
-
-  private static createDownsampledFoldedCell(
-    foldedCanvas: HTMLCanvasElement,
-    cellWidth: number,
-    cellHeight: number
-  ): HTMLCanvasElement {
-    const sourceCanvas = document.createElement("canvas");
-    sourceCanvas.width = cellWidth;
-    sourceCanvas.height = cellHeight;
-
-    const sourceCtx = sourceCanvas.getContext("2d", {
-      willReadFrequently: true,
-    });
-
-    if (sourceCtx) {
-      sourceCtx.imageSmoothingEnabled = true;
-      sourceCtx.imageSmoothingQuality = "high";
-      sourceCtx.drawImage(
-        foldedCanvas,
-        0,
-        0,
-        foldedCanvas.width,
-        foldedCanvas.height,
-        0,
-        0,
-        cellWidth,
-        cellHeight
-      );
-    }
-
-    return sourceCanvas;
-  }
-
-  /**
    * Check if a point is in the valid drawing area based on diagonal fold
    */
   static isInValidDrawingArea(
@@ -382,7 +245,7 @@ export class CanvasService {
   }
 
   /**
-   * Get canvas coordinates from mouse/touch event
+   * Convert Pointer Event client coordinates to canvas backing-store coordinates
    */
   static getCanvasCoordinates(
     clientX: number, 

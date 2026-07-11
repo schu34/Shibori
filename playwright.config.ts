@@ -1,20 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const appOrigin = 'http://localhost:5173';
-const debugSpecs = '**/debug-*.spec.ts';
-const standardProjectIgnores = ['**/dual-mode/**', debugSpecs];
-
-const renderingModeStorageState = (mode: 'canvas2d' | 'webgl') => ({
-  cookies: [],
-  origins: [{
-    origin: appOrigin,
-    localStorage: [{ name: 'shibori:test-rendering-mode', value: mode }],
-  }],
-});
 
 /**
  * Shibori Canvas Testing Configuration
- * Supports both Canvas 2D and WebGL testing modes
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
@@ -39,52 +28,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
 
-  /* Configure projects for major browsers with Canvas 2D and WebGL support */
+  /* The production application has one Canvas 2D rendering pipeline. */
   projects: [
     {
-      name: 'chromium-canvas2d',
-      use: { 
-        ...devices['Desktop Chrome'],
-        storageState: renderingModeStorageState('canvas2d'),
-      },
-      testDir: './tests',
-      testIgnore: standardProjectIgnores,
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'chromium-webgl',
-      use: { 
-        ...devices['Desktop Chrome'],
-        // Enable WebGL features and force WebGL mode
-        launchOptions: {
-          args: [
-            '--enable-webgl',
-            '--enable-webgl2-compute-context',
-            '--enable-webgl-draft-extensions',
-            '--enable-accelerated-2d-canvas',
-            '--disable-web-security', // For testing purposes
-          ]
-        },
-        storageState: renderingModeStorageState('webgl'),
-      },
-      testDir: './tests',
-      testIgnore: standardProjectIgnores,
-    },
-    ...(process.env.SHIBORI_TEST_BACKEND_PARITY === 'true' ? [{
-      name: 'chromium-backend-parity',
-      use: { 
-        ...devices['Desktop Chrome'],
-        launchOptions: {
-          args: [
-            '--enable-webgl',
-            '--enable-webgl2-compute-context',
-            '--enable-webgl-draft-extensions',
-            '--enable-accelerated-2d-canvas',
-          ]
-        },
-      },
-      testDir: './tests/dual-mode',
-      testIgnore: debugSpecs,
-    }] : []),
   ],
 
   /* Run your local dev server before starting the tests */

@@ -2,19 +2,9 @@ import { expect, test } from '@playwright/test';
 import {
   analyzeCanvasPixels,
   drawOnCanvas,
-  expectRenderingBackend,
-  type RenderingBackend,
 } from './utils/canvasHelpers';
 
-test('draws and mirrors through the project-selected rendering backend', async ({ page }, testInfo) => {
-  const expectedBackend = testInfo.project.name.endsWith('canvas2d')
-    ? 'canvas2d'
-    : testInfo.project.name.endsWith('webgl')
-      ? 'webgl'
-      : null;
-
-  test.skip(expectedBackend === null, 'The cross-backend parity project has its own focused coverage.');
-
+test('draws on the folded canvas and mirrors into every unfolded quadrant', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Shibori Folding' })).toBeVisible();
 
@@ -25,7 +15,6 @@ test('draws and mirrors through the project-selected rendering backend', async (
 
   await drawOnCanvas(foldedCanvas);
 
-  await expectRenderingBackend(page, expectedBackend as RenderingBackend);
   await expect.poll(async () => (await analyzeCanvasPixels(page, 0)).pixelCounts.white)
     .toBeGreaterThan(foldedBefore.pixelCounts.white + 100);
   await expect.poll(async () => (await analyzeCanvasPixels(page, 1)).pixelCounts.white)

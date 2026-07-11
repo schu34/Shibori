@@ -11,7 +11,6 @@ export default tseslint.config(
       'coverage',
       'playwright-report',
       'test-results',
-      'tests/debug-*.spec.ts',
       '.pnp.loader.mjs',
       '.pnp.cjs',
     ],
