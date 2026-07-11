@@ -49,7 +49,8 @@ export function useCanvasRuntime(canvasRefs: CanvasRefs): CanvasRuntime {
     return ensureCanvasContext(
       { foldedCanvas, unfoldedCanvas },
       { foldedCtxRef, unfoldedCtxRef },
-      store.getState().shibori.canvasDimensions
+      store.getState().shibori.canvasDimensions,
+      store.getState().shibori.folds
     );
   }, [foldedCanvasRef, foldedCtxRef, store, unfoldedCanvasRef, unfoldedCtxRef]);
 

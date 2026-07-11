@@ -10,6 +10,7 @@ import {
     getTranslatedHistoryItemPreview
 } from '../../utils/historyOperations';
 import { expandBounds, getBoundsCenter, getRectBounds, getSquareEndPoint } from '../../utils/geometryMath';
+import { getFoldedCanvasDimensions } from '../../utils/foldedCanvasDimensions';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -59,6 +60,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         folds: { vertical: folds.vertical, horizontal: folds.horizontal }
     });
 
+    const foldedCanvasDimensions = getFoldedCanvasDimensions(canvasDimensions, folds);
     const showDiagonalMask = folds.diagonal.enabled && folds.diagonal.count === 1 && folds.vertical === folds.horizontal;
     const invalidMaskClass = folds.diagonal.direction === DiagonalDirection.TopRightToBottomLeft
         ? 'invalid-region-top-left'
@@ -83,10 +85,10 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         : null;
     const selectionOverlayStyle = selectionFrame
         ? {
-            left: `${(selectionFrame.bounds.minX / canvasDimensions.width) * 100}%`,
-            top: `${(selectionFrame.bounds.minY / canvasDimensions.height) * 100}%`,
-            width: `${((selectionFrame.bounds.maxX - selectionFrame.bounds.minX) / canvasDimensions.width) * 100}%`,
-            height: `${((selectionFrame.bounds.maxY - selectionFrame.bounds.minY) / canvasDimensions.height) * 100}%`,
+            left: `${(selectionFrame.bounds.minX / foldedCanvasDimensions.width) * 100}%`,
+            top: `${(selectionFrame.bounds.minY / foldedCanvasDimensions.height) * 100}%`,
+            width: `${((selectionFrame.bounds.maxX - selectionFrame.bounds.minX) / foldedCanvasDimensions.width) * 100}%`,
+            height: `${((selectionFrame.bounds.maxY - selectionFrame.bounds.minY) / foldedCanvasDimensions.height) * 100}%`,
             transform: selectionFrame.rotation ? `rotate(${selectionFrame.rotation}rad)` : undefined,
             transformOrigin: `${selectionFrame.origin.x}% ${selectionFrame.origin.y}%`,
         }
@@ -96,11 +98,14 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         <div className="canvas-container">
             <div className="canvas-wrapper">
                 <h3>Folded Version</h3>
-                <div className="folded-canvas-frame">
+                <div
+                    className="folded-canvas-frame"
+                    style={{ aspectRatio: `${canvasDimensions.width} / ${canvasDimensions.height}` }}
+                >
                     <canvas
                         ref={foldedCanvasRef}
-                        width={canvasDimensions.width}
-                        height={canvasDimensions.height}
+                        width={foldedCanvasDimensions.width}
+                        height={foldedCanvasDimensions.height}
                         onPointerDown={onPointerDown}
                         onPointerMove={onPointerMove}
                         onPointerUp={onPointerUp}

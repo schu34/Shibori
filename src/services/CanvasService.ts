@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { getFoldedCanvasDimensions } from '../utils/foldedCanvasDimensions';
 
 export interface CanvasContext {
   foldedCtx: CanvasRenderingContext2D;
@@ -101,20 +102,15 @@ export class CanvasService {
     
   }
 
-  /**
-   * Keep the folded drawing canvas at full resolution.
-   *
-   * Fold count affects the mirror cell size, not the folded canvas backing
-   * store. This keeps input strokes high-resolution while allowing the mirror
-   * step to downsample into each unfolded cell.
-   */
+  /** Size the folded backing store to the unmatched-fold aspect ratio. */
   static updateFoldedCanvasDimensions(context: CanvasContext, folds: FoldState): CanvasRenderingContext2D | null {
     logger.canvas.operation('updateFoldedCanvasDimensions', folds);
     
     const { foldedCanvas, unfoldedCanvas } = context;
     
-    foldedCanvas.width = unfoldedCanvas.width;
-    foldedCanvas.height = unfoldedCanvas.height;
+    const dimensions = getFoldedCanvasDimensions(unfoldedCanvas, folds);
+    foldedCanvas.width = dimensions.width;
+    foldedCanvas.height = dimensions.height;
 
     // Re-initialize context after canvas resize
     const newFoldedCtx = foldedCanvas.getContext("2d", {

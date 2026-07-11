@@ -8,6 +8,7 @@ import {
   getTranslatedHistoryItemPreview,
 } from '../utils/historyOperations';
 import { renderDrawableHistoryItems } from '../utils/historyRenderer';
+import { getFoldedCanvasDimensions } from '../utils/foldedCanvasDimensions';
 import { renderUnfoldedCanvas } from './CanvasMirror';
 
 export interface CanvasElements {
@@ -56,14 +57,16 @@ const defaultTransactionServices: CanvasTransactionServices = {
 export function ensureCanvasContext(
   elements: CanvasElements,
   refs: CanvasRuntimeRefs,
-  dimensions: State['canvasDimensions']
+  dimensions: State['canvasDimensions'],
+  folds: State['folds']
 ): CanvasContext | null {
   const { foldedCanvas, unfoldedCanvas } = elements;
+  const foldedDimensions = getFoldedCanvasDimensions(dimensions, folds);
 
   if (unfoldedCanvas.width !== dimensions.width) unfoldedCanvas.width = dimensions.width;
   if (unfoldedCanvas.height !== dimensions.height) unfoldedCanvas.height = dimensions.height;
-  if (foldedCanvas.width !== dimensions.width) foldedCanvas.width = dimensions.width;
-  if (foldedCanvas.height !== dimensions.height) foldedCanvas.height = dimensions.height;
+  if (foldedCanvas.width !== foldedDimensions.width) foldedCanvas.width = foldedDimensions.width;
+  if (foldedCanvas.height !== foldedDimensions.height) foldedCanvas.height = foldedDimensions.height;
 
   const foldedCtx = foldedCanvas.getContext('2d', { willReadFrequently: true });
   const unfoldedCtx = unfoldedCanvas.getContext('2d', { willReadFrequently: true });

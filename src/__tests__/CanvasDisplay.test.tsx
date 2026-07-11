@@ -45,7 +45,7 @@ describe('CanvasDisplay Component', () => {
         expect(container.textContent).toContain('Folded Version');
     });
 
-    test('keeps folded canvas backing store at full canvas resolution', () => {
+    test('keeps the folded canvas backing store at full resolution for matching fold counts', () => {
         const { container } = renderWithRedux(<CanvasDisplay />);
         const [foldedCanvas, unfoldedCanvas] = Array.from(container.querySelectorAll('canvas'));
 
