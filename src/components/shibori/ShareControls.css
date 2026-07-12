@@ -27,6 +27,39 @@
     z-index: 1;
 }
 
+.share-error {
+    margin: 10px 0 0;
+    padding: 8px 10px;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    background-color: #f8d7da;
+    color: #721c24;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.share-link-size {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: #5e6f84;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.share-link-size strong {
+    color: #172033;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.share-link-size-over-limit,
+.share-link-size-over-limit strong {
+    color: #a61b29;
+}
+
 .generate-link-btn {
     background-color: #3a7bdb;
     color: white;

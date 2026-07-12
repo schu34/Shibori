@@ -39,7 +39,7 @@ There is no selectable rendering backend. The rationale and measured local evide
 
 History is a discriminated command log: drawable commits plus clear, move, rotate, and delete commands. Drawable commands have stable IDs and capture their rendering style, including thickness, color, and shape fill mode where applicable. Replay therefore does not depend on whatever controls are selected later.
 
-Share documents use schema version 2, strict validation, bounded payloads, and URL-safe Base64. Decoding an original unversioned link runs an explicit migration that assigns IDs and materializes style from the legacy top-level controls; new links always encode version 2.
+Share documents retain schema version 2, but new links use a `z3.` wire marker followed by URL-safe Base64 of a raw-DEFLATE UTF-8 v2 snapshot. The compressed parameter is limited to 6 KiB so links avoid common request-header limits; designs that exceed the lossless client-only budget show a clear error instead of a broken link. A shared snapshot preserves the visible scene, fold settings, styles, and geometry, but deliberately drops prior clear, move, rotate, and delete undo steps. Decoding continues to support both older v2 Base64JSON links and original unversioned links, which migrate by assigning IDs and materializing style from legacy top-level controls.
 
 ## Testing expectations
 

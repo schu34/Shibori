@@ -27,10 +27,12 @@ test.describe('Shareable Links', () => {
 
     // Analyze the canvas state after drawing
     const originalDrawing = await analyzeCanvasPixels(page, 0);
+    const originalDrawingUnfolded = await analyzeCanvasPixels(page, 1);
     console.log(`Original drawing: ${originalDrawing.pixelCounts.white} white pixels, ${originalDrawing.drawingDensity.toFixed(2)}% density`);
 
     // Verify we actually have a drawing
     expect(originalDrawing.pixelCounts.white).toBeGreaterThan(1000);
+    await expect(page.getByTestId('share-link-size')).toContainText('Live link size');
 
     // Find and click the "Generate Share Link" button
     const generateButton = page.locator('button', { hasText: 'Generate Share Link' });
@@ -50,8 +52,8 @@ test.describe('Shareable Links', () => {
     const shareUrl = await urlInput.inputValue();
     console.log('Generated share URL:', shareUrl);
     
-    // Verify the URL contains the 'shared' parameter
-    expect(shareUrl).toContain('shared=');
+    // Verify a new link uses the compressed, versioned wire format.
+    expect(shareUrl).toContain('shared=z3.');
     expect(shareUrl.length).toBeGreaterThan(100); // Should be a substantial URL with encoded data
 
     // Close the current page and create a fresh browser context
@@ -86,6 +88,12 @@ test.describe('Shareable Links', () => {
     expect(loadedDrawing.pixelCounts.white).toBeGreaterThan(1000);
     expect(loadedDrawing.hasDrawing).toBe(true);
     expect(loadedDrawingUnfolded.pixelCounts.white).toBeGreaterThan(1000);
+
+    // The compressed snapshot must preserve the mirrored, unfolded pattern too.
+    expect(loadedDrawingUnfolded.pixelCounts.white).toBeCloseTo(
+      originalDrawingUnfolded.pixelCounts.white,
+      -100
+    );
 
     // Drawing densities should be similar
     expect(loadedDrawing.drawingDensity).toBeCloseTo(originalDrawing.drawingDensity, 1);

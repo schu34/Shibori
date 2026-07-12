@@ -1,12 +1,17 @@
 import { initialState } from '../store/shiboriCanvasState';
 import { DrawingTool, HistoryAction, ShapeFillMode } from '../types';
 import { UndoableHistoryItem } from '../types/DrawingMode';
+import { deflateSync, strToU8 } from 'fflate';
 import {
   decodeStateFromUrl,
   encodeStateToUrl,
   extractSerializableState,
+  generateShareableUrl,
   isPlausibleBase64Url,
+  MAX_SHARE_DECOMPRESSED_BYTES,
   MAX_SHARE_HISTORY_ITEMS,
+  MAX_SHARE_PARAMETER_LENGTH,
+  SHARE_ENCODING_PREFIX,
   SHARE_SCHEMA_VERSION,
   SerializableState,
   SerializableStateInput,
@@ -76,11 +81,47 @@ function encodeUnknown(value: unknown): string {
   return btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
+function encodeCompressedUnknown(value: unknown): string {
+  const compressed = deflateSync(strToU8(JSON.stringify(value)), { level: 9 });
+  return `${SHARE_ENCODING_PREFIX}${toBase64Url(compressed)}`;
+}
+
+function toBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function getEncodedState(state: SerializableStateInput): string {
+  const result = encodeStateToUrl(state);
+  if (result.kind !== 'success') {
+    throw new Error(`Expected share encoding to succeed, received ${result.kind}`);
+  }
+  return result.encodedState;
+}
+
+function makeComplexPaintbrushHistory(pointCount: number): UndoableHistoryItem[] {
+  return [{
+    id: 'dense-brush',
+    action: DrawingTool.Paintbrush,
+    points: Array.from({ length: pointCount }, (_, index) => ({
+      x: index * 0.123456789 + Math.sin(index * 1.91) * 0.000001,
+      y: (index * 7919.1234567) % 1600 + Math.cos(index * 2.17) * 0.000001,
+    })),
+    style,
+  }];
+}
+
 describe('versioned share state', () => {
   test('round trips every command type through schema v2', () => {
-    const decoded = decodeStateFromUrl(encodeStateToUrl(makeState()));
+    const encoded = getEncodedState(makeState());
+    const decoded = decodeStateFromUrl(encoded);
 
     expect(decoded).toEqual(makeState());
+    expect(encoded).toMatch(new RegExp(`^${SHARE_ENCODING_PREFIX.replace('.', '\\.')}`));
+    expect(encoded.length).toBeLessThanOrEqual(MAX_SHARE_PARAMETER_LENGTH);
   });
 
   test('extracts stable IDs and deterministic styles from current legacy runtime history', () => {
@@ -113,6 +154,38 @@ describe('versioned share state', () => {
         },
       }),
     ]);
+  });
+
+  test('generates a flattened snapshot of the visible scene for new share links', () => {
+    const generated = generateShareableUrl(makeState(allCommands.slice(0, -1)), 'https://example.test');
+    if (generated.kind !== 'success') {
+      throw new Error(`Expected share URL generation to succeed, received ${generated.kind}`);
+    }
+    const encoded = new URL(generated.url).searchParams.get('shared');
+    const extracted = encoded ? decodeStateFromUrl(encoded) : null;
+
+    expect(extracted).not.toBeNull();
+    if (!extracted) return;
+
+    expect(extracted.history.map((item) => item.action)).toEqual([
+      DrawingTool.Line,
+      DrawingTool.Rectangle,
+      DrawingTool.Square,
+      DrawingTool.Circle,
+    ]);
+    expect(extracted.history.find((item) => item.id === 'line')).toEqual(expect.objectContaining({
+      points: [{ x: 11, y: 12 }, { x: 13, y: 14 }],
+    }));
+    expect(extracted.history.find((item) => item.id === 'square')).toEqual(expect.objectContaining({
+      rotation: 0.5,
+      rotationCenter: { x: 10, y: 10 },
+    }));
+    expect(extracted.history.some((item) =>
+      item.action === HistoryAction.Move ||
+      item.action === HistoryAction.Rotate ||
+      item.action === HistoryAction.Delete ||
+      item.action === HistoryAction.Clear
+    )).toBe(false);
   });
 
   test('migrates an unversioned link using its top-level style defaults', () => {
@@ -239,16 +312,48 @@ describe('versioned share state', () => {
       (): UndoableHistoryItem => ({ action: HistoryAction.Clear, points: [] })
     );
 
-    expect(encodeStateToUrl(makeState(tooManyClears))).toBe('');
+    expect(encodeStateToUrl(makeState(tooManyClears))).toEqual({ kind: 'invalid-state' });
     expect(encodeStateToUrl({
       ...makeState(),
       lineThickness: Number.NaN,
-    })).toBe('');
+    })).toEqual({ kind: 'invalid-state' });
+  });
+
+  test('reports an oversized compressed state instead of generating a root URL', () => {
+    const state = makeState(makeComplexPaintbrushHistory(1_000));
+    const encoded = encodeStateToUrl(state);
+    const generated = generateShareableUrl(state, 'https://example.test/app');
+
+    expect(encoded.kind).toBe('too-large');
+    if (encoded.kind === 'too-large') {
+      expect(encoded.encodedLength).toBeGreaterThan(MAX_SHARE_PARAMETER_LENGTH);
+      expect(encoded.maxLength).toBe(MAX_SHARE_PARAMETER_LENGTH);
+    }
+    expect(generated).toEqual(encoded);
+  });
+
+  test('keeps large v2 Base64JSON links loadable for backward compatibility', () => {
+    const legacyV2 = encodeUnknown(makeState(makeComplexPaintbrushHistory(350)));
+
+    expect(legacyV2.length).toBeGreaterThan(MAX_SHARE_PARAMETER_LENGTH);
+    expect(decodeStateFromUrl(legacyV2)).toEqual(makeState(makeComplexPaintbrushHistory(350)));
+  });
+
+  test.each([
+    ['malformed compressed Base64URL length', `${SHARE_ENCODING_PREFIX}A`],
+    ['invalid compressed bytes', `${SHARE_ENCODING_PREFIX}invalid`],
+    ['compressed legacy document', encodeCompressedUnknown({ history: [] })],
+    ['decompressed payload above the limit', encodeCompressedUnknown('x'.repeat(MAX_SHARE_DECOMPRESSED_BYTES + 1))],
+  ])('rejects %s', (_label, value) => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(decodeStateFromUrl(value)).toBeNull();
+    errorSpy.mockRestore();
   });
 
   test('recognizes URL-safe Base64 characters and rejects malformed or oversized input', () => {
     expect(isPlausibleBase64Url(`A_${'b'.repeat(49)}`)).toBe(true);
     expect(isPlausibleBase64Url('not base64!')).toBe(false);
     expect(isPlausibleBase64Url('A')).toBe(false);
+    expect(isPlausibleBase64Url('a'.repeat(MAX_SHARE_PARAMETER_LENGTH + 2))).toBe(true);
   });
 });

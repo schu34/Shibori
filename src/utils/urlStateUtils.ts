@@ -15,10 +15,15 @@ import {
     isDrawableAction,
     isDrawableCommand,
     materializeDrawableStyles,
+    resolveScene,
 } from './historyOperations';
+import { deflateSync, Inflate, strFromU8, strToU8 } from 'fflate';
 
 export const SHARE_SCHEMA_VERSION = 2 as const;
-export const MAX_SHARE_PARAMETER_LENGTH = 100_000;
+export const SHARE_ENCODING_PREFIX = 'z3.';
+export const MAX_SHARE_PARAMETER_LENGTH = 6 * 1024;
+export const MAX_LEGACY_SHARE_PARAMETER_LENGTH = 100_000;
+export const MAX_SHARE_DECOMPRESSED_BYTES = 2 * 1024 * 1024;
 export const MAX_SHARE_HISTORY_ITEMS = 500;
 export const MAX_SHARE_POINTS_PER_ITEM = 10_000;
 export const MAX_SHARE_TOTAL_POINTS = 50_000;
@@ -52,6 +57,32 @@ export type SerializableStateInput = Omit<SerializableState, 'version'> & {
     version?: typeof SHARE_SCHEMA_VERSION;
 };
 
+export type ShareEncodingResult =
+    | {
+        kind: 'success';
+        encodedState: string;
+        encodedLength: number;
+    }
+    | { kind: 'invalid-state' }
+    | {
+        kind: 'too-large';
+        encodedLength: number;
+        maxLength: number;
+    };
+
+export type ShareUrlResult =
+    | {
+        kind: 'success';
+        url: string;
+        encodedLength: number;
+    }
+    | { kind: 'invalid-state' }
+    | {
+        kind: 'too-large';
+        encodedLength: number;
+        maxLength: number;
+    };
+
 interface LegacySerializableState {
     history: UndoableHistoryItem[];
     folds: FoldState;
@@ -74,33 +105,44 @@ export function extractSerializableState(state: State): SerializableState {
     });
 }
 
-/** Encode a normalized v2 document as URL-safe, unpadded Base64. */
-export function encodeStateToUrl(state: SerializableStateInput): string {
+/** Encode a normalized v2 document using the compressed z3 wire format. */
+export function encodeStateToUrl(state: SerializableStateInput): ShareEncodingResult {
     try {
         const normalized = normalizeSerializableState(state);
-        if (!isValidSerializableStateV2(normalized)) return '';
+        if (!isValidSerializableStateV2(normalized)) return { kind: 'invalid-state' };
 
-        const encoded = btoa(JSON.stringify(normalized))
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=/g, '');
+        const compressed = deflateSync(strToU8(JSON.stringify(normalized)), { level: 9 });
+        const encodedState = `${SHARE_ENCODING_PREFIX}${encodeBase64Url(compressed)}`;
 
-        return encoded.length <= MAX_SHARE_PARAMETER_LENGTH ? encoded : '';
+        if (encodedState.length > MAX_SHARE_PARAMETER_LENGTH) {
+            return {
+                kind: 'too-large',
+                encodedLength: encodedState.length,
+                maxLength: MAX_SHARE_PARAMETER_LENGTH,
+            };
+        }
+
+        return {
+            kind: 'success',
+            encodedState,
+            encodedLength: encodedState.length,
+        };
     } catch (error) {
         console.error('Failed to encode state to URL:', error);
-        return '';
+        return { kind: 'invalid-state' };
     }
 }
 
-/** Decode v2 documents and migrate the original unversioned format to v2. */
+/** Decode compressed z3/v2 documents and migrate original unversioned links to v2. */
 export function decodeStateFromUrl(encodedState: string): SerializableState | null {
     try {
+        if (encodedState.startsWith(SHARE_ENCODING_PREFIX)) {
+            return decodeCompressedState(encodedState);
+        }
+
         if (!isPlausibleBase64Url(encodedState)) return null;
 
-        let base64 = encodedState.replace(/-/g, '+').replace(/_/g, '/');
-        while (base64.length % 4) base64 += '=';
-
-        const parsed: unknown = JSON.parse(atob(base64));
+        const parsed: unknown = JSON.parse(decodeBase64UrlToString(encodedState));
         if (isRecord(parsed) && parsed.version === SHARE_SCHEMA_VERSION) {
             return normalizeSerializableStateFromUnknown(parsed);
         }
@@ -128,7 +170,7 @@ export function normalizeSerializableStateFromUnknown(
 
 export function isPlausibleBase64Url(param: unknown): param is string {
     if (typeof param !== 'string' || param.length === 0) return false;
-    if (param.length > MAX_SHARE_PARAMETER_LENGTH) return false;
+    if (param.length > MAX_LEGACY_SHARE_PARAMETER_LENGTH) return false;
     if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(param)) return false;
 
     const withoutPadding = param.replace(/=+$/, '');
@@ -138,13 +180,38 @@ export function isPlausibleBase64Url(param: unknown): param is string {
 export function generateShareableUrl(
     state: SerializableStateInput,
     baseUrl: string = window.location.origin
-): string {
-    const encodedState = encodeStateToUrl(state);
-    if (!encodedState) return baseUrl;
+): ShareUrlResult {
+    const encoded = encodeShareableState(state);
+    if (encoded.kind !== 'success') return encoded;
 
     const url = new URL(baseUrl);
-    url.searchParams.set('shared', encodedState);
-    return url.toString();
+    url.searchParams.set('shared', encoded.encodedState);
+    return {
+        kind: 'success',
+        url: url.toString(),
+        encodedLength: encoded.encodedLength,
+    };
+}
+
+/** Prepare the exact compressed snapshot used by generated share links. */
+export function encodeShareableState(state: SerializableStateInput): ShareEncodingResult {
+    try {
+        return encodeStateToUrl(createShareSnapshot(state));
+    } catch (error) {
+        console.error('Failed to create share snapshot:', error);
+        return { kind: 'invalid-state' };
+    }
+}
+
+function createShareSnapshot(state: SerializableStateInput): SerializableState {
+    const normalized = normalizeSerializableState(state);
+    return {
+        ...normalized,
+        // Shared links are editable snapshots of the visible scene. Resolving
+        // here removes superseded transforms, deletions, and clear boundaries
+        // without altering the pattern that will be replayed after loading.
+        history: resolveScene(normalized.history),
+    };
 }
 
 export function getSharedStateFromCurrentUrl(): SerializableState | null {
@@ -175,6 +242,81 @@ function migrateLegacySerializableState(value: unknown): SerializableState | nul
     });
 
     return isValidSerializableStateV2(migrated) ? migrated : null;
+}
+
+function decodeCompressedState(encodedState: string): SerializableState | null {
+    if (!isPlausibleCompressedShare(encodedState)) return null;
+
+    const compressed = decodeBase64UrlToBytes(encodedState.slice(SHARE_ENCODING_PREFIX.length));
+    const json = inflateCompressedJson(compressed);
+    if (json === null) return null;
+
+    const parsed: unknown = JSON.parse(json);
+    return isRecord(parsed) && parsed.version === SHARE_SCHEMA_VERSION
+        ? normalizeSerializableStateFromUnknown(parsed)
+        : null;
+}
+
+function isPlausibleCompressedShare(param: unknown): param is string {
+    if (typeof param !== 'string' || !param.startsWith(SHARE_ENCODING_PREFIX)) return false;
+    if (param.length <= SHARE_ENCODING_PREFIX.length || param.length > MAX_SHARE_PARAMETER_LENGTH) {
+        return false;
+    }
+
+    const payload = param.slice(SHARE_ENCODING_PREFIX.length);
+    return /^[A-Za-z0-9_-]+$/.test(payload) && payload.length % 4 !== 1;
+}
+
+function inflateCompressedJson(compressed: Uint8Array): string | null {
+    const chunks: Uint8Array[] = [];
+    let totalLength = 0;
+    let completed = false;
+
+    const inflater = new Inflate((chunk, final) => {
+        totalLength += chunk.length;
+        if (totalLength > MAX_SHARE_DECOMPRESSED_BYTES) {
+            throw new Error('Compressed share state exceeds decompressed size limit');
+        }
+        chunks.push(chunk);
+        completed = final;
+    });
+    inflater.push(compressed, true);
+
+    if (!completed) return null;
+    const output = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+        output.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return strFromU8(output);
+}
+
+function encodeBase64Url(bytes: Uint8Array): string {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+function decodeBase64UrlToString(encoded: string): string {
+    return atob(toPaddedBase64(encoded));
+}
+
+function decodeBase64UrlToBytes(encoded: string): Uint8Array {
+    const binary = decodeBase64UrlToString(encoded);
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function toPaddedBase64(encoded: string): string {
+    let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) base64 += '=';
+    return base64;
 }
 
 function normalizeSerializableState(state: SerializableStateInput): SerializableState {

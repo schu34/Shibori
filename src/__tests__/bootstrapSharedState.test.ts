@@ -6,7 +6,7 @@ import { encodeStateToUrl } from '../utils/urlStateUtils';
 
 describe('shared-state bootstrap', () => {
   test('dispatches valid state before synchronously cleaning the URL', () => {
-    const encoded = encodeStateToUrl({
+    const encoding = encodeStateToUrl({
       history: [{
         id: 'shared-line',
         action: DrawingTool.Line,
@@ -20,6 +20,10 @@ describe('shared-state bootstrap', () => {
       shapeFillMode: initialState.shapeFillMode,
       currentTool: DrawingTool.Line,
     });
+    if (encoding.kind !== 'success') {
+      throw new Error(`Expected valid shared state encoding, received ${encoding.kind}`);
+    }
+    const encoded = encoding.encodedState;
     const appStore = createAppStore();
     const order: string[] = [];
     const dispatch = jest.fn((action) => {
