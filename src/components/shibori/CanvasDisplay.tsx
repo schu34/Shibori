@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCanvas } from '../../hooks/useCanvas';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import { ActionType } from '../../store/shiboriCanvasState';
@@ -14,6 +14,7 @@ import { logger } from '../../utils/logger';
 export const CanvasDisplay: React.FC = () => {
     const state = useAppSelector((state) => state.shibori);
     const dispatch = useAppDispatch();
+    const [showFoldGuides, setShowFoldGuides] = useState(true);
     const {
         unfoldedCanvasRef,
         foldedCanvasRef,
@@ -64,6 +65,8 @@ export const CanvasDisplay: React.FC = () => {
                 onDeleteSelection={deleteSelection}
                 onUndo={handleUndo}
                 onDownload={downloadUnfoldedCanvas}
+                showFoldGuides={showFoldGuides}
+                onToggleFoldGuides={() => setShowFoldGuides((visible) => !visible)}
             />
         </>
     );

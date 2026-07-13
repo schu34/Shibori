@@ -3,10 +3,6 @@ import type { CanvasContext, FoldState } from '../services/CanvasService';
 
 const BACKGROUND_COLOR = 'navy';
 
-export interface CanvasMirrorOptions {
-  includeFoldLines?: boolean;
-}
-
 /**
  * Render the unfolded pattern with Canvas 2D transforms.
  *
@@ -17,8 +13,7 @@ export interface CanvasMirrorOptions {
  */
 export function renderUnfoldedCanvas(
   context: CanvasContext,
-  folds: FoldState,
-  options: CanvasMirrorOptions = {}
+  folds: FoldState
 ): void {
   const { foldedCanvas, unfoldedCanvas, unfoldedCtx } = context;
   const gridWidth = Math.pow(2, folds.vertical);
@@ -68,10 +63,6 @@ export function renderUnfoldedCanvas(
   }
 
   unfoldedCtx.restore();
-
-  if (options.includeFoldLines !== false) {
-    CanvasService.drawFoldLines(context, folds);
-  }
 }
 
 function createDiagonalCell(

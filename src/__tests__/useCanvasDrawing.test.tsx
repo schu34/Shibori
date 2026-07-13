@@ -29,7 +29,6 @@ function harness() {
   };
   const runtime: CanvasRuntime = {
     scheduleUnfoldedUpdate: jest.fn(),
-    drawDiagonalFoldedGuidance: jest.fn(),
   };
   const wrapper = ({ children }: PropsWithChildren) => <Provider store={store}>{children}</Provider>;
   return { store, refs, runtime, wrapper };

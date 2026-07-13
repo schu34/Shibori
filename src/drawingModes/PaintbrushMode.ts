@@ -46,7 +46,7 @@ export class PaintbrushMode implements DrawingMode {
     }
 
     continue(point: Point, context: DrawingModeContext): boolean {
-        const { getState, foldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
+        const { getState, foldedCtx, foldedCanvas } = context;
 
         const { folds, lineThickness, config } = getState();
         if (!this.active) return false;
@@ -91,8 +91,6 @@ export class PaintbrushMode implements DrawingMode {
         foldedCtx.closePath();
         foldedCtx.fill();
         foldedCtx.restore();
-
-        drawDiagonalFoldLinesOnFolded();
 
         return true;
     }

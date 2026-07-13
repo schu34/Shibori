@@ -33,7 +33,6 @@ export interface DrawingModeContext {
     foldedCtx: CanvasRenderingContext2D
     foldedCanvas?: HTMLCanvasElement;
     getFoldedCanvasDimensions: () => CanvasDimensions | null;
-    drawDiagonalFoldLinesOnFolded: () => void;
     historyItem?: DrawableHistoryItem;
 }
 

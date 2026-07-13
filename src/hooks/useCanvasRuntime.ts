@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { shallowEqual, useStore } from 'react-redux';
-import { CanvasService } from '../services/CanvasService';
 import { RootState } from '../store';
 import {
   ensureCanvasContext,
@@ -12,7 +11,6 @@ import { useAppSelector } from './useReduxHooks';
 
 export interface CanvasRuntime {
   scheduleUnfoldedUpdate: () => void;
-  drawDiagonalFoldedGuidance: () => void;
 }
 
 export function selectCanvasRuntimeState(root: RootState) {
@@ -104,11 +102,5 @@ export function useCanvasRuntime(canvasRefs: CanvasRefs): CanvasRuntime {
     });
   }, [getContext, store]);
 
-  const drawDiagonalFoldedGuidance = useCallback(() => {
-    const context = getContext();
-    if (!context) return;
-    CanvasService.drawDiagonalFoldLinesOnFolded(context, store.getState().shibori.folds);
-  }, [getContext, store]);
-
-  return { scheduleUnfoldedUpdate, drawDiagonalFoldedGuidance };
+  return { scheduleUnfoldedUpdate };
 }

@@ -39,14 +39,12 @@ export interface CanvasTransactionState {
 export interface CanvasTransactionServices {
   clear: typeof CanvasService.clearCanvases;
   renderHistory: typeof renderDrawableHistoryItems;
-  drawFoldedGuidance: typeof CanvasService.drawDiagonalFoldLinesOnFolded;
   mirror: (context: CanvasContext, folds: State['folds']) => void;
 }
 
 const defaultTransactionServices: CanvasTransactionServices = {
   clear: CanvasService.clearCanvases,
   renderHistory: renderDrawableHistoryItems,
-  drawFoldedGuidance: CanvasService.drawDiagonalFoldLinesOnFolded,
   mirror: mirrorUnfoldedCanvas,
 };
 
@@ -113,7 +111,6 @@ export function renderCanvasTransaction(
     lineThickness: state.lineThickness,
     shapeFillMode: state.shapeFillMode,
   });
-  services.drawFoldedGuidance(context, state.folds);
 
   if (state.history[state.history.length - 1]?.action === HistoryAction.Clear) return;
   services.mirror(context, state.folds);

@@ -24,7 +24,6 @@ jest.mock('../hooks/useCanvas', () => ({
         // Add missing properties to satisfy TypeScript
         clearCanvases: jest.fn(),
         updateFoldedCanvasDimensions: jest.fn(),
-        drawFoldLines: jest.fn(),
         drawCircleOnFoldedCanvas: jest.fn(),
         drawLineOnFoldedCanvas: jest.fn(),
         updateUnfoldedCanvas: jest.fn(),
@@ -53,6 +52,18 @@ describe('CanvasDisplay Component', () => {
         expect(foldedCanvas).toHaveAttribute('height', '1600');
         expect(unfoldedCanvas).toHaveAttribute('width', '1600');
         expect(unfoldedCanvas).toHaveAttribute('height', '1600');
+    });
+
+    test('toggles fold guides as display-only overlays', () => {
+        const { container } = renderWithRedux(<CanvasDisplay />);
+
+        expect(screen.getByRole('button', { name: 'Hide fold guides' })).toHaveAttribute('aria-pressed', 'true');
+        expect(container.querySelectorAll('.fold-guide-overlay')).toHaveLength(2);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Hide fold guides' }));
+
+        expect(screen.getByRole('button', { name: 'Show fold guides' })).toHaveAttribute('aria-pressed', 'false');
+        expect(container.querySelectorAll('.fold-guide-overlay')).toHaveLength(0);
     });
 
     test('Clear adds one undoable command and performs no imperative canvas reset', () => {

@@ -11,6 +11,7 @@ import {
 } from '../../utils/historyOperations';
 import { expandBounds, getBoundsCenter, getRectBounds, getSquareEndPoint } from '../../utils/geometryMath';
 import { getFoldedCanvasDimensions } from '../../utils/foldedCanvasDimensions';
+import { FoldGuideOverlay } from './FoldGuideOverlay';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -32,6 +33,8 @@ interface CanvasRendererProps {
     onDeleteSelection: () => void;
     onUndo: () => void;
     onDownload: () => void;
+    showFoldGuides: boolean;
+    onToggleFoldGuides: () => void;
 }
 
 export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
@@ -53,7 +56,9 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     onClear,
     onDeleteSelection,
     onUndo,
-    onDownload
+    onDownload,
+    showFoldGuides,
+    onToggleFoldGuides,
 }) => {
     logger.canvas.operation('CanvasRenderer rendering', {
         canvasDimensions,
@@ -93,6 +98,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
             transformOrigin: `${selectionFrame.origin.x}% ${selectionFrame.origin.y}%`,
         }
         : undefined;
+    const foldedGuideStyle = getCanvasOverlayStyle(canvasDimensions, foldedCanvasDimensions);
 
     return (
         <div className="canvas-container">
@@ -116,6 +122,19 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         aria-label="Folded drawing canvas"
                         className={selectedHistoryItemId ? 'folded-canvas folded-canvas-selecting' : 'folded-canvas'}
                     />
+                    {showDiagonalMask && (
+                        <div
+                            className={`diagonal-invalid-region ${invalidMaskClass}`}
+                            aria-hidden="true"
+                        />
+                    )}
+                    {showFoldGuides && (
+                        <FoldGuideOverlay
+                            canvasDimensions={foldedCanvasDimensions}
+                            folds={folds}
+                            style={foldedGuideStyle}
+                        />
+                    )}
                     {selectionOverlayStyle && (
                         <div
                             className="selection-overlay"
@@ -139,12 +158,6 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                                 X
                             </button>
                         </div>
-                    )}
-                    {showDiagonalMask && (
-                        <div
-                            className={`diagonal-invalid-region ${invalidMaskClass}`}
-                            aria-hidden="true"
-                        />
                     )}
                 </div>
             </div>
@@ -173,17 +186,54 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         >
                             Download
                         </button>
+                        <button
+                            className="download-button"
+                            type="button"
+                            onClick={onToggleFoldGuides}
+                            aria-pressed={showFoldGuides}
+                            aria-label={showFoldGuides ? 'Hide fold guides' : 'Show fold guides'}
+                        >
+                            {showFoldGuides ? 'Hide guides' : 'Show guides'}
+                        </button>
                     </div>
                 </div>
-                <canvas 
-                    ref={unfoldedCanvasRef}
-                    width={canvasDimensions.width}
-                    height={canvasDimensions.height}
-                />
+                <div
+                    className="unfolded-canvas-frame"
+                    style={{ aspectRatio: `${canvasDimensions.width} / ${canvasDimensions.height}` }}
+                >
+                    <canvas
+                        ref={unfoldedCanvasRef}
+                        width={canvasDimensions.width}
+                        height={canvasDimensions.height}
+                    />
+                    {showFoldGuides && (
+                        <FoldGuideOverlay
+                            canvasDimensions={canvasDimensions}
+                            folds={folds}
+                            showGrid
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );
 };
+
+function getCanvasOverlayStyle(
+    frameDimensions: { width: number; height: number },
+    canvasDimensions: { width: number; height: number }
+): React.CSSProperties {
+    const frameRatio = frameDimensions.width / frameDimensions.height;
+    const canvasRatio = canvasDimensions.width / canvasDimensions.height;
+
+    if (canvasRatio >= frameRatio) {
+        const height = (frameRatio / canvasRatio) * 100;
+        return { width: '100%', height: `${height}%`, left: 0, top: `${(100 - height) / 2}%` };
+    }
+
+    const width = (canvasRatio / frameRatio) * 100;
+    return { width: `${width}%`, height: '100%', left: `${(100 - width) / 2}%`, top: 0 };
+}
 
 function getSelectionFrame(
     item: DrawableHistoryItem,

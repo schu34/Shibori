@@ -192,7 +192,8 @@ h1 {
     align-items: center;
 }
 
-.folded-canvas-frame {
+.folded-canvas-frame,
+.unfolded-canvas-frame {
     position: relative;
     width: 100%;
     max-width: 100%;
@@ -210,6 +211,30 @@ h1 {
     margin: 0;
 }
 
+.unfolded-canvas-frame canvas {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+.fold-guide-overlay {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+    overflow: visible;
+}
+
+.fold-guide-line {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.8);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.fold-guide-diagonal {
+    stroke-dasharray: 5 3;
+}
+
 .diagonal-invalid-region {
     position: absolute;
     inset: 1px;
@@ -224,6 +249,7 @@ h1 {
             rgba(255, 255, 255, 0.16) 12px
         ),
         rgba(7, 18, 34, 0.24);
+    z-index: 1;
 }
 
 .invalid-region-top-left {
@@ -317,6 +343,7 @@ canvas {
     box-shadow: 0 0 0 1px rgba(23, 32, 51, 0.35);
     pointer-events: none;
     box-sizing: border-box;
+    z-index: 3;
 }
 
 .selection-rotate-handle {

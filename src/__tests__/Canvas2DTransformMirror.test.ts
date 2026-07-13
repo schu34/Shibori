@@ -50,7 +50,7 @@ describe('CanvasMirror', () => {
       },
     };
 
-    renderUnfoldedCanvas(context, folds, { includeFoldLines: false });
+    renderUnfoldedCanvas(context, folds);
 
     const targetTransforms = recorderFor(unfoldedCanvas).transforms;
     expect(targetTransforms).toContainEqual([1, 0, 0, 1, 0, 0]);
@@ -85,7 +85,7 @@ describe('CanvasMirror', () => {
         count: 1,
         direction: 'topLeftToBottomRight',
       },
-    }, { includeFoldLines: false });
+    });
 
     expect(allRecorders.some((recorder) =>
       recorder.transforms.some((transform) =>

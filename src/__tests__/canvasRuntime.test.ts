@@ -32,7 +32,6 @@ function makeServices(order: string[]) {
   const services: CanvasTransactionServices = {
     clear: jest.fn(() => order.push('clear')),
     renderHistory: jest.fn(() => order.push('render')),
-    drawFoldedGuidance: jest.fn(() => order.push('guidance')),
     mirror: jest.fn(() => order.push('mirror')),
   };
   return services;
@@ -58,7 +57,7 @@ describe('canvas runtime transaction', () => {
       history: [makeDrawable()],
     }, services);
 
-    expect(order).toEqual(['clear', 'render', 'guidance', 'mirror']);
+    expect(order).toEqual(['clear', 'render', 'mirror']);
     expect(services.mirror).toHaveBeenCalledTimes(1);
   });
 
@@ -71,7 +70,7 @@ describe('canvas runtime transaction', () => {
       history: [makeDrawable(), { action: HistoryAction.Clear, points: [] }],
     }, services);
 
-    expect(order).toEqual(['clear', 'render', 'guidance']);
+    expect(order).toEqual(['clear', 'render']);
     expect(services.mirror).not.toHaveBeenCalled();
   });
 

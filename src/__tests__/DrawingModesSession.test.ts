@@ -25,7 +25,6 @@ function modeContext() {
     }),
     foldedCtx,
     getFoldedCanvasDimensions: () => ({ width: 200, height: 100 }),
-    drawDiagonalFoldLinesOnFolded: jest.fn(),
   };
   return { context, foldedCtx, snapshot };
 }

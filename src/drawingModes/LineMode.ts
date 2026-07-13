@@ -71,7 +71,6 @@ export class LineMode implements DrawingMode {
     const {
       getState,
       foldedCtx,
-      drawDiagonalFoldLinesOnFolded,
       foldedCanvas,
     } = context;
 
@@ -96,7 +95,6 @@ export class LineMode implements DrawingMode {
     foldedCtx.stroke();
     foldedCtx.restore();
 
-    drawDiagonalFoldLinesOnFolded();
     this.lastPoint = point;
     return true;
   }
@@ -109,7 +107,6 @@ export class LineMode implements DrawingMode {
       getState,
       foldedCtx,
       foldedCanvas,
-      drawDiagonalFoldLinesOnFolded,
     } = context;
 
     const { config, folds, lineThickness } = getState();
@@ -131,8 +128,6 @@ export class LineMode implements DrawingMode {
     foldedCtx.lineWidth = lineThickness;
     foldedCtx.stroke();
     foldedCtx.restore();
-
-    drawDiagonalFoldLinesOnFolded();
 
     // Reset state
     const startPoint = this.startPoint;

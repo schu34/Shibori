@@ -94,7 +94,7 @@ export abstract class DragShapeMode implements DrawingMode {
     endPoint: Point,
     alpha: number
   ): void {
-    const { getState, foldedCtx, foldedCanvas, drawDiagonalFoldLinesOnFolded } = context;
+    const { getState, foldedCtx, foldedCanvas } = context;
     const { config, folds, lineThickness } = getState();
 
     if (this.originalFoldedCanvasState) {
@@ -114,7 +114,6 @@ export abstract class DragShapeMode implements DrawingMode {
     this.drawShape(foldedCtx, startPoint, endPoint, this.getFillMode(context));
     foldedCtx.restore();
 
-    drawDiagonalFoldLinesOnFolded();
   }
 
   private getFillMode(context: DrawingModeContext): ShapeFillMode {

@@ -64,7 +64,7 @@ export function useCanvasDrawing(
     foldedCtxRef,
     getFoldedCanvasDimensions,
   } = canvasRefs;
-  const { drawDiagonalFoldedGuidance, scheduleUnfoldedUpdate } = runtime;
+  const { scheduleUnfoldedUpdate } = runtime;
 
   const createModeContext = useCallback((): DrawingModeContext | null => {
     const foldedCtx = foldedCtxRef.current;
@@ -74,9 +74,8 @@ export function useCanvasDrawing(
       foldedCtx,
       foldedCanvas: foldedCanvasRef.current ?? undefined,
       getFoldedCanvasDimensions,
-      drawDiagonalFoldLinesOnFolded: drawDiagonalFoldedGuidance,
     };
-  }, [drawDiagonalFoldedGuidance, foldedCanvasRef, foldedCtxRef, getFoldedCanvasDimensions, getState]);
+  }, [foldedCanvasRef, foldedCtxRef, getFoldedCanvasDimensions, getState]);
 
   const cancelDrawing = useCallback(() => {
     const session = sessionRef.current;

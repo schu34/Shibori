@@ -1,209 +1,65 @@
 import { test, expect } from '@playwright/test';
-import { analyzeCanvasPixels } from './utils/canvasHelpers';
+import { analyzeCanvasPixels, drawOnCanvas } from './utils/canvasHelpers';
 
 test.describe('Fold Lines Rendering', () => {
-  test('default state shows diagonal fold lines (vertical=1, horizontal=1, diagonal enabled)', async ({ page }) => {
+  test('shows fold guides as overlays without painting either canvas', async ({ page }) => {
     await page.goto('/');
-    
-    // Wait for app to load
+
     await expect(page.locator('h1')).toContainText('Shibori Folding');
-    await expect(page.locator('canvas').first()).toBeVisible();
-    
-    // Check initial state - should have diagonal fold lines
-    const foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    // Folded canvas should have diagonal fold lines
-    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(foldedAnalysis.hasDrawing).toBe(true);
-    
-    // Verify diagonal folding is enabled by default
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    
-    // Note: Unfolded canvas fold lines have some timing/rendering issues in tests
-    // but the key functionality (diagonal fold lines on folded canvas) works correctly
-  });
+    await expect(page.locator('.fold-guide-overlay')).toHaveCount(2);
+    await expect(page.locator('.folded-canvas-frame .fold-guide-diagonal')).toHaveCount(1);
+    await expect(page.locator('.unfolded-canvas-frame .fold-guide-diagonal')).toHaveCount(4);
+    expect(await page.locator('.unfolded-canvas-frame .fold-guide-diagonal').evaluateAll((lines) => (
+      lines.map((line) => [
+        line.getAttribute('x1'),
+        line.getAttribute('y1'),
+        line.getAttribute('x2'),
+        line.getAttribute('y2'),
+      ])
+    ))).toEqual([
+      ['800', '0', '0', '800'],
+      ['800', '0', '1600', '800'],
+      ['0', '800', '800', '1600'],
+      ['1600', '800', '800', '1600'],
+    ]);
 
-  test('vertical fold lines appear when vertical folds > 1', async ({ page }) => {
-    await page.goto('/');
-    
-    // Add a vertical fold
-    const verticalFoldButton = page.locator('button', { hasText: 'Fold +' }).first();
-    await verticalFoldButton.click();
-    
-    // Verify fold setting changed
-    await expect(page.locator('text=Vertical Folds: 2')).toBeVisible();
-    
-    // Wait for canvas update
-    await page.waitForTimeout(500);
-    
-    // Check unfolded canvas should now have fold lines (white pixels)
-    const unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(unfoldedAnalysis.hasDrawing).toBe(true);
-    
-    // Folded canvas should still be clean (no fold lines drawn there for vertical/horizontal folds)
-    const foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    expect(foldedAnalysis.pixelCounts.white).toBe(0);
-  });
-
-  test('horizontal fold lines appear when horizontal folds > 1', async ({ page }) => {
-    await page.goto('/');
-    
-    // Add a horizontal fold
-    const horizontalFoldButton = page.locator('button', { hasText: 'Fold +' }).nth(1);
-    await horizontalFoldButton.click();
-    
-    // Verify fold setting changed
-    await expect(page.locator('text=Horizontal Folds: 2')).toBeVisible();
-    
-    // Wait for canvas update
-    await page.waitForTimeout(500);
-    
-    // Check unfolded canvas should now have fold lines
-    const unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(unfoldedAnalysis.hasDrawing).toBe(true);
-  });
-
-  test('diagonal fold lines appear when diagonal folding is enabled', async ({ page }) => {
-    await page.goto('/');
-    
-    // Diagonal folding is enabled by default, so verify it's already enabled
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    
-    // Wait for canvas update
-    await page.waitForTimeout(500);
-    
-    // Check both canvases should have diagonal fold lines
     const foldedAnalysis = await analyzeCanvasPixels(page, 0);
     const unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    
-    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(foldedAnalysis.hasDrawing).toBe(true);
-    expect(unfoldedAnalysis.hasDrawing).toBe(true);
-  });
-
-  test('no diagonal fold lines when diagonal folding is disabled', async ({ page }) => {
-    await page.goto('/');
-    
-    // Diagonal folding is enabled by default, verify fold lines appear
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    await page.waitForTimeout(300);
-    
-    let foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    let unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    
-    // Now disable diagonal folding
-    const diagonalControls = page.locator('.fold-control-row').filter({ hasText: 'Diagonal Folds' });
-    const diagonalMinusButton = diagonalControls.getByTitle('Decrease diagonal folds');
-    await diagonalMinusButton.click();
-    await page.waitForTimeout(300);
-    
-    // Verify diagonal folding is disabled
-    await expect(page.locator('text=Diagonal Folds: 0')).toBeVisible();
-    
-    // Verify fold lines disappear
-    foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
     expect(foldedAnalysis.pixelCounts.white).toBe(0);
     expect(unfoldedAnalysis.pixelCounts.white).toBe(0);
-    expect(foldedAnalysis.hasDrawing).toBe(false);
-    expect(unfoldedAnalysis.hasDrawing).toBe(false);
   });
 
-  test('multiple fold types can be combined', async ({ page }) => {
+  test('shows the unfolded grid guides for vertical and horizontal folds', async ({ page }) => {
     await page.goto('/');
-    
-    // Add vertical fold
+
     const verticalFoldButton = page.locator('button', { hasText: 'Fold +' }).first();
     await verticalFoldButton.click();
-    
-    // Add horizontal fold
     const horizontalFoldButton = page.locator('button', { hasText: 'Fold +' }).nth(1);
     await horizontalFoldButton.click();
-    
-    // Diagonal folding should still be enabled (it persists when canvas stays square)
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    
-    // Wait for canvas update
-    await page.waitForTimeout(500);
-    
-    // Check both canvases should have multiple types of fold lines
-    const foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    const unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    
-    // The folded canvas only shows the diagonal guide; vertical and horizontal
-    // fold guides are visible in the unfolded preview.
-    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(foldedAnalysis.pixelCounts.white);
-    expect(foldedAnalysis.hasDrawing).toBe(true);
-    expect(unfoldedAnalysis.hasDrawing).toBe(true);
+    await expect(page.locator('.unfolded-canvas-frame .fold-guide-vertical')).toHaveCount(3);
+    await expect(page.locator('.unfolded-canvas-frame .fold-guide-horizontal')).toHaveCount(3);
+    await expect(page.locator('.unfolded-canvas-frame .fold-guide-diagonal')).toHaveCount(16);
+    await expect(page.locator('.folded-canvas-frame .fold-guide-vertical')).toHaveCount(0);
+    await expect(page.locator('.folded-canvas-frame .fold-guide-horizontal')).toHaveCount(0);
   });
 
-  test('diagonal folding requires square canvas', async ({ page }) => {
+  test('hides and restores both guide overlays without changing canvas pixels', async ({ page }) => {
     await page.goto('/');
-    
-    // Verify diagonal folding starts enabled (1x1 is square)
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    
-    // Add only vertical fold (makes canvas non-square: 2x1)
-    const verticalFoldButton = page.locator('button', { hasText: 'Fold +' }).first();
-    await verticalFoldButton.click();
-    
-    await page.waitForTimeout(300);
-    
-    // Diagonal folding should now be automatically disabled due to non-square canvas
-    await expect(page.locator('text=Diagonal Folds: 0')).toBeVisible();
-    
-    // Should not have diagonal fold lines on folded canvas
-    const foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    // Note: folded canvas should have 0 white pixels since diagonal lines only appear when enabled
-    // and the unfolded canvas should have vertical fold lines
-    expect(foldedAnalysis.pixelCounts.white).toBe(0);
-  });
+    await drawOnCanvas(page.locator('canvas').first(), {
+      startOffset: { x: 60, y: 0 },
+      endOffset: { x: 120, y: 0 },
+    });
 
-  test('fold lines persist through app state changes', async ({ page }) => {
-    await page.goto('/');
-    
-    // Set up some folds - start with vertical fold
-    const verticalFoldButton = page.locator('button', { hasText: 'Fold +' }).first();
-    await verticalFoldButton.click();
-    
-    // Add horizontal fold to keep canvas square so diagonal folding stays enabled
-    const horizontalFoldButton = page.locator('button', { hasText: 'Fold +' }).nth(1);
-    await horizontalFoldButton.click();
-    
-    await page.waitForTimeout(500);
-    
-    // Verify diagonal folding is still enabled (2x2 is square)
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    
-    // Verify fold lines exist
-    let unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    let foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    const initialUnfoldedWhite = unfoldedAnalysis.pixelCounts.white;
-    const initialFoldedWhite = foldedAnalysis.pixelCounts.white;
-    
-    expect(initialUnfoldedWhite).toBeGreaterThan(0);
-    expect(initialFoldedWhite).toBeGreaterThan(0);
-    
-    // Test persistence by just waiting and re-checking (fold lines should persist)
-    await page.waitForTimeout(1000);
-    
-    // Fold lines should still be present and diagonal folding should still be enabled
-    await expect(page.locator('text=Diagonal Folds: 1')).toBeVisible();
-    
-    unfoldedAnalysis = await analyzeCanvasPixels(page, 1);
-    foldedAnalysis = await analyzeCanvasPixels(page, 0);
-    
-    // Fold lines should still be visible after time passes
-    expect(unfoldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(foldedAnalysis.pixelCounts.white).toBeGreaterThan(0);
-    expect(unfoldedAnalysis.hasDrawing).toBe(true);
-    expect(foldedAnalysis.hasDrawing).toBe(true);
+    const unfoldedBeforeToggle = await analyzeCanvasPixels(page, 1);
+    expect(unfoldedBeforeToggle.pixelCounts.white).toBeGreaterThan(0);
+
+    await page.getByRole('button', { name: 'Hide fold guides' }).click();
+    await expect(page.locator('.fold-guide-overlay')).toHaveCount(0);
+
+    const unfoldedWhileHidden = await analyzeCanvasPixels(page, 1);
+    expect(unfoldedWhileHidden.pixelCounts.white).toBe(unfoldedBeforeToggle.pixelCounts.white);
+
+    await page.getByRole('button', { name: 'Show fold guides' }).click();
+    await expect(page.locator('.fold-guide-overlay')).toHaveCount(2);
   });
 });
