@@ -117,6 +117,33 @@ describe("pointer canvas input", () => {
     expect(canvas.releasePointerCapture).toHaveBeenCalledWith(7);
   });
 
+  test("commits the last preview when capture is lost after release", () => {
+    const operations = callbacks();
+    const { container } = render(<Harness operations={operations} />);
+    const canvas = container.querySelector("canvas")!;
+    prepareCanvas(canvas);
+
+    fireEvent(canvas, pointerEvent("pointerdown", { ...primary, buttons: 1, clientX: 60, clientY: 45 }));
+    fireEvent(canvas, pointerEvent("pointermove", { ...primary, buttons: 1, clientX: 70, clientY: 50 }));
+    fireEvent(canvas, pointerEvent("lostpointercapture", { ...primary, buttons: 0 }));
+
+    expect(operations.endDrawing).toHaveBeenCalledWith(null);
+    expect(operations.cancelDrawing).not.toHaveBeenCalled();
+  });
+
+  test("cancels when capture is lost before the pointer is released", () => {
+    const operations = callbacks();
+    const { container } = render(<Harness operations={operations} />);
+    const canvas = container.querySelector("canvas")!;
+    prepareCanvas(canvas);
+
+    fireEvent(canvas, pointerEvent("pointerdown", { ...primary, buttons: 1, clientX: 60, clientY: 45 }));
+    fireEvent(canvas, pointerEvent("lostpointercapture", { ...primary, buttons: 1 }));
+
+    expect(operations.cancelDrawing).toHaveBeenCalledTimes(1);
+    expect(operations.endDrawing).not.toHaveBeenCalled();
+  });
+
   test("keyboard selection actions remain available", () => {
     const operations = callbacks();
     const { container } = render(<Harness operations={operations} />);

@@ -113,8 +113,18 @@ export function useCanvasEvents(
     if (activePointerIdRef.current !== event.pointerId) return;
     activePointerIdRef.current = null;
     logger.canvas.event("lostPointerCapture");
+
+    // Browsers can drop capture after the pointer has already been released
+    // without delivering the corresponding pointerup to this canvas (for
+    // example, when the release happens outside the browser surface). Preserve
+    // the preview in that case by committing its last known point. A capture
+    // loss while a button is still held remains a cancellation.
+    if (event.buttons === 0) {
+      endDrawing(null);
+      return;
+    }
     cancelDrawing();
-  }, [cancelDrawing]);
+  }, [cancelDrawing, endDrawing]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
     const step = event.shiftKey ? 10 : 1;
