@@ -39,11 +39,9 @@ export interface DrawingModeContext {
 
 export interface BezierDrawingGuidance {
     kind: 'bezier';
-    startAnchor: Point;
-    firstControl: Point;
-    endAnchor?: Point;
-    secondControl?: Point;
-    endHandle?: Point;
+    path: BezierPath;
+    hoverPoint?: Point;
+    activeHandle?: Point;
 }
 
 export type DrawingGuidance = BezierDrawingGuidance;
@@ -53,7 +51,23 @@ export type DrawingModeResult =
     | { status: 'commit'; item: UndoableHistoryItem }
     | { status: 'discard' };
 
-export type DrawableDrawingTool = Exclude<DrawingTool, DrawingTool.SelectMove>;
+export type DrawableDrawingTool = Exclude<DrawingTool, DrawingTool.SelectMove | DrawingTool.DirectSelect>;
+export type PointDrawingTool = Exclude<DrawableDrawingTool, DrawingTool.Bezier>;
+
+export type BezierAnchorKind = 'corner' | 'smooth';
+
+export interface BezierAnchor {
+    id: string;
+    point: Point;
+    inHandle: Point | null;
+    outHandle: Point | null;
+    kind: BezierAnchorKind;
+}
+
+export interface BezierPath {
+    anchors: BezierAnchor[];
+    closed: boolean;
+}
 
 /**
  * Rendering values captured when a drawable is committed. Keeping these values
@@ -65,16 +79,37 @@ export interface DrawingStyle {
     shapeFillMode?: ShapeFillMode;
 }
 
-export interface DrawableHistoryItem {
+interface DrawableHistoryBase {
     id?: string;
-    action: DrawableDrawingTool;
-    points: Point[];
     style?: DrawingStyle;
     /** @deprecated Read only for legacy, unversioned history. Use style.shapeFillMode. */
     shapeFillMode?: ShapeFillMode;
     rotation?: number;
     rotationCenter?: Point;
 }
+
+export interface PointDrawableHistoryItem extends DrawableHistoryBase {
+    action: PointDrawingTool;
+    points: Point[];
+    path?: never;
+}
+
+export interface BezierPathHistoryItem extends DrawableHistoryBase {
+    action: DrawingTool.Bezier;
+    points: Point[];
+    path: BezierPath;
+}
+
+export interface LegacyBezierHistoryItem extends DrawableHistoryBase {
+    action: DrawingTool.Bezier;
+    points: Point[];
+    path?: never;
+}
+
+export type DrawableHistoryItem =
+    | PointDrawableHistoryItem
+    | BezierPathHistoryItem
+    | LegacyBezierHistoryItem;
 
 export interface ClearHistoryItem {
     id?: never;
@@ -102,6 +137,15 @@ export interface DeleteHistoryItem {
     itemId: string;
 }
 
+export interface UpdatePathHistoryItem {
+    id?: never;
+    action: HistoryAction.UpdatePath;
+    points: [];
+    itemId: string;
+    fromPath: BezierPath;
+    toPath: BezierPath;
+}
+
 /**
  * The persisted operation log. Each action now exposes only the fields that are
  * meaningful for that command, while retaining the historical `points: []`
@@ -111,11 +155,14 @@ export type UndoableHistoryItem =
     | DrawableHistoryItem
     | ClearHistoryItem
     | TransformHistoryItem
-    | DeleteHistoryItem;
+    | DeleteHistoryItem
+    | UpdatePathHistoryItem;
 
 export interface DrawingMode {
     start: (point: Point, context: DrawingModeContext) => void;
     continue: (point: Point, context: DrawingModeContext) => boolean;
     end: (point: Point | null, context: DrawingModeContext) => DrawingModeResult;
     cancel: (context: DrawingModeContext) => void;
+    hover?: (point: Point, context: DrawingModeContext) => boolean;
+    finish?: (context: DrawingModeContext) => DrawingModeResult;
 } 

@@ -157,7 +157,7 @@ describe('ToolControls Component', () => {
         });
     });
 
-    test('bezier shows line thickness without shape fill controls', () => {
+    test('bezier shows line thickness and closed-path fill controls', () => {
         jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => ({
             ...mockState,
             currentTool: DrawingTool.Bezier
@@ -166,7 +166,7 @@ describe('ToolControls Component', () => {
         renderWithRedux(<ToolControls />);
 
         expect(screen.getByText('Line Thickness:')).toBeInTheDocument();
-        expect(screen.queryByText('Shape Fill:')).not.toBeInTheDocument();
+        expect(screen.getByText('Shape Fill:')).toBeInTheDocument();
     });
 
 }); 

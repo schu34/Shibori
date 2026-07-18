@@ -3,6 +3,7 @@ import { CanvasService } from "../services/CanvasService";
 import { AppConfig, DrawingTool, FoldState, ShapeFillMode } from "../types";
 import { DrawableHistoryItem } from "./historyOperations";
 import { getBoundsCenter, getRectBounds, getSquareEndPoint } from "./geometryMath";
+import { legacyPointsToPath, traceBezierPath } from "./bezierPath";
 
 export interface HistoryRenderOptions {
   config: AppConfig;
@@ -209,22 +210,18 @@ function renderBezier(
   item: DrawableHistoryItem,
   options: HistoryRenderOptions
 ): void {
-  if (item.points.length !== 4) return;
-  ctx.beginPath();
-  ctx.moveTo(item.points[0].x, item.points[0].y);
-  ctx.bezierCurveTo(
-    item.points[1].x,
-    item.points[1].y,
-    item.points[2].x,
-    item.points[2].y,
-    item.points[3].x,
-    item.points[3].y
-  );
+  const path = item.action === DrawingTool.Bezier
+    ? item.path ?? legacyPointsToPath(item.points, item.id)
+    : null;
+  if (!path) return;
+  traceBezierPath(ctx, path);
   ctx.strokeStyle = getColor(item, options);
   ctx.lineWidth = getLineThickness(item, options);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.stroke();
+  ctx.fillStyle = getColor(item, options);
+  if (path.closed && getShapeFillMode(item, options) === ShapeFillMode.Filled) ctx.fill();
+  else ctx.stroke();
 }
 
 function getLineThickness(item: DrawableHistoryItem, options: HistoryRenderOptions): number {

@@ -1,17 +1,19 @@
 import { DrawingTool, HistoryAction, ShapeFillMode } from '../types';
 import {
   DrawableHistoryItem as DrawableCommand,
+  PointDrawingTool,
   UndoableHistoryItem,
 } from '../types/DrawingMode';
 import {
   ensureHistoryItemIds,
   materializeDrawableStyles,
   resolveScene,
+  createUpdatePathHistoryItem,
 } from '../utils/historyOperations';
 
 const draw = (
   id: string | undefined,
-  action: DrawableCommand['action'] = DrawingTool.Paintbrush,
+  action: PointDrawingTool = DrawingTool.Paintbrush,
   x = 0
 ): DrawableCommand => ({
   ...(id ? { id } : {}),
@@ -111,5 +113,38 @@ describe('history domain operations', () => {
     expect(materialized[1]).toEqual(expect.objectContaining({
       style: { lineThickness: 7, color: 'red', shapeFillMode: ShapeFillMode.Filled },
     }));
+  });
+
+  test('normalizes legacy bezier points and replays one undoable path update', () => {
+    const legacy: UndoableHistoryItem = {
+      id: 'curve',
+      action: DrawingTool.Bezier,
+      points: [{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 0 }],
+    };
+    const normalized = resolveScene([legacy])[0];
+    expect(normalized.action).toBe(DrawingTool.Bezier);
+    if (normalized.action !== DrawingTool.Bezier || !normalized.path) throw new Error('Missing path');
+    const nextPath = {
+      ...normalized.path,
+      anchors: normalized.path.anchors.map((anchor, index) => index === 0
+        ? { ...anchor, point: { x: 10, y: 20 } }
+        : anchor),
+    };
+    const update = createUpdatePathHistoryItem('curve', normalized.path, nextPath);
+
+    expect(resolveScene([legacy, update])[0]).toEqual(expect.objectContaining({ path: nextPath }));
+    expect(resolveScene([legacy])[0]).toEqual(expect.objectContaining({ path: normalized.path }));
+  });
+
+  test('preserves transforms following a legacy four-point bezier command', () => {
+    const fromPoints = [{ x: 0, y: 0 }, { x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 0 }];
+    const toPoints = fromPoints.map((point) => ({ x: point.x + 25, y: point.y + 10 }));
+    const scene = resolveScene([
+      { id: 'curve', action: DrawingTool.Bezier, points: fromPoints },
+      { action: HistoryAction.Move, points: [], itemId: 'curve', fromPoints, toPoints },
+    ]);
+
+    expect(scene[0].action === DrawingTool.Bezier ? scene[0].path?.anchors.map((anchor) => anchor.point) : null)
+      .toEqual([{ x: 25, y: 10 }, { x: 125, y: 10 }]);
   });
 });

@@ -3,11 +3,15 @@ import {
   DrawableDrawingTool,
   DrawableHistoryItem as DrawableCommand,
   DrawingStyle,
+  BezierPath,
+  BezierPathHistoryItem,
   Point,
   TransformHistoryItem,
+  UpdatePathHistoryItem,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
 import { rotatePoints, translatePoint, translatePoints } from "./geometryMath";
+import { cloneBezierPath, legacyPointsToPath, rotateBezierPath, translateBezierPath } from "./bezierPath";
 
 export type DrawableHistoryItem = DrawableCommand & {
   id: string;
@@ -50,16 +54,18 @@ export function ensureHistoryItemIds(history: UndoableHistoryItem[]): UndoableHi
     const existingId = typeof item.id === "string" && item.id.length > 0 ? item.id : null;
     if (existingId && !usedIds.has(existingId)) {
       usedIds.add(existingId);
-      return item;
+      const normalized = normalizeBezierCommand(item, existingId);
+      if (normalized !== item) changed = true;
+      return normalized;
     }
 
     const id = createHistoryItemId(usedIds, index);
     usedIds.add(id);
     changed = true;
-    return {
+    return normalizeBezierCommand({
       ...item,
       id,
-    };
+    }, id);
   });
 
   return changed ? normalizedHistory : history;
@@ -80,10 +86,10 @@ export function assignHistoryItemId(
   );
   const id = createHistoryItemId(usedIds, history.length);
 
-  return {
+  return normalizeBezierCommand({
     ...item,
     id,
-  };
+  }, id);
 }
 
 /**
@@ -132,6 +138,11 @@ export function resolveScene(history: UndoableHistoryItem[]): DrawableHistoryIte
       continue;
     }
 
+    if (item.action === HistoryAction.UpdatePath) {
+      applyUpdatePathOperation(drawables, item);
+      continue;
+    }
+
     if (isDrawableHistoryItem(item)) {
       drawables.push(cloneDrawable(item));
     }
@@ -174,8 +185,12 @@ export function createRotateHistoryItem(
   item: DrawableHistoryItem,
   angleRadians: number,
   center: Point
-): TransformHistoryItem {
+): TransformHistoryItem | UpdatePathHistoryItem {
   const rotatedItem = getRotatedHistoryItemPreview(item, angleRadians, center);
+
+  if (item.action === DrawingTool.Bezier && rotatedItem.action === DrawingTool.Bezier && item.path && rotatedItem.path) {
+    return createUpdatePathHistoryItem(item.id, item.path, rotatedItem.path);
+  }
 
   return {
     action: HistoryAction.Rotate,
@@ -202,6 +217,9 @@ export function getTranslatedHistoryItemPreview(
   item: DrawableHistoryItem,
   delta: Point
 ): DrawableHistoryItem {
+  if (item.action === DrawingTool.Bezier && item.path) {
+    return { ...item, points: [], path: translateBezierPath(item.path, delta) };
+  }
   return {
     ...item,
     points: translatePoints(item.points, delta),
@@ -216,6 +234,9 @@ export function getRotatedHistoryItemPreview(
   angleRadians: number,
   center: Point
 ): DrawableHistoryItem {
+  if (item.action === DrawingTool.Bezier && item.path) {
+    return { ...item, points: [], path: rotateBezierPath(item.path, center, angleRadians) };
+  }
   if (usesRotationMetadata(item.action)) {
     return {
       ...item,
@@ -230,17 +251,40 @@ export function getRotatedHistoryItemPreview(
   };
 }
 
+export function createUpdatePathHistoryItem(
+  itemId: string,
+  fromPath: BezierPath,
+  toPath: BezierPath
+): UpdatePathHistoryItem {
+  return {
+    action: HistoryAction.UpdatePath,
+    itemId,
+    points: [],
+    fromPath: cloneBezierPath(fromPath),
+    toPath: cloneBezierPath(toPath),
+  };
+}
+
 function applyTransformOperation(drawables: DrawableHistoryItem[], operation: TransformHistoryItem): void {
   const index = drawables.findIndex((item) => item.id === operation.itemId);
   if (index === -1) return;
 
+  const item = drawables[index];
+  if (item.action === DrawingTool.Bezier && item.path) {
+    const transformedPath = legacyPointsToPath(operation.toPoints, item.id);
+    if (transformedPath) {
+      drawables[index] = { ...item, points: [], path: transformedPath };
+    }
+    return;
+  }
+
   drawables[index] = {
-    ...drawables[index],
+    ...item,
     points: operation.toPoints.map(clonePoint),
-    rotation: operation.toRotation ?? drawables[index].rotation,
+    rotation: operation.toRotation ?? item.rotation,
     rotationCenter: operation.toRotationCenter
       ? clonePoint(operation.toRotationCenter)
-      : drawables[index].rotationCenter,
+      : item.rotationCenter,
   };
 }
 
@@ -249,6 +293,13 @@ function applyDeleteOperation(drawables: DrawableHistoryItem[], itemId: string):
   if (index !== -1) {
     drawables.splice(index, 1);
   }
+}
+
+function applyUpdatePathOperation(drawables: DrawableHistoryItem[], operation: UpdatePathHistoryItem): void {
+  const index = drawables.findIndex((item) => item.id === operation.itemId);
+  const item = drawables[index];
+  if (index === -1 || item.action !== DrawingTool.Bezier) return;
+  drawables[index] = { ...item, points: [], path: cloneBezierPath(operation.toPath) };
 }
 
 function usesRotationMetadata(action: DrawableHistoryItem["action"]): boolean {
@@ -260,7 +311,8 @@ function usesRotationMetadata(action: DrawableHistoryItem["action"]): boolean {
 function isShapeAction(action: DrawableHistoryItem["action"]): boolean {
   return action === DrawingTool.Rectangle ||
     action === DrawingTool.Square ||
-    action === DrawingTool.Circle;
+    action === DrawingTool.Circle ||
+    action === DrawingTool.Bezier;
 }
 
 function createHistoryItemId(usedIds: Set<string>, preferredIndex: number): string {
@@ -276,12 +328,28 @@ function createHistoryItemId(usedIds: Set<string>, preferredIndex: number): stri
 }
 
 function cloneDrawable(item: DrawableHistoryItem): DrawableHistoryItem {
+  if (item.action === DrawingTool.Bezier && item.path) {
+    return {
+      ...item,
+      points: [],
+      path: cloneBezierPath(item.path),
+      style: item.style ? { ...item.style } : undefined,
+      rotationCenter: item.rotationCenter ? clonePoint(item.rotationCenter) : undefined,
+    };
+  }
   return {
     ...item,
     points: item.points.map(clonePoint),
     style: item.style ? { ...item.style } : undefined,
     rotationCenter: item.rotationCenter ? clonePoint(item.rotationCenter) : undefined,
   };
+}
+
+function normalizeBezierCommand(item: DrawableCommand, id: string): DrawableCommand {
+  if (item.action !== DrawingTool.Bezier || item.path) return item;
+  const path = legacyPointsToPath(item.points, id);
+  if (!path) return item;
+  return { ...item, points: [], path } as BezierPathHistoryItem;
 }
 
 function clonePoint(point: Point): Point {

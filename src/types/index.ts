@@ -27,14 +27,16 @@ export enum DrawingTool {
     Square = 'square',
     Circle = 'circle',
     Bezier = 'bezier',
-    SelectMove = 'selectMove'
+    SelectMove = 'selectMove',
+    DirectSelect = 'directSelect'
 } 
 
 export enum HistoryAction {
     Clear = 'clear',
     Move = 'move',
     Rotate = 'rotate',
-    Delete = 'delete'
+    Delete = 'delete',
+    UpdatePath = 'updatePath'
 }
 
 export enum ShapeFillMode {

@@ -253,6 +253,84 @@ h1 {
   fill: #ff8c42;
 }
 
+.path-edit-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.path-edit-guide-line {
+  stroke: #ffd60a;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.path-edit-anchor,
+.path-edit-handle {
+  fill: #ffd60a;
+  stroke: #101828;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.path-edit-anchor-selected {
+  fill: #ff7a00;
+}
+
+.path-edit-handle {
+  fill: #ff2d55;
+}
+
+.path-construction-actions,
+.path-edit-actions {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 7;
+  display: flex;
+  gap: 6px;
+}
+
+.path-action-button {
+  padding: 8px 12px;
+  border: 2px solid #101828;
+  border-radius: 7px;
+  color: #101828;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45);
+}
+
+.path-action-primary {
+  background: #ffd60a;
+}
+
+.path-action-primary:hover,
+.path-action-primary:focus-visible {
+  background: #fff09a;
+}
+
+.path-action-secondary {
+  background: #fff;
+}
+
+.path-action-secondary:hover,
+.path-action-secondary:focus-visible {
+  background: #e8eef7;
+}
+
+.path-action-danger {
+  border-color: #fff;
+  background: #dc2626;
+  color: #fff;
+}
+
+.path-action-danger:hover,
+.path-action-danger:focus-visible {
+  background: #b91c1c;
+}
+
 .fold-guide-line {
     fill: none;
     stroke: rgba(255, 255, 255, 0.8);

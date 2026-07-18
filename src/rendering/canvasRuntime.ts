@@ -2,6 +2,8 @@ import { CanvasContext, CanvasService } from '../services/CanvasService';
 import { State } from '../store/shiboriCanvasState';
 import { HistoryAction } from '../types';
 import { Point } from '../types/DrawingMode';
+import { BezierPath } from '../types/DrawingMode';
+import { DrawingTool } from '../types';
 import {
   buildDrawableHistory,
   getRotatedHistoryItemPreview,
@@ -25,6 +27,7 @@ export interface CanvasPreview {
   selectedHistoryItemId: string | null;
   selectionDragDelta: Point | null;
   selectionRotationPreview: { angle: number; center: Point } | null;
+  pathEditPreview?: { itemId: string; path: BezierPath } | null;
 }
 
 export interface CanvasTransactionState {
@@ -103,6 +106,11 @@ export function renderCanvasTransaction(
       }
       return item;
     });
+  }
+  if (preview?.pathEditPreview) {
+    drawables = drawables.map((item) => item.id === preview.pathEditPreview!.itemId && item.action === DrawingTool.Bezier
+      ? { ...item, points: [], path: preview.pathEditPreview!.path }
+      : item);
   }
 
   services.renderHistory(context.foldedCtx, context.foldedCanvas, drawables, {

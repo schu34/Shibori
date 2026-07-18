@@ -1,6 +1,6 @@
 import type { UnknownAction } from '@reduxjs/toolkit';
 import { AppConfig, DrawingTool, ShapeFillMode, FoldState, DiagonalDirection, HistoryAction } from '../types';
-import { Point, UndoableHistoryItem } from '../types/DrawingMode';
+import { BezierPath, Point, UndoableHistoryItem } from '../types/DrawingMode';
 import {
     normalizeSerializableStateFromUnknown
 } from '../utils/urlStateUtils';
@@ -33,6 +33,9 @@ export interface State {
     selectedHistoryItemId: string | null;
     selectionDragDelta: { x: number; y: number } | null;
     selectionRotationPreview: { angle: number; center: Point } | null;
+    selectedPathAnchorIds?: string[];
+    selectedPathHandle?: { anchorId: string; side: 'in' | 'out' } | null;
+    pathEditPreview?: { itemId: string; path: BezierPath } | null;
 }
 
 // Initial state
@@ -58,7 +61,10 @@ export const initialState: State = {
     history: [],
     selectedHistoryItemId: null,
     selectionDragDelta: null,
-    selectionRotationPreview: null
+    selectionRotationPreview: null,
+    selectedPathAnchorIds: [],
+    selectedPathHandle: null,
+    pathEditPreview: null,
 };
 
 // Action types enum
@@ -78,6 +84,9 @@ export enum ActionType {
     SET_SELECTED_HISTORY_ITEM_ID = 'SET_SELECTED_HISTORY_ITEM_ID',
     SET_SELECTION_DRAG_DELTA = 'SET_SELECTION_DRAG_DELTA',
     SET_SELECTION_ROTATION_PREVIEW = 'SET_SELECTION_ROTATION_PREVIEW',
+    SET_SELECTED_PATH_ANCHOR_IDS = 'SET_SELECTED_PATH_ANCHOR_IDS',
+    SET_SELECTED_PATH_HANDLE = 'SET_SELECTED_PATH_HANDLE',
+    SET_PATH_EDIT_PREVIEW = 'SET_PATH_EDIT_PREVIEW',
     CLEAR_SELECTION = 'CLEAR_SELECTION',
     LOAD_STATE_FROM_URL = 'LOAD_STATE_FROM_URL',
     RESET_TO_INITIAL = 'RESET_TO_INITIAL'
@@ -100,6 +109,9 @@ export type Action =
     | { type: ActionType.SET_SELECTED_HISTORY_ITEM_ID, payload: string | null }
     | { type: ActionType.SET_SELECTION_DRAG_DELTA, payload: { x: number; y: number } | null }
     | { type: ActionType.SET_SELECTION_ROTATION_PREVIEW, payload: { angle: number; center: Point } | null }
+    | { type: ActionType.SET_SELECTED_PATH_ANCHOR_IDS, payload: string[] }
+    | { type: ActionType.SET_SELECTED_PATH_HANDLE, payload: { anchorId: string; side: 'in' | 'out' } | null }
+    | { type: ActionType.SET_PATH_EDIT_PREVIEW, payload: { itemId: string; path: BezierPath } | null }
     | { type: ActionType.CLEAR_SELECTION }
     | { type: ActionType.LOAD_STATE_FROM_URL, payload: SerializableState }
     | { type: ActionType.RESET_TO_INITIAL };
@@ -137,14 +149,20 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
             newState = { ...state, shapeFillMode: action.payload };
             break;
         case ActionType.SET_CURRENT_TOOL:
+        {
+            const keepsWholeSelection = action.payload === DrawingTool.SelectMove || action.payload === DrawingTool.DirectSelect;
             newState = {
                 ...state,
                 currentTool: action.payload,
-                selectedHistoryItemId: action.payload === DrawingTool.SelectMove ? state.selectedHistoryItemId : null,
+                selectedHistoryItemId: keepsWholeSelection ? state.selectedHistoryItemId : null,
                 selectionDragDelta: action.payload === DrawingTool.SelectMove ? state.selectionDragDelta : null,
-                selectionRotationPreview: action.payload === DrawingTool.SelectMove ? state.selectionRotationPreview : null
+                selectionRotationPreview: action.payload === DrawingTool.SelectMove ? state.selectionRotationPreview : null,
+                selectedPathAnchorIds: action.payload === DrawingTool.DirectSelect ? state.selectedPathAnchorIds : [],
+                selectedPathHandle: null,
+                pathEditPreview: null,
             };
             break;
+        }
         case ActionType.UPDATE_FOLD: {
             const maxFolds = state.config?.maxFolds || 3;
             const currentValue = state.folds[action.payload.axis];
@@ -278,7 +296,12 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
                     ? null
                     : state.selectedHistoryItemId,
                 selectionDragDelta: null,
-                selectionRotationPreview: null
+                selectionRotationPreview: null,
+                selectedPathAnchorIds: action.payload.action === HistoryAction.UpdatePath
+                    ? state.selectedPathAnchorIds ?? []
+                    : [],
+                selectedPathHandle: null,
+                pathEditPreview: null,
             };
             break;
         case ActionType.UNDO:
@@ -286,7 +309,10 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
                 ...state,
                 history: state.history.slice(0, -1),
                 selectionDragDelta: null,
-                selectionRotationPreview: null
+                selectionRotationPreview: null,
+                selectedPathAnchorIds: [],
+                selectedPathHandle: null,
+                pathEditPreview: null,
             };
             break;
         case ActionType.SET_SELECTED_HISTORY_ITEM_ID:
@@ -311,12 +337,24 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
                 selectionRotationPreview: action.payload
             };
             break;
+        case ActionType.SET_SELECTED_PATH_ANCHOR_IDS:
+            newState = { ...state, selectedPathAnchorIds: action.payload, selectedPathHandle: null };
+            break;
+        case ActionType.SET_SELECTED_PATH_HANDLE:
+            newState = { ...state, selectedPathHandle: action.payload };
+            break;
+        case ActionType.SET_PATH_EDIT_PREVIEW:
+            newState = { ...state, pathEditPreview: action.payload };
+            break;
         case ActionType.CLEAR_SELECTION:
             newState = {
                 ...state,
                 selectedHistoryItemId: null,
                 selectionDragDelta: null,
-                selectionRotationPreview: null
+                selectionRotationPreview: null,
+                selectedPathAnchorIds: [],
+                selectedPathHandle: null,
+                pathEditPreview: null,
             };
             break;
         case ActionType.LOAD_STATE_FROM_URL: {
@@ -347,7 +385,10 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
                 currentTool: loadedState.currentTool,
                 selectedHistoryItemId: null,
                 selectionDragDelta: null,
-                selectionRotationPreview: null
+                selectionRotationPreview: null,
+                selectedPathAnchorIds: [],
+                selectedPathHandle: null,
+                pathEditPreview: null,
             };
             
             logger.redux.action('LOAD_STATE_FROM_URL result', {
@@ -375,6 +416,9 @@ export function reducer(state: State = initialState, reduxAction: Action | Unkno
             selectedHistoryItemId: null,
             selectionDragDelta: null,
             selectionRotationPreview: null,
+            selectedPathAnchorIds: [],
+            selectedPathHandle: null,
+            pathEditPreview: null,
         };
     }
 

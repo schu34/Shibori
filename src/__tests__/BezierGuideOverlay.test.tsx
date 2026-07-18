@@ -9,11 +9,13 @@ describe('BezierGuideOverlay', () => {
         canvasDimensions={{ width: 200, height: 100 }}
         guidance={{
           kind: 'bezier',
-          startAnchor: { x: 10, y: 20 },
-          firstControl: { x: 30, y: 40 },
-          endAnchor: { x: 100, y: 20 },
-          secondControl: { x: 80, y: 0 },
-          endHandle: { x: 120, y: 40 },
+          path: {
+            closed: false,
+            anchors: [
+              { id: 'a', point: { x: 10, y: 20 }, inHandle: null, outHandle: { x: 30, y: 40 }, kind: 'corner' },
+              { id: 'b', point: { x: 100, y: 20 }, inHandle: { x: 80, y: 0 }, outHandle: { x: 120, y: 40 }, kind: 'smooth' },
+            ],
+          },
         }}
       />
     );

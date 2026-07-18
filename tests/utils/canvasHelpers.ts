@@ -193,7 +193,7 @@ export async function drawOnCanvas(
  */
 export async function selectDrawingTool(
   page: Page,
-  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle' | 'bezier' | 'selectMove'
+  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle' | 'bezier' | 'selectMove' | 'directSelect'
 ): Promise<void> {
   const toolInput = page.locator(`input[value="${tool}"]`);
   await toolInput.check();
@@ -226,6 +226,7 @@ export async function drawBezierOnCanvas(
 
   await dragPointer(page, center, startAnchor, firstHandle);
   await dragPointer(page, center, endAnchor, endHandle);
+  await page.getByRole('button', { name: 'Finish Path' }).click();
 }
 
 async function dragPointer(

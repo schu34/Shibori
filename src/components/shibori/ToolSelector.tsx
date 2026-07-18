@@ -32,6 +32,16 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool }) => {
                     <input
                         type="radio"
                         name="drawingTool"
+                        value={DrawingTool.DirectSelect}
+                        checked={currentTool === DrawingTool.DirectSelect}
+                        onChange={() => handleToolChange(DrawingTool.DirectSelect)}
+                    />
+                    Direct Selection
+                </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="drawingTool"
                         value={DrawingTool.Line}
                         checked={currentTool === DrawingTool.Line}
                         onChange={() => handleToolChange(DrawingTool.Line)}

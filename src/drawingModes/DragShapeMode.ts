@@ -2,7 +2,7 @@ import {
   DrawingMode,
   DrawingModeContext,
   DrawingModeResult,
-  DrawableDrawingTool,
+  PointDrawingTool,
   Point,
 } from "../types/DrawingMode";
 import { ShapeFillMode } from "../types";
@@ -14,7 +14,7 @@ export abstract class DragShapeMode implements DrawingMode {
   private lastPoint: Point | null = null;
   private active = false;
 
-  protected abstract readonly tool: DrawableDrawingTool;
+  protected abstract readonly tool: PointDrawingTool;
 
   protected abstract drawShape(
     ctx: CanvasRenderingContext2D,

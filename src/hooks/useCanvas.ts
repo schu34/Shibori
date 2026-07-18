@@ -28,6 +28,8 @@ export function useCanvas() {
     nudgeSelection: drawingOps.nudgeSelection,
     deleteSelection: drawingOps.deleteSelection,
     clearSelection: drawingOps.clearSelection,
+    hoverDrawing: drawingOps.hoverDrawing,
+    finishDrawing: drawingOps.finishDrawing,
   };
   const eventHandlers = useCanvasEvents(canvasRefs, drawingCallbacks);
 
@@ -49,5 +51,8 @@ export function useCanvas() {
     deleteSelection: drawingOps.deleteSelection,
     cancelDrawing: drawingOps.cancelDrawing,
     drawingGuidance: drawingOps.drawingGuidance,
+    finishDrawing: drawingOps.finishDrawing,
+    hasPendingDrawing: drawingOps.hasPendingDrawing,
+    convertPathSelection: drawingOps.convertPathSelection,
   };
 }

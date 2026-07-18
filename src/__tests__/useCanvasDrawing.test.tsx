@@ -119,4 +119,76 @@ describe("drawing gesture session", () => {
     expect(capturedMode.start).toHaveBeenCalledTimes(2);
     expect(setup.store.getState().shibori.history).toHaveLength(1);
   });
+
+  test("direct selection commits one UpdatePath command for an anchor drag", () => {
+    const setup = harness();
+    setup.store.dispatch({
+      type: ActionType.ADD_HISTORY_ITEM,
+      payload: {
+        id: 'curve',
+        action: DrawingTool.Bezier,
+        points: [],
+        path: {
+          closed: false,
+          anchors: [
+            { id: 'a', point: { x: 10, y: 20 }, inHandle: null, outHandle: { x: 30, y: 20 }, kind: 'corner' },
+            { id: 'b', point: { x: 80, y: 20 }, inHandle: { x: 60, y: 20 }, outHandle: null, kind: 'corner' },
+          ],
+        },
+      },
+    });
+    setup.store.dispatch({ type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool.DirectSelect });
+    const { result } = renderHook(() => useCanvasDrawing(setup.refs, setup.runtime), {
+      wrapper: setup.wrapper,
+    });
+
+    act(() => result.current.startDrawing(10, 20));
+    act(() => result.current.continueDrawing(20, 30));
+    act(() => result.current.endDrawing({ x: 20, y: 30 }));
+
+    const history = setup.store.getState().shibori.history;
+    expect(history).toHaveLength(2);
+    expect(history[1]).toEqual(expect.objectContaining({
+      action: 'updatePath',
+      itemId: 'curve',
+      toPath: expect.objectContaining({
+        anchors: expect.arrayContaining([expect.objectContaining({ point: { x: 20, y: 30 } })]),
+      }),
+    }));
+  });
+
+  test("the pen inserts an anchor on an existing segment with one UpdatePath command", () => {
+    const setup = harness();
+    setup.store.dispatch({
+      type: ActionType.ADD_HISTORY_ITEM,
+      payload: {
+        id: 'curve',
+        action: DrawingTool.Bezier,
+        points: [],
+        path: {
+          closed: false,
+          anchors: [
+            { id: 'a', point: { x: 10, y: 20 }, inHandle: null, outHandle: { x: 30, y: 20 }, kind: 'corner' },
+            { id: 'b', point: { x: 80, y: 20 }, inHandle: { x: 60, y: 20 }, outHandle: null, kind: 'corner' },
+          ],
+        },
+      },
+    });
+    setup.store.dispatch({ type: ActionType.SET_CURRENT_TOOL, payload: DrawingTool.Bezier });
+    const { result } = renderHook(() => useCanvasDrawing(setup.refs, setup.runtime), {
+      wrapper: setup.wrapper,
+    });
+
+    act(() => result.current.startDrawing(45, 20));
+
+    const history = setup.store.getState().shibori.history;
+    expect(history).toHaveLength(2);
+    expect(history[1]).toEqual(expect.objectContaining({
+      action: 'updatePath',
+      itemId: 'curve',
+      toPath: expect.objectContaining({ anchors: expect.any(Array) }),
+    }));
+    if (history[1].action !== 'updatePath') throw new Error('Expected path update');
+    expect(history[1].toPath.anchors).toHaveLength(3);
+  });
 });

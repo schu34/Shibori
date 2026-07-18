@@ -45,8 +45,21 @@ const allCommands: UndoableHistoryItem[] = [
   {
     id: 'bezier',
     action: DrawingTool.Bezier,
-    points: [{ x: 0, y: 0 }, { x: 20, y: 80 }, { x: 80, y: 80 }, { x: 100, y: 0 }],
-    style,
+    points: [],
+    path: {
+      closed: false,
+      anchors: [
+        {
+          id: 'bezier:anchor:1', point: { x: 0, y: 0 },
+          inHandle: null, outHandle: { x: 20, y: 80 }, kind: 'corner',
+        },
+        {
+          id: 'bezier:anchor:2', point: { x: 100, y: 0 },
+          inHandle: { x: 80, y: 80 }, outHandle: null, kind: 'corner',
+        },
+      ],
+    },
+    style: { ...style, shapeFillMode: ShapeFillMode.Filled },
   },
   {
     action: HistoryAction.Move,
@@ -160,6 +173,24 @@ describe('versioned share state', () => {
         },
       }),
     ]);
+  });
+
+  test('migrates an existing v2 four-point bezier without a fill style', () => {
+    const legacyBezierState = makeState([{
+      id: 'legacy-curve',
+      action: DrawingTool.Bezier,
+      points: [{ x: 0, y: 0 }, { x: 20, y: 60 }, { x: 80, y: 60 }, { x: 100, y: 0 }],
+      style,
+    }]);
+
+    const decoded = decodeStateFromUrl(encodeUnknown(legacyBezierState));
+
+    expect(decoded?.history[0]).toEqual(expect.objectContaining({
+      id: 'legacy-curve',
+      points: [],
+      path: expect.objectContaining({ closed: false, anchors: expect.any(Array) }),
+      style: { ...style, shapeFillMode: initialState.shapeFillMode },
+    }));
   });
 
   test('generates a flattened snapshot of the visible scene for new share links', () => {

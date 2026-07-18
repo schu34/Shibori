@@ -28,6 +28,9 @@ export const CanvasDisplay: React.FC = () => {
         deleteSelection,
         cancelDrawing,
         drawingGuidance,
+        finishDrawing,
+        hasPendingDrawing,
+        convertPathSelection,
     } = useCanvas();
 
     logger.canvas.operation('CanvasDisplay rendering with focused components');
@@ -59,7 +62,14 @@ export const CanvasDisplay: React.FC = () => {
                 selectionDragDelta={state.selectionDragDelta}
                 selectionRotationPreview={state.selectionRotationPreview}
                 lineThickness={state.lineThickness}
+                currentTool={state.currentTool}
+                selectedPathAnchorIds={state.selectedPathAnchorIds ?? []}
+                pathEditPreview={state.pathEditPreview ?? null}
                 drawingGuidance={drawingGuidance}
+                hasPendingDrawing={hasPendingDrawing}
+                onFinishDrawing={finishDrawing}
+                onCancelDrawing={cancelDrawing}
+                onConvertPathSelection={convertPathSelection}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}

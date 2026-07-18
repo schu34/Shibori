@@ -25,6 +25,7 @@ export function selectCanvasRuntimeState(root: RootState) {
     selectedHistoryItemId: state.selectedHistoryItemId,
     selectionDragDelta: state.selectionDragDelta,
     selectionRotationPreview: state.selectionRotationPreview,
+    pathEditPreview: state.pathEditPreview ?? null,
   };
 }
 
@@ -73,6 +74,7 @@ export function useCanvasRuntime(canvasRefs: CanvasRefs): CanvasRuntime {
         selectedHistoryItemId: state.selectedHistoryItemId,
         selectionDragDelta: state.selectionDragDelta,
         selectionRotationPreview: state.selectionRotationPreview,
+        pathEditPreview: state.pathEditPreview,
       },
     });
   }, [
@@ -88,6 +90,7 @@ export function useCanvasRuntime(canvasRefs: CanvasRefs): CanvasRuntime {
     state.selectedHistoryItemId,
     state.selectionDragDelta,
     state.selectionRotationPreview,
+    state.pathEditPreview,
   ]);
 
   useEffect(() => cancelScheduledUpdate, [cancelScheduledUpdate]);

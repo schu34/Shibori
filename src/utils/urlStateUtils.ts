@@ -7,6 +7,7 @@ import {
     ShapeFillMode,
 } from '../types';
 import {
+    BezierPath,
     DrawingStyle,
     Point,
     UndoableHistoryItem,
@@ -341,7 +342,11 @@ function normalizeSerializableState(state: SerializableStateInput): Serializable
 function canonicalizeV2State(state: SerializableState): SerializableState {
     return {
         version: SHARE_SCHEMA_VERSION,
-        history: state.history.map(canonicalizeHistoryItem),
+        history: materializeDrawableStyles(state.history, {
+            lineThickness: state.lineThickness,
+            color: LEGACY_DRAWING_COLOR,
+            shapeFillMode: state.shapeFillMode,
+        }).map(canonicalizeHistoryItem),
         folds: cloneFolds(state.folds),
         canvasDimensions: { ...state.canvasDimensions },
         circleRadius: state.circleRadius,
@@ -353,6 +358,15 @@ function canonicalizeV2State(state: SerializableState): SerializableState {
 
 function canonicalizeHistoryItem(item: UndoableHistoryItem): UndoableHistoryItem {
     if (isDrawableCommand(item)) {
+        if (item.action === DrawingTool.Bezier && item.path) {
+            return {
+                id: item.id,
+                action: DrawingTool.Bezier,
+                points: [],
+                path: cloneBezierPathValue(item.path),
+                style: item.style ? cloneStyle(item.style) : undefined,
+            };
+        }
         return {
             id: item.id,
             action: item.action,
@@ -362,7 +376,7 @@ function canonicalizeHistoryItem(item: UndoableHistoryItem): UndoableHistoryItem
             ...(item.rotationCenter === undefined
                 ? {}
                 : { rotationCenter: clonePoint(item.rotationCenter) }),
-        };
+        } as UndoableHistoryItem;
     }
 
     if (item.action === HistoryAction.Clear) {
@@ -371,6 +385,16 @@ function canonicalizeHistoryItem(item: UndoableHistoryItem): UndoableHistoryItem
 
     if (item.action === HistoryAction.Delete) {
         return { action: HistoryAction.Delete, points: [], itemId: item.itemId };
+    }
+
+    if (item.action === HistoryAction.UpdatePath) {
+        return {
+            action: HistoryAction.UpdatePath,
+            points: [],
+            itemId: item.itemId,
+            fromPath: cloneBezierPathValue(item.fromPath),
+            toPath: cloneBezierPathValue(item.toPath),
+        };
     }
 
     return {
@@ -425,6 +449,12 @@ function isValidSharedStateFields(
             const points = item[field];
             if (Array.isArray(points)) totalPoints += points.length;
         }
+        for (const field of ['path', 'fromPath', 'toPath']) {
+            const path = item[field];
+            if (isRecord(path) && Array.isArray(path.anchors)) {
+                totalPoints += path.anchors.length * 3;
+            }
+        }
         if (totalPoints > MAX_SHARE_TOTAL_POINTS) return false;
     }
     return true;
@@ -443,15 +473,23 @@ function isValidHistoryItem(value: unknown, requireV2Style: boolean): value is U
             'style',
             'rotation',
             'rotationCenter',
+            ...(action === DrawingTool.Bezier ? ['path'] : []),
         ])) return false;
-        const minimumPoints = action === DrawingTool.Paintbrush ? 1 : 2;
-        if (value.points.length < minimumPoints) return false;
-        if (action === DrawingTool.Bezier && value.points.length !== 4) return false;
+        if (action === DrawingTool.Bezier) {
+            const validLegacy = value.points.length === 4 && value.path === undefined;
+            const validPath = value.points.length === 0 && isValidBezierPath(value.path);
+            if (!validLegacy && !validPath) return false;
+        } else {
+            const minimumPoints = action === DrawingTool.Paintbrush ? 1 : 2;
+            if (value.points.length < minimumPoints || value.path !== undefined) return false;
+        }
         if (requireV2Style && !isValidId(value.id)) return false;
         if (value.id !== undefined && !isValidId(value.id)) return false;
-        if (requireV2Style && !isValidDrawingStyle(value.style, isShapeAction(action), true)) return false;
+        const requiresFillMode = isShapeAction(action) &&
+            !(action === DrawingTool.Bezier && value.path === undefined);
+        if (requireV2Style && !isValidDrawingStyle(value.style, requiresFillMode, true)) return false;
         if (value.style !== undefined &&
-            !isValidDrawingStyle(value.style, isShapeAction(action), requireV2Style)) return false;
+            !isValidDrawingStyle(value.style, requiresFillMode, requireV2Style)) return false;
         if (value.shapeFillMode !== undefined && !isShapeFillMode(value.shapeFillMode)) return false;
         if (value.rotation !== undefined && !Number.isFinite(value.rotation)) return false;
         if (value.rotationCenter !== undefined && !isValidPoint(value.rotationCenter)) return false;
@@ -490,6 +528,15 @@ function isValidHistoryItem(value: unknown, requireV2Style: boolean): value is U
         if (value.fromRotationCenter !== undefined && !isValidPoint(value.fromRotationCenter)) return false;
         if (value.toRotationCenter !== undefined && !isValidPoint(value.toRotationCenter)) return false;
         return !hasAny(value, ['style', 'shapeFillMode', 'rotation', 'rotationCenter']);
+    }
+
+    if (action === HistoryAction.UpdatePath) {
+        if (requireV2Style && !hasOnlyKeys(value, [
+            'action', 'points', 'itemId', 'fromPath', 'toPath',
+        ])) return false;
+        return value.points.length === 0 && isValidId(value.itemId) &&
+            isValidBezierPath(value.fromPath) && isValidBezierPath(value.toPath) &&
+            !hasAny(value, ['style', 'shapeFillMode', 'rotation', 'rotationCenter']);
     }
 
     return false;
@@ -543,7 +590,39 @@ function isValidPoint(value: unknown): value is Point {
 function isShapeAction(action: UndoableHistoryItem['action']): boolean {
     return action === DrawingTool.Rectangle ||
         action === DrawingTool.Square ||
-        action === DrawingTool.Circle;
+        action === DrawingTool.Circle ||
+        action === DrawingTool.Bezier;
+}
+
+function isValidBezierPath(value: unknown): value is BezierPath {
+    if (!isRecord(value) || typeof value.closed !== 'boolean' || !Array.isArray(value.anchors)) return false;
+    if (value.anchors.length < 2 || value.anchors.length > MAX_SHARE_POINTS_PER_ITEM) return false;
+    if (value.closed && value.anchors.length < 3) return false;
+    const ids = new Set<string>();
+    for (const anchor of value.anchors) {
+        if (!isRecord(anchor) || !hasOnlyKeys(anchor, [
+            'id', 'point', 'inHandle', 'outHandle', 'kind',
+        ])) return false;
+        if (!isValidId(anchor.id) || ids.has(anchor.id)) return false;
+        ids.add(anchor.id);
+        if (!isValidPoint(anchor.point)) return false;
+        if (anchor.inHandle !== null && !isValidPoint(anchor.inHandle)) return false;
+        if (anchor.outHandle !== null && !isValidPoint(anchor.outHandle)) return false;
+        if (anchor.kind !== 'corner' && anchor.kind !== 'smooth') return false;
+    }
+    return true;
+}
+
+function cloneBezierPathValue(path: BezierPath): BezierPath {
+    return {
+        closed: path.closed,
+        anchors: path.anchors.map((anchor) => ({
+            ...anchor,
+            point: clonePoint(anchor.point),
+            inHandle: anchor.inHandle ? clonePoint(anchor.inHandle) : null,
+            outHandle: anchor.outHandle ? clonePoint(anchor.outHandle) : null,
+        })),
+    };
 }
 
 function isShapeFillMode(value: unknown): value is ShapeFillMode {

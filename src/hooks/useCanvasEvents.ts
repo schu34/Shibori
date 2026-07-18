@@ -3,6 +3,7 @@ import { CanvasService } from "../services/CanvasService";
 import { Point } from "../types/DrawingMode";
 import { logger } from "../utils/logger";
 import { CanvasRefs } from "./useCanvasRefs";
+import type { PointerModifiers } from "./useCanvasDrawing";
 
 export interface CanvasEventHandlers {
   handlePointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => void;
@@ -14,13 +15,15 @@ export interface CanvasEventHandlers {
 }
 
 export interface DrawingCallbacks {
-  startDrawing: (x: number, y: number) => void;
-  continueDrawing: (x: number, y: number) => void;
+  startDrawing: (x: number, y: number, modifiers?: PointerModifiers) => void;
+  continueDrawing: (x: number, y: number, modifiers?: PointerModifiers) => void;
   endDrawing: (point: Point | null) => void;
   cancelDrawing: () => void;
   nudgeSelection: (delta: Point) => void;
   deleteSelection: () => void;
   clearSelection: () => void;
+  hoverDrawing: (x: number, y: number) => void;
+  finishDrawing: () => void;
 }
 
 export interface PointerStartLike {
@@ -56,6 +59,8 @@ export function useCanvasEvents(
     nudgeSelection,
     deleteSelection,
     clearSelection,
+    hoverDrawing,
+    finishDrawing,
   } = drawingCallbacks;
 
   const coordinatesFor = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -79,16 +84,21 @@ export function useCanvasEvents(
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = coordinatesFor(event);
     logger.canvas.event("pointerDown", point);
-    startDrawing(point.x, point.y);
+    startDrawing(point.x, point.y, { shiftKey: event.shiftKey, altKey: event.altKey });
   }, [coordinatesFor, startDrawing]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current === null) {
+      const point = coordinatesFor(event);
+      hoverDrawing(point.x, point.y);
+      return;
+    }
     if (activePointerIdRef.current !== event.pointerId) return;
     event.preventDefault();
     const point = coordinatesFor(event);
     logger.canvas.event("pointerMove", point);
-    continueDrawing(point.x, point.y);
-  }, [continueDrawing, coordinatesFor]);
+    continueDrawing(point.x, point.y, { shiftKey: event.shiftKey, altKey: event.altKey });
+  }, [continueDrawing, coordinatesFor, hoverDrawing]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (activePointerIdRef.current !== event.pointerId) return;
@@ -140,6 +150,11 @@ export function useCanvasEvents(
       clearSelection();
       return;
     }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finishDrawing();
+      return;
+    }
     if (event.key === "Delete" || event.key === "Backspace") {
       event.preventDefault();
       deleteSelection();
@@ -149,7 +164,7 @@ export function useCanvasEvents(
     if (!delta) return;
     event.preventDefault();
     nudgeSelection(delta);
-  }, [clearSelection, deleteSelection, nudgeSelection]);
+  }, [clearSelection, deleteSelection, finishDrawing, nudgeSelection]);
 
   useEffect(() => () => {
     activePointerIdRef.current = null;

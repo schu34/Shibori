@@ -7,14 +7,8 @@ interface BezierGuideOverlayProps {
     style?: React.CSSProperties;
 }
 
-export const BezierGuideOverlay: React.FC<BezierGuideOverlayProps> = ({
-    guidance,
-    canvasDimensions,
-    style,
-}) => {
+export const BezierGuideOverlay: React.FC<BezierGuideOverlayProps> = ({ guidance, canvasDimensions, style }) => {
     const { width, height } = canvasDimensions;
-    const { startAnchor, firstControl, endAnchor, secondControl, endHandle } = guidance;
-
     return (
         <svg
             className="bezier-guide-overlay"
@@ -25,14 +19,24 @@ export const BezierGuideOverlay: React.FC<BezierGuideOverlayProps> = ({
             focusable="false"
             data-testid="bezier-guide-overlay"
         >
-            <GuideLine from={startAnchor} to={firstControl} />
-            {endAnchor && secondControl && <GuideLine from={endAnchor} to={secondControl} />}
-            {endAnchor && endHandle && <GuideLine from={endAnchor} to={endHandle} />}
-            <GuidePoint point={startAnchor} className="bezier-anchor" />
-            <GuidePoint point={firstControl} className="bezier-control" />
-            {endAnchor && <GuidePoint point={endAnchor} className="bezier-anchor" />}
-            {secondControl && <GuidePoint point={secondControl} className="bezier-control" />}
-            {endHandle && <GuidePoint point={endHandle} className="bezier-control bezier-drag-handle" />}
+            {guidance.path.anchors.map((anchor) => (
+                <g key={anchor.id}>
+                    {anchor.inHandle && <GuideLine from={anchor.point} to={anchor.inHandle} />}
+                    {anchor.outHandle && <GuideLine from={anchor.point} to={anchor.outHandle} />}
+                    {anchor.inHandle && <GuidePoint point={anchor.inHandle} className="bezier-control" />}
+                    {anchor.outHandle && <GuidePoint point={anchor.outHandle} className="bezier-control" />}
+                    <GuidePoint point={anchor.point} className="bezier-anchor" />
+                </g>
+            ))}
+            {guidance.hoverPoint && guidance.path.anchors.length > 0 && (
+                <>
+                    <GuideLine
+                        from={guidance.path.anchors[guidance.path.anchors.length - 1].point}
+                        to={guidance.hoverPoint}
+                    />
+                    <GuidePoint point={guidance.hoverPoint} className="bezier-control" />
+                </>
+            )}
         </svg>
     );
 };

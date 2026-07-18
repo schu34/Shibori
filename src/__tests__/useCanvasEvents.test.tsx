@@ -17,6 +17,8 @@ function callbacks(): jest.Mocked<DrawingCallbacks> {
     nudgeSelection: jest.fn(),
     deleteSelection: jest.fn(),
     clearSelection: jest.fn(),
+    hoverDrawing: jest.fn(),
+    finishDrawing: jest.fn(),
   };
 }
 
@@ -96,7 +98,10 @@ describe("pointer canvas input", () => {
     expect(document.activeElement).toBe(canvas);
     expect(canvas.setPointerCapture).toHaveBeenCalledWith(7);
     expect(operations.startDrawing).toHaveBeenCalledTimes(1);
-    expect(operations.startDrawing).toHaveBeenCalledWith(100, 50);
+    expect(operations.startDrawing).toHaveBeenCalledWith(100, 50, {
+      altKey: undefined,
+      shiftKey: undefined,
+    });
     expect(operations.continueDrawing).toHaveBeenCalledTimes(1);
     expect(operations.endDrawing).toHaveBeenCalledWith({ x: 140, y: 70 });
     expect(canvas.releasePointerCapture).toHaveBeenCalledWith(7);
@@ -151,8 +156,22 @@ describe("pointer canvas input", () => {
     fireEvent.keyDown(canvas, { key: "ArrowRight", shiftKey: true });
     fireEvent.keyDown(canvas, { key: "Delete" });
     fireEvent.keyDown(canvas, { key: "Escape" });
+    fireEvent.keyDown(canvas, { key: "Enter" });
     expect(operations.nudgeSelection).toHaveBeenCalledWith({ x: 10, y: 0 });
     expect(operations.deleteSelection).toHaveBeenCalledTimes(1);
     expect(operations.clearSelection).toHaveBeenCalledTimes(1);
+    expect(operations.finishDrawing).toHaveBeenCalledTimes(1);
+  });
+
+  test("uncaptured pointer movement updates pending path hover guidance", () => {
+    const operations = callbacks();
+    const { container } = render(<Harness operations={operations} />);
+    const canvas = container.querySelector("canvas")!;
+    prepareCanvas(canvas);
+
+    fireEvent(canvas, pointerEvent("pointermove", { ...primary, clientX: 60, clientY: 45 }));
+
+    expect(operations.hoverDrawing).toHaveBeenCalledWith(100, 50);
+    expect(operations.continueDrawing).not.toHaveBeenCalled();
   });
 });

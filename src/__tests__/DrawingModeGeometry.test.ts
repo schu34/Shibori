@@ -167,11 +167,11 @@ describe('drawing mode geometry', () => {
       maxX: 100,
       maxY: 75,
     });
-    expect(geometry.translate(item, { x: 10, y: -5 }).points).toEqual([
-      { x: 10, y: -5 },
-      { x: 10, y: 95 },
-      { x: 110, y: 95 },
-      { x: 110, y: -5 },
-    ]);
+    const translated = geometry.translate(item, { x: 10, y: -5 });
+    expect(translated.action === DrawingTool.Bezier ? translated.path?.anchors : null)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ point: { x: 10, y: -5 }, outHandle: { x: 10, y: 95 } }),
+        expect.objectContaining({ point: { x: 110, y: -5 }, inHandle: { x: 110, y: 95 } }),
+      ]));
   });
 });

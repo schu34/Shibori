@@ -9,6 +9,7 @@ const shapeTools = new Set<DrawingTool>([
     DrawingTool.Rectangle,
     DrawingTool.Square,
     DrawingTool.Circle,
+    DrawingTool.Bezier,
 ]);
 const toolsWithSizeControl = new Set<DrawingTool>([
     DrawingTool.Line,

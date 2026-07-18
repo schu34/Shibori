@@ -99,22 +99,19 @@ describe("local drawing mode sessions", () => {
     const { context, foldedCtx } = modeContext();
 
     mode.start({ x: 10, y: 20 }, context);
-    expect(mode.continue({ x: 30, y: 40 }, context)).toBe(false);
+    expect(mode.continue({ x: 30, y: 40 }, context)).toBe(true);
     expect(mode.end({ x: 30, y: 40 }, context)).toEqual({ status: 'continue' });
 
     mode.start({ x: 100, y: 20 }, context);
     expect(mode.continue({ x: 120, y: 40 }, context)).toBe(true);
-    expect(mode.end({ x: 120, y: 40 }, context)).toEqual({
+    expect(mode.end({ x: 120, y: 40 }, context)).toEqual({ status: 'continue' });
+    expect(mode.finish!(context)).toEqual({
       status: 'commit',
       item: {
         action: DrawingTool.Bezier,
-        points: [
-          { x: 10, y: 20 },
-          { x: 30, y: 40 },
-          { x: 80, y: 0 },
-          { x: 100, y: 20 },
-        ],
-        style: { lineThickness: 12, color: 'magenta' },
+        points: [],
+        path: expect.objectContaining({ closed: false, anchors: expect.any(Array) }),
+        style: { lineThickness: 12, color: 'magenta', shapeFillMode: ShapeFillMode.Outline },
       },
     });
     expect(foldedCtx.bezierCurveTo).toHaveBeenCalledWith(30, 40, 80, 0, 100, 20);
@@ -134,5 +131,25 @@ describe("local drawing mode sessions", () => {
     expect(foldedCtx.putImageData).toHaveBeenCalledWith(snapshot, 0, 0);
     expect(context.setDrawingGuidance).toHaveBeenLastCalledWith(null);
     expect(mode.end(null, context)).toEqual({ status: 'discard' });
+  });
+
+  test("bezier closes by clicking the first anchor after three points", () => {
+    const mode = new BezierMode();
+    const { context } = modeContext();
+    for (const point of [{ x: 20, y: 20 }, { x: 120, y: 20 }, { x: 80, y: 80 }]) {
+      mode.start(point, context);
+      expect(mode.end(point, context)).toEqual({ status: 'continue' });
+    }
+
+    mode.start({ x: 21, y: 20 }, context);
+    const result = mode.end({ x: 21, y: 20 }, context);
+
+    expect(result).toEqual({
+      status: 'commit',
+      item: expect.objectContaining({
+        action: DrawingTool.Bezier,
+        path: expect.objectContaining({ closed: true }),
+      }),
+    });
   });
 });

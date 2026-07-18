@@ -2,7 +2,7 @@ import React from 'react';
 import { logger } from '../../utils/logger';
 import { DiagonalDirection, DrawingTool, FoldState } from '../../types';
 import { DrawingModeFactory } from '../../drawingModes/DrawingModeFactory';
-import { Bounds, DrawingGuidance, Point, UndoableHistoryItem } from '../../types/DrawingMode';
+import { BezierPath, Bounds, DrawingGuidance, Point, UndoableHistoryItem } from '../../types/DrawingMode';
 import {
     DrawableHistoryItem,
     buildDrawableHistory,
@@ -13,6 +13,7 @@ import { expandBounds, getBoundsCenter, getRectBounds, getSquareEndPoint } from 
 import { getFoldedCanvasDimensions } from '../../utils/foldedCanvasDimensions';
 import { FoldGuideOverlay } from './FoldGuideOverlay';
 import { BezierGuideOverlay } from './BezierGuideOverlay';
+import { PathEditOverlay } from './PathEditOverlay';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -24,7 +25,11 @@ interface CanvasRendererProps {
     selectionDragDelta: Point | null;
     selectionRotationPreview: { angle: number; center: Point } | null;
     lineThickness: number;
+    currentTool: DrawingTool;
+    selectedPathAnchorIds: string[];
+    pathEditPreview: { itemId: string; path: BezierPath } | null;
     drawingGuidance: DrawingGuidance | null;
+    hasPendingDrawing: boolean;
     onPointerDown: (e: React.PointerEvent<HTMLCanvasElement>) => void;
     onPointerMove: (e: React.PointerEvent<HTMLCanvasElement>) => void;
     onPointerUp: (e: React.PointerEvent<HTMLCanvasElement>) => void;
@@ -37,6 +42,9 @@ interface CanvasRendererProps {
     onDownload: () => void;
     showFoldGuides: boolean;
     onToggleFoldGuides: () => void;
+    onFinishDrawing: () => void;
+    onCancelDrawing: () => void;
+    onConvertPathSelection: () => void;
 }
 
 export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
@@ -49,7 +57,11 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     selectionDragDelta,
     selectionRotationPreview,
     lineThickness,
+    currentTool,
+    selectedPathAnchorIds,
+    pathEditPreview,
     drawingGuidance,
+    hasPendingDrawing,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -62,6 +74,9 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     onDownload,
     showFoldGuides,
     onToggleFoldGuides,
+    onFinishDrawing,
+    onCancelDrawing,
+    onConvertPathSelection,
 }) => {
     logger.canvas.operation('CanvasRenderer rendering', {
         canvasDimensions,
@@ -76,7 +91,9 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     const selectedDrawable = selectedHistoryItemId
         ? buildDrawableHistory(history).find((item) => item.id === selectedHistoryItemId)
         : null;
-    const selectedPreviewDrawable = selectedDrawable && selectionRotationPreview
+    const selectedPreviewDrawable = selectedDrawable && pathEditPreview?.itemId === selectedDrawable.id && selectedDrawable.action === DrawingTool.Bezier
+        ? { ...selectedDrawable, points: [], path: pathEditPreview.path }
+        : selectedDrawable && selectionRotationPreview
         ? getRotatedHistoryItemPreview(
             selectedDrawable,
             selectionRotationPreview.angle,
@@ -91,7 +108,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     const selectionFrame = selectedGeometry && selectedPreviewDrawable
         ? getSelectionFrame(selectedPreviewDrawable, lineThickness)
         : null;
-    const selectionOverlayStyle = selectionFrame
+    const selectionOverlayStyle = currentTool !== DrawingTool.DirectSelect && selectionFrame
         ? {
             left: `${(selectionFrame.bounds.minX / foldedCanvasDimensions.width) * 100}%`,
             top: `${(selectionFrame.bounds.minY / foldedCanvasDimensions.height) * 100}%`,
@@ -145,6 +162,16 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                             style={foldedGuideStyle}
                         />
                     )}
+                    {currentTool === DrawingTool.DirectSelect &&
+                        selectedPreviewDrawable?.action === DrawingTool.Bezier &&
+                        selectedPreviewDrawable.path && (
+                            <PathEditOverlay
+                                path={selectedPreviewDrawable.path}
+                                selectedAnchorIds={selectedPathAnchorIds}
+                                canvasDimensions={foldedCanvasDimensions}
+                                style={foldedGuideStyle}
+                            />
+                        )}
                     {selectionOverlayStyle && (
                         <div
                             className="selection-overlay"
@@ -167,6 +194,18 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                             >
                                 X
                             </button>
+                        </div>
+                    )}
+                    {hasPendingDrawing && (
+                        <div className="path-construction-actions">
+                            <button className="path-action-button path-action-primary" type="button" onClick={onFinishDrawing}>Finish Path</button>
+                            <button className="path-action-button path-action-secondary" type="button" onClick={onCancelDrawing}>Cancel Path</button>
+                        </div>
+                    )}
+                    {currentTool === DrawingTool.DirectSelect && selectedPathAnchorIds.length > 0 && (
+                        <div className="path-edit-actions">
+                            <button className="path-action-button path-action-primary" type="button" onClick={onConvertPathSelection}>Convert Point</button>
+                            <button className="path-action-button path-action-danger" type="button" onClick={onDeleteSelection}>Delete Points</button>
                         </div>
                     )}
                 </div>
