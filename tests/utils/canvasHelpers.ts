@@ -178,14 +178,18 @@ export async function drawOnCanvas(
 
   await canvas.dragTo(canvas, {
     sourcePosition: { 
-      x: centerX + startOffset.x, 
-      y: centerY + startOffset.y 
+      x: clampCanvasCoordinate(centerX + startOffset.x, canvasBox.width),
+      y: clampCanvasCoordinate(centerY + startOffset.y, canvasBox.height)
     },
     targetPosition: { 
-      x: centerX + endOffset.x, 
-      y: centerY + endOffset.y 
+      x: clampCanvasCoordinate(centerX + endOffset.x, canvasBox.width),
+      y: clampCanvasCoordinate(centerY + endOffset.y, canvasBox.height)
     }
   });
+}
+
+function clampCanvasCoordinate(coordinate: number, extent: number): number {
+  return Math.min(Math.max(coordinate, 8), Math.max(8, extent - 8));
 }
 
 /**

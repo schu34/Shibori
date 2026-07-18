@@ -15,6 +15,7 @@ test.describe('Shareable Links', () => {
 
     const originalFolded = await analyzeCanvasPixels(page, 0);
     const originalUnfolded = await analyzeCanvasPixels(page, 1);
+    await page.getByRole('button', { name: 'Share pattern' }).click();
     await page.getByRole('button', { name: 'Generate Share Link' }).click();
     const shareUrl = await page.locator('.url-input').inputValue();
 
@@ -58,6 +59,7 @@ test.describe('Shareable Links', () => {
 
     // Verify we actually have a drawing
     expect(originalDrawing.pixelCounts.white).toBeGreaterThan(1000);
+    await page.getByRole('button', { name: 'Share pattern' }).click();
     await expect(page.getByTestId('share-link-size')).toContainText('Live link size');
 
     // Find and click the "Generate Share Link" button
@@ -150,6 +152,7 @@ test.describe('Shareable Links', () => {
     expect(originalDrawing.hasDrawing).toBe(true);
 
     // Generate share link
+    await page.getByRole('button', { name: 'Share pattern' }).click();
     const generateButton = page.locator('button', { hasText: 'Generate Share Link' });
     await generateButton.click();
     

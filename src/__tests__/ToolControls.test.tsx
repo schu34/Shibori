@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { renderWithRedux } from '../testUtils';
 import * as reduxHooks from '../hooks/useReduxHooks';
 import { ToolControls } from '../components/shibori/ToolControls';
+import { ToolSelector } from '../components/shibori/ToolSelector';
 import { State } from '../store/shiboriCanvasState';
 import { DrawingTool, ShapeFillMode, DiagonalDirection } from '../types';
 
@@ -52,16 +53,10 @@ describe('ToolControls Component', () => {
         jest.restoreAllMocks();
     });
 
-    test('renders tool controls', () => {
+    test('renders contextual controls for the current tool', () => {
         renderWithRedux(<ToolControls />);
 
-        expect(screen.getByText('Drawing Tool:')).toBeInTheDocument();
-        expect(screen.getByText('Line Tool')).toBeInTheDocument();
-        expect(screen.getByText('Rectangle')).toBeInTheDocument();
-        expect(screen.getByText('Square')).toBeInTheDocument();
-        expect(screen.getByText('Circle')).toBeInTheDocument();
-        expect(screen.getByText('Bézier Curve')).toBeInTheDocument();
-        expect(screen.getByText('Select/Move')).toBeInTheDocument();
+        expect(screen.getByLabelText('Brush Thickness:')).toBeInTheDocument();
     });
 
     test('shows line controls when line tool is selected', () => {
@@ -103,7 +98,7 @@ describe('ToolControls Component', () => {
     });
 
     test('changing tool dispatches SET_CURRENT_TOOL action', () => {
-        renderWithRedux(<ToolControls />);
+        renderWithRedux(<ToolSelector currentTool={DrawingTool.Paintbrush} />);
 
         // Click on the Line Tool radio button
         const lineToolRadio = screen.getByLabelText('Line Tool');
@@ -123,13 +118,13 @@ describe('ToolControls Component', () => {
 
         renderWithRedux(<ToolControls />);
 
-        expect(screen.getByLabelText('Select/Move')).toBeChecked();
         expect(screen.queryByText(/Thickness:/)).not.toBeInTheDocument();
         expect(screen.queryByText('Shape Fill:')).not.toBeInTheDocument();
+        expect(screen.getByText('This tool has no additional options.')).toBeInTheDocument();
     });
 
     test('changing to a shape tool dispatches SET_CURRENT_TOOL action', () => {
-        renderWithRedux(<ToolControls />);
+        renderWithRedux(<ToolSelector currentTool={DrawingTool.Paintbrush} />);
 
         fireEvent.click(screen.getByLabelText('Rectangle'));
 
@@ -137,6 +132,15 @@ describe('ToolControls Component', () => {
             type: 'SET_CURRENT_TOOL',
             payload: DrawingTool.Rectangle
         });
+    });
+
+    test('tool rail exposes icon controls with stable accessible names', () => {
+        renderWithRedux(<ToolSelector currentTool={DrawingTool.Paintbrush} />);
+
+        expect(screen.getByRole('group', { name: 'Drawing tools' })).toBeInTheDocument();
+        expect(screen.getByLabelText('Paintbrush')).toBeChecked();
+        expect(screen.getByLabelText('Select/Move')).not.toBeChecked();
+        expect(screen.getByLabelText('Bézier Curve')).toBeInTheDocument();
     });
 
     test('changing fill mode dispatches SET_SHAPE_FILL_MODE action', () => {

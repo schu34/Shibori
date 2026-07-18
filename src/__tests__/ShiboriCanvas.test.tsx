@@ -1,4 +1,4 @@
-import { renderWithRedux } from '../testUtils'; import { screen } from '@testing-library/dom';
+import { renderWithRedux } from '../testUtils'; import { fireEvent, screen } from '@testing-library/dom';
 import '@testing-library/jest-dom';
 import ShiboriCanvas from '../components/ShiboriCanvas';
 
@@ -24,12 +24,24 @@ describe('ShiboriCanvas Component', () => {
         renderWithRedux(<ShiboriCanvas />);
 
         // Check if the component renders its title
-        expect(screen.getByText('Shibori Folding')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Shibori Folding' })).toBeInTheDocument();
 
         // Check if all child components are rendered
         expect(screen.getByTestId('mock-fold-controls')).toBeInTheDocument();
-        expect(screen.getByTestId('mock-dimension-controls')).toBeInTheDocument();
+        expect(screen.queryByTestId('mock-dimension-controls')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Canvas size' })).toBeInTheDocument();
         expect(screen.getByTestId('mock-canvas-display')).toBeInTheDocument();
         expect(screen.getByTestId('mock-tool-controls')).toBeInTheDocument();
     });
-}); 
+
+    test('organizes secondary settings in collapsible inspector sections', () => {
+        renderWithRedux(<ShiboriCanvas />);
+
+        expect(screen.getByRole('button', { name: 'Folds' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: 'Canvas size' })).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: 'Share' })).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Canvas size' }));
+        expect(screen.getByTestId('mock-dimension-controls')).toBeInTheDocument();
+    });
+});

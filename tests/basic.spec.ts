@@ -25,31 +25,61 @@ test.describe('Shibori Canvas App', () => {
     await expect(page.getByRole('heading', { name: 'Folded Version', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Unfolded Version', exact: true })).toBeVisible();
 
-    // Check that controls are present
-    await expect(page.locator('text=Controls')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Drawing toolbar' })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Properties' })).toBeVisible();
   });
 
-  test('can expand and collapse controls', async ({ page }) => {
+  test('can collapse and reopen the properties inspector', async ({ page }) => {
     await page.goto('/');
 
-    // Find the controls toggle button
-    const controlsToggle = page.locator('button', { hasText: 'Controls' });
-    await expect(controlsToggle).toBeVisible();
-
-    // Check that controls are initially expanded (should see fold controls)
     await expect(page.locator('text=Vertical Folds')).toBeVisible();
-
-    // Click to collapse controls
-    await controlsToggle.click();
-
-    // Controls should now be hidden
+    await page.getByRole('button', { name: 'Close properties' }).click();
     await expect(page.locator('text=Vertical Folds')).not.toBeVisible();
-
-    // Click to expand controls again
-    await controlsToggle.click();
-
-    // Controls should be visible again
+    await page.getByRole('button', { name: 'Show properties' }).click();
     await expect(page.locator('text=Vertical Folds')).toBeVisible();
+  });
+
+  test('desktop workspace keeps equal canvases aligned inside the viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    const geometry = await page.evaluate(() => {
+      const folded = document.querySelector('.folded-canvas')?.getBoundingClientRect();
+      const unfolded = document.querySelector('.unfolded-canvas-frame canvas')?.getBoundingClientRect();
+      return {
+        bodyWidth: document.body.scrollWidth,
+        bodyHeight: document.body.scrollHeight,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        folded: folded && { width: folded.width, height: folded.height, top: folded.top, bottom: folded.bottom },
+        unfolded: unfolded && { width: unfolded.width, height: unfolded.height, top: unfolded.top, bottom: unfolded.bottom },
+      };
+    });
+
+    expect(geometry.bodyWidth).toBe(geometry.viewportWidth);
+    expect(geometry.bodyHeight).toBe(geometry.viewportHeight);
+    expect(geometry.folded).toBeTruthy();
+    expect(geometry.unfolded).toBeTruthy();
+    expect(geometry.folded!.width).toBeCloseTo(geometry.unfolded!.width, 1);
+    expect(geometry.folded!.height).toBeCloseTo(geometry.unfolded!.height, 1);
+    expect(geometry.folded!.top).toBeCloseTo(geometry.unfolded!.top, 1);
+    expect(geometry.folded!.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
+  });
+
+  test('mobile workspace switches canvases and uses a settings drawer', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    await expect(page.getByLabel('Folded drawing canvas')).toBeVisible();
+    await expect(page.locator('.canvas-panel-unfolded')).not.toBeVisible();
+    await page.getByRole('tab', { name: 'Unfolded' }).click();
+    await expect(page.locator('.canvas-panel-folded')).not.toBeVisible();
+    await expect(page.locator('.canvas-panel-unfolded')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Show properties' }).click();
+    await expect(page.getByRole('complementary', { name: 'Properties' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('complementary', { name: 'Properties' })).not.toBeVisible();
   });
 
   test('shows canvas with proper dimensions', async ({ page }) => {
@@ -108,7 +138,7 @@ test.describe('Shibori Canvas App', () => {
     expect(comparison.after.pixelCounts.white).toBeGreaterThan(100);
 
     // Check that the undo button is enabled
-    const undoButton = page.locator('button', { hasText: 'Undo' });
+    const undoButton = page.getByRole('button', { name: 'Undo' });
     await expect(undoButton).toBeEnabled();
   });
 
@@ -162,7 +192,7 @@ test.describe('Shibori Canvas App', () => {
     expect(unfoldedAfter.pixelCounts.white).toBeGreaterThan(200);
 
     // Test undo functionality
-    const undoButton = page.locator('button', { hasText: 'Undo' });
+    const undoButton = page.getByRole('button', { name: 'Undo' });
     await expect(undoButton).toBeEnabled();
     
     await undoButton.click();
@@ -233,18 +263,18 @@ test.describe('Shibori Canvas App', () => {
 
     await selectDrawingTool(page, 'paintbrush');
     await drawOnCanvas(foldedCanvas, {
-      startOffset: { x: 40, y: 200 },
-      endOffset: { x: 120, y: 200 }
+      startOffset: { x: 20, y: 150 },
+      endOffset: { x: 80, y: 150 }
     });
     await page.waitForTimeout(500);
 
     await selectDrawingTool(page, 'selectMove');
     await storeWhiteMask(page, 1, '__unfoldedBeforeLiveDragMask');
 
-    await moveCanvasMouse(page, foldedCanvas, { x: 80, y: 200 });
+    await moveCanvasMouse(page, foldedCanvas, { x: 50, y: 150 });
     await page.mouse.down();
     await page.waitForTimeout(100);
-    await moveCanvasMouse(page, foldedCanvas, { x: 220, y: 200 });
+    await moveCanvasMouse(page, foldedCanvas, { x: 120, y: 150 });
 
     await expect.poll(
       () => compareWhiteMask(page, 1, '__unfoldedBeforeLiveDragMask'),
@@ -252,7 +282,7 @@ test.describe('Shibori Canvas App', () => {
     ).toBeGreaterThan(200);
 
     await storeWhiteMask(page, 1, '__unfoldedAfterFirstLiveDragFrameMask');
-    await moveCanvasMouse(page, foldedCanvas, { x: 260, y: 200 });
+    await moveCanvasMouse(page, foldedCanvas, { x: 170, y: 150 });
 
     await expect.poll(
       () => compareWhiteMask(page, 1, '__unfoldedAfterFirstLiveDragFrameMask'),
@@ -562,6 +592,7 @@ test.describe('Shibori Canvas App', () => {
 
   test('bezier path stays pending across gestures, keeps guides out of artwork, and mirrors on finish', async ({ page }) => {
     await page.goto('/');
+    await page.getByRole('button', { name: 'Share pattern' }).click();
     const foldedCanvas = page.getByLabel('Folded drawing canvas');
     await selectDrawingTool(page, 'bezier');
     await foldedCanvas.scrollIntoViewIfNeeded();
@@ -608,6 +639,7 @@ test.describe('Shibori Canvas App', () => {
 
   test('bezier pending construction cancels on Escape and tool change', async ({ page }) => {
     await page.goto('/');
+    await page.getByRole('button', { name: 'Share pattern' }).click();
     const foldedCanvas = page.getByLabel('Folded drawing canvas');
     await selectDrawingTool(page, 'bezier');
     await foldedCanvas.scrollIntoViewIfNeeded();
@@ -955,12 +987,12 @@ async function dragCanvasAtOffsets(
 
   await canvas.dragTo(canvas, {
     sourcePosition: {
-      x: canvasBox.width / 2 + sourceOffset.x,
-      y: canvasBox.height / 2 + sourceOffset.y,
+      x: clampCanvasTestCoordinate(canvasBox.width / 2 + sourceOffset.x, canvasBox.width),
+      y: clampCanvasTestCoordinate(canvasBox.height / 2 + sourceOffset.y, canvasBox.height),
     },
     targetPosition: {
-      x: canvasBox.width / 2 + targetOffset.x,
-      y: canvasBox.height / 2 + targetOffset.y,
+      x: clampCanvasTestCoordinate(canvasBox.width / 2 + targetOffset.x, canvasBox.width),
+      y: clampCanvasTestCoordinate(canvasBox.height / 2 + targetOffset.y, canvasBox.height),
     },
   });
 }
@@ -975,8 +1007,8 @@ async function clickCanvasAtOffset(
 
   await canvas.click({
     position: {
-      x: canvasBox.width / 2 + offset.x,
-      y: canvasBox.height / 2 + offset.y,
+      x: clampCanvasTestCoordinate(canvasBox.width / 2 + offset.x, canvasBox.width),
+      y: clampCanvasTestCoordinate(canvasBox.height / 2 + offset.y, canvasBox.height),
     },
   });
 }
@@ -991,9 +1023,13 @@ async function moveCanvasMouse(
   if (!canvasBox) throw new Error('Canvas not found');
 
   await page.mouse.move(
-    canvasBox.x + canvasBox.width / 2 + offset.x,
-    canvasBox.y + canvasBox.height / 2 + offset.y
+    canvasBox.x + clampCanvasTestCoordinate(canvasBox.width / 2 + offset.x, canvasBox.width),
+    canvasBox.y + clampCanvasTestCoordinate(canvasBox.height / 2 + offset.y, canvasBox.height)
   );
+}
+
+function clampCanvasTestCoordinate(coordinate: number, extent: number): number {
+  return Math.min(Math.max(coordinate, 8), Math.max(8, extent - 8));
 }
 
 async function getWhiteRegionCount(
