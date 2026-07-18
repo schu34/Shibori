@@ -43,6 +43,12 @@ const allCommands: UndoableHistoryItem[] = [
     style: { ...style, shapeFillMode: ShapeFillMode.Filled },
   },
   {
+    id: 'bezier',
+    action: DrawingTool.Bezier,
+    points: [{ x: 0, y: 0 }, { x: 20, y: 80 }, { x: 80, y: 80 }, { x: 100, y: 0 }],
+    style,
+  },
+  {
     action: HistoryAction.Move,
     points: [],
     itemId: 'line',
@@ -172,6 +178,7 @@ describe('versioned share state', () => {
       DrawingTool.Rectangle,
       DrawingTool.Square,
       DrawingTool.Circle,
+      DrawingTool.Bezier,
     ]);
     expect(extracted.history.find((item) => item.id === 'line')).toEqual(expect.objectContaining({
       points: [{ x: 11, y: 12 }, { x: 13, y: 14 }],
@@ -253,6 +260,12 @@ describe('versioned share state', () => {
     ['malformed delete', { ...makeState(), history: [
       { action: HistoryAction.Delete, points: [], itemId: 'brush', style },
     ] }],
+    ['malformed bezier point count', makeState([{
+      id: 'bad-bezier',
+      action: DrawingTool.Bezier,
+      points: [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }],
+      style,
+    }])],
   ])('rejects %s', (_label, value) => {
     expect(decodeStateFromUrl(encodeUnknown(value))).toBeNull();
   });

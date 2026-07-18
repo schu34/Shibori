@@ -2,7 +2,7 @@ import React from 'react';
 import { logger } from '../../utils/logger';
 import { DiagonalDirection, DrawingTool, FoldState } from '../../types';
 import { DrawingModeFactory } from '../../drawingModes/DrawingModeFactory';
-import { Bounds, Point, UndoableHistoryItem } from '../../types/DrawingMode';
+import { Bounds, DrawingGuidance, Point, UndoableHistoryItem } from '../../types/DrawingMode';
 import {
     DrawableHistoryItem,
     buildDrawableHistory,
@@ -12,6 +12,7 @@ import {
 import { expandBounds, getBoundsCenter, getRectBounds, getSquareEndPoint } from '../../utils/geometryMath';
 import { getFoldedCanvasDimensions } from '../../utils/foldedCanvasDimensions';
 import { FoldGuideOverlay } from './FoldGuideOverlay';
+import { BezierGuideOverlay } from './BezierGuideOverlay';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -23,6 +24,7 @@ interface CanvasRendererProps {
     selectionDragDelta: Point | null;
     selectionRotationPreview: { angle: number; center: Point } | null;
     lineThickness: number;
+    drawingGuidance: DrawingGuidance | null;
     onPointerDown: (e: React.PointerEvent<HTMLCanvasElement>) => void;
     onPointerMove: (e: React.PointerEvent<HTMLCanvasElement>) => void;
     onPointerUp: (e: React.PointerEvent<HTMLCanvasElement>) => void;
@@ -47,6 +49,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     selectionDragDelta,
     selectionRotationPreview,
     lineThickness,
+    drawingGuidance,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -132,6 +135,13 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         <FoldGuideOverlay
                             canvasDimensions={foldedCanvasDimensions}
                             folds={folds}
+                            style={foldedGuideStyle}
+                        />
+                    )}
+                    {drawingGuidance?.kind === 'bezier' && (
+                        <BezierGuideOverlay
+                            guidance={drawingGuidance}
+                            canvasDimensions={foldedCanvasDimensions}
                             style={foldedGuideStyle}
                         />
                     )}

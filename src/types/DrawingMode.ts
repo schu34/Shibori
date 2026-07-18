@@ -34,7 +34,24 @@ export interface DrawingModeContext {
     foldedCanvas?: HTMLCanvasElement;
     getFoldedCanvasDimensions: () => CanvasDimensions | null;
     historyItem?: DrawableHistoryItem;
+    setDrawingGuidance: (guidance: DrawingGuidance | null) => void;
 }
+
+export interface BezierDrawingGuidance {
+    kind: 'bezier';
+    startAnchor: Point;
+    firstControl: Point;
+    endAnchor?: Point;
+    secondControl?: Point;
+    endHandle?: Point;
+}
+
+export type DrawingGuidance = BezierDrawingGuidance;
+
+export type DrawingModeResult =
+    | { status: 'continue' }
+    | { status: 'commit'; item: UndoableHistoryItem }
+    | { status: 'discard' };
 
 export type DrawableDrawingTool = Exclude<DrawingTool, DrawingTool.SelectMove>;
 
@@ -99,6 +116,6 @@ export type UndoableHistoryItem =
 export interface DrawingMode {
     start: (point: Point, context: DrawingModeContext) => void;
     continue: (point: Point, context: DrawingModeContext) => boolean;
-    end: (point: Point| null, context: DrawingModeContext) => UndoableHistoryItem | null;
+    end: (point: Point | null, context: DrawingModeContext) => DrawingModeResult;
     cancel: (context: DrawingModeContext) => void;
 } 

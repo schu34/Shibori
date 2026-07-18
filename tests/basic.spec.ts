@@ -2,6 +2,7 @@ import { test, expect, type Locator, type Page } from '@playwright/test';
 import { 
   analyzeCanvasPixels, 
   compareCanvasBeforeAfterDrawing, 
+  drawBezierOnCanvas,
   drawOnCanvas, 
   getWhitePixelCount,
   selectDrawingTool,
@@ -559,6 +560,127 @@ test.describe('Shibori Canvas App', () => {
     }
   });
 
+  test('bezier uses two gestures, keeps guides out of artwork, and mirrors the committed curve', async ({ page }) => {
+    await page.goto('/');
+    const foldedCanvas = page.getByLabel('Folded drawing canvas');
+    await selectDrawingTool(page, 'bezier');
+    await foldedCanvas.scrollIntoViewIfNeeded();
+
+    const foldedBefore = await analyzeCanvasPixels(page, 0);
+    const unfoldedBefore = await analyzeCanvasPixels(page, 1);
+    const box = await foldedCanvas.boundingBox();
+    if (!box) throw new Error('Canvas not found');
+    const center = { x: box.x + (box.width / 2), y: box.y + (box.height / 2) };
+
+    await page.mouse.move(center.x - 90, center.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(center.x - 60, center.y - 70, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(page.getByTestId('bezier-guide-overlay')).toBeVisible();
+    expect((await analyzeCanvasPixels(page, 0)).pixelCounts.white).toBe(foldedBefore.pixelCounts.white);
+    expect((await analyzeCanvasPixels(page, 1)).pixelCounts.white).toBe(unfoldedBefore.pixelCounts.white);
+    await expect(page.getByRole('button', { name: 'Generate Share Link' })).toHaveCount(0);
+
+    await page.mouse.move(center.x + 90, center.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(center.x + 60, center.y + 90, { steps: 8 });
+
+    await expect.poll(async () => (await analyzeCanvasPixels(page, 1)).pixelCounts.other)
+      .toBeGreaterThan(unfoldedBefore.pixelCounts.other + 100);
+    await expect(page.getByTestId('bezier-guide-overlay')).toBeVisible();
+    await page.mouse.up();
+
+    await expect(page.getByTestId('bezier-guide-overlay')).toHaveCount(0);
+    await expect.poll(async () => (await analyzeCanvasPixels(page, 0)).pixelCounts.white)
+      .toBeGreaterThan(foldedBefore.pixelCounts.white + 20);
+    await expect.poll(async () => (await analyzeCanvasPixels(page, 1)).pixelCounts.white)
+      .toBeGreaterThan(unfoldedBefore.pixelCounts.white + 100);
+    await expect(page.getByRole('button', { name: 'Generate Share Link' })).toBeVisible();
+  });
+
+  test('bezier pending construction cancels on Escape and tool change', async ({ page }) => {
+    await page.goto('/');
+    const foldedCanvas = page.getByLabel('Folded drawing canvas');
+    await selectDrawingTool(page, 'bezier');
+    await foldedCanvas.scrollIntoViewIfNeeded();
+    const firstGesture = async () => {
+      await foldedCanvas.scrollIntoViewIfNeeded();
+      const box = await foldedCanvas.boundingBox();
+      if (!box) throw new Error('Canvas not found');
+      await page.mouse.move(box.x + 40, box.y + 80);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 80, box.y + 40, { steps: 4 });
+      await page.mouse.up();
+      await expect(page.getByTestId('bezier-guide-overlay')).toBeVisible();
+    };
+
+    await firstGesture();
+    await foldedCanvas.press('Escape');
+    await expect(page.getByTestId('bezier-guide-overlay')).toHaveCount(0);
+
+    await firstGesture();
+    await selectDrawingTool(page, 'line');
+    await expect(page.getByTestId('bezier-guide-overlay')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Generate Share Link' })).toHaveCount(0);
+
+    await selectDrawingTool(page, 'bezier');
+    await firstGesture();
+    await page.getByRole('button', { name: 'Clear' }).click();
+    await expect(page.getByTestId('bezier-guide-overlay')).toHaveCount(0);
+
+    await firstGesture();
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByTestId('bezier-guide-overlay')).toHaveCount(0);
+  });
+
+  test('committed bezier supports move, rotate, delete, and undo', async ({ page }) => {
+    await page.goto('/');
+    const foldedCanvas = page.getByLabel('Folded drawing canvas');
+    await selectDrawingTool(page, 'bezier');
+    await drawBezierOnCanvas(page, foldedCanvas);
+    await selectDrawingTool(page, 'selectMove');
+
+    await clickCanvasAtOffset(foldedCanvas, { x: 75, y: -20 });
+    await expect(page.locator('.selection-overlay')).toBeVisible();
+    await storeWhiteMask(page, 0, '__bezierBeforeNudgeMask');
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect.poll(() => compareWhiteMask(page, 0, '__bezierBeforeNudgeMask'))
+      .toBeGreaterThan(20);
+    await storeWhiteMask(page, 1, '__bezierBeforeMoveMask');
+    await dragCanvasAtOffsets(foldedCanvas, { x: 85, y: -20 }, { x: 115, y: 10 });
+    await expect.poll(() => compareWhiteMask(page, 1, '__bezierBeforeMoveMask'))
+      .toBeGreaterThan(100);
+
+    await storeWhiteMask(page, 1, '__bezierBeforeRotateMask');
+    const overlayBox = await page.locator('.selection-overlay').boundingBox();
+    if (!overlayBox) throw new Error('Selection overlay not found');
+    const center = {
+      x: overlayBox.x + (overlayBox.width / 2),
+      y: overlayBox.y + (overlayBox.height / 2),
+    };
+    const start = { x: overlayBox.x, y: overlayBox.y };
+    const dx = start.x - center.x;
+    const dy = start.y - center.y;
+    const angle = Math.PI / 3;
+    const target = {
+      x: center.x + (dx * Math.cos(angle)) - (dy * Math.sin(angle)),
+      y: center.y + (dx * Math.sin(angle)) + (dy * Math.cos(angle)),
+    };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => compareWhiteMask(page, 1, '__bezierBeforeRotateMask'))
+      .toBeGreaterThan(100);
+
+    const beforeDelete = await getWhitePixelCount(page, 0);
+    await page.keyboard.press('Delete');
+    await expect.poll(() => getWhitePixelCount(page, 0)).toBeLessThan(beforeDelete - 20);
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(() => getWhitePixelCount(page, 0)).toBeGreaterThan(beforeDelete - 20);
+  });
+
   test('shape tools default to filled and can switch to outline mode', async ({ page }) => {
     await page.goto('/');
 
@@ -654,6 +776,20 @@ test.describe('Shibori Canvas App', () => {
       expect(after.drawable - before.drawable).toBeGreaterThan(0);
       expect(after.invalid - before.invalid).toBe(0);
     }
+
+    await page.goto('/');
+    const bezierCanvas = page.locator('canvas').first();
+    await selectDrawingTool(page, 'bezier');
+    const beforeBezier = await countFoldedWhiteRegions();
+    await drawBezierOnCanvas(page, bezierCanvas, {
+      startAnchor: { x: -120, y: -110 },
+      firstHandle: { x: -80, y: -160 },
+      endAnchor: { x: 90, y: 80 },
+      endHandle: { x: 130, y: 120 },
+    });
+    const afterBezier = await countFoldedWhiteRegions();
+    expect(afterBezier.drawable - beforeBezier.drawable).toBeGreaterThan(0);
+    expect(afterBezier.invalid - beforeBezier.invalid).toBe(0);
   });
 });
 

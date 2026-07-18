@@ -26,6 +26,7 @@ export enum DrawingTool {
     Rectangle = 'rectangle',
     Square = 'square',
     Circle = 'circle',
+    Bezier = 'bezier',
     SelectMove = 'selectMove'
 } 
 

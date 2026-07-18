@@ -30,7 +30,8 @@ export function isDrawableAction(action: UndoableHistoryItem["action"]): action 
     action === DrawingTool.Line ||
     action === DrawingTool.Rectangle ||
     action === DrawingTool.Square ||
-    action === DrawingTool.Circle;
+    action === DrawingTool.Circle ||
+    action === DrawingTool.Bezier;
 }
 
 export function isDrawableCommand(item: UndoableHistoryItem): item is DrawableCommand {

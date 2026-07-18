@@ -5,6 +5,7 @@ import { LineGeometry, LineMode } from './LineMode';
 import { PaintbrushGeometry, PaintbrushMode } from './PaintbrushMode';
 import { RectangleGeometry, RectangleMode } from './RectangleMode';
 import { SquareGeometry, SquareMode } from './SquareMode';
+import { BezierGeometry, BezierMode } from './BezierMode';
 
 export class DrawingModeFactory {
     private static instances: Map<DrawableDrawingTool, DrawingMode> = new Map();
@@ -14,6 +15,7 @@ export class DrawingModeFactory {
         [DrawingTool.Rectangle]: RectangleGeometry,
         [DrawingTool.Square]: SquareGeometry,
         [DrawingTool.Circle]: CircleGeometry,
+        [DrawingTool.Bezier]: BezierGeometry,
     };
     static getTool(tool: DrawableDrawingTool): DrawingMode {
         let instance = this.instances.get(tool);
@@ -49,6 +51,9 @@ export class DrawingModeFactory {
 
             case DrawingTool.Circle:
                 return new CircleMode();
+
+            case DrawingTool.Bezier:
+                return new BezierMode();
 
             default:
                 // asserts that this switch is exhaustive

@@ -45,7 +45,7 @@ function drawingMode(): jest.Mocked<DrawingMode> {
     end: jest.fn((point: Point | null, context: DrawingModeContext) => {
       void point;
       void context;
-      return null;
+      return { status: "discard" };
     }),
     cancel: jest.fn(),
   };
@@ -89,5 +89,34 @@ describe("drawing gesture session", () => {
     expect(capturedMode.end).not.toHaveBeenCalled();
     expect(setup.store.getState().shibori.history).toEqual([]);
     expect(setup.runtime.scheduleUnfoldedUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  test("retains a continuing mode across gestures and commits only once", () => {
+    const setup = harness();
+    const capturedMode = drawingMode();
+    capturedMode.end
+      .mockReturnValueOnce({ status: "continue" })
+      .mockReturnValueOnce({
+        status: "commit",
+        item: {
+          action: DrawingTool.Line,
+          points: [{ x: 1, y: 2 }, { x: 7, y: 8 }],
+        },
+      });
+    const factory = jest.spyOn(DrawingModeFactory, "getTool").mockReturnValue(capturedMode);
+    const { result } = renderHook(() => useCanvasDrawing(setup.refs, setup.runtime), {
+      wrapper: setup.wrapper,
+    });
+
+    act(() => result.current.startDrawing(1, 2));
+    act(() => result.current.endDrawing({ x: 3, y: 4 }));
+    expect(setup.store.getState().shibori.history).toEqual([]);
+
+    act(() => result.current.startDrawing(5, 6));
+    act(() => result.current.endDrawing({ x: 7, y: 8 }));
+
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(capturedMode.start).toHaveBeenCalledTimes(2);
+    expect(setup.store.getState().shibori.history).toHaveLength(1);
   });
 });

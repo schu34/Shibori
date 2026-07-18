@@ -78,6 +78,16 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool }) => {
                     />
                     Circle
                 </label>
+                <label>
+                    <input
+                        type="radio"
+                        name="drawingTool"
+                        value={DrawingTool.Bezier}
+                        checked={currentTool === DrawingTool.Bezier}
+                        onChange={() => handleToolChange(DrawingTool.Bezier)}
+                    />
+                    Bézier Curve
+                </label>
             </div>
         </div>
     );

@@ -1,8 +1,8 @@
 import {
   DrawingMode,
+  DrawingModeResult,
   Point,
   DrawingModeContext,
-  UndoableHistoryItem,
 } from "../types/DrawingMode";
 import { DrawingTool } from "../types";
 import { CanvasService } from "../services/CanvasService";
@@ -102,7 +102,7 @@ export class LineMode implements DrawingMode {
   end(
     point: Point | null,
     context: DrawingModeContext
-  ): UndoableHistoryItem | null {
+  ): DrawingModeResult {
     const {
       getState,
       foldedCtx,
@@ -110,7 +110,7 @@ export class LineMode implements DrawingMode {
     } = context;
 
     const { config, folds, lineThickness } = getState();
-    if (!this.active || !this.startPoint || !this.lastPoint) return null;
+    if (!this.active || !this.startPoint || !this.lastPoint) return { status: "discard" };
 
     if (point) {
       this.lastPoint = point;
@@ -138,11 +138,14 @@ export class LineMode implements DrawingMode {
     this.originalFoldedCanvasState = null;
 
     return {
-      action: this.id,
-      points: [startPoint, lastPoint],
-      style: {
-        lineThickness,
-        color: config.lineColor,
+      status: "commit",
+      item: {
+        action: this.id,
+        points: [startPoint, lastPoint],
+        style: {
+          lineThickness,
+          color: config.lineColor,
+        },
       },
     };
   }

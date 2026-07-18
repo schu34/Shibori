@@ -26,11 +26,14 @@ export const CanvasDisplay: React.FC = () => {
         handleKeyDown,
         downloadUnfoldedCanvas,
         deleteSelection,
+        cancelDrawing,
+        drawingGuidance,
     } = useCanvas();
 
     logger.canvas.operation('CanvasDisplay rendering with focused components');
 
     const handleClearCanvas = () => {
+        cancelDrawing();
         if (state.history.length > 0) {
             dispatch({
                 type: ActionType.ADD_HISTORY_ITEM,
@@ -40,6 +43,7 @@ export const CanvasDisplay: React.FC = () => {
     };
 
     const handleUndo = () => {
+        cancelDrawing();
         if (state.history.length > 0) dispatch({ type: ActionType.UNDO });
     };
 
@@ -55,6 +59,7 @@ export const CanvasDisplay: React.FC = () => {
                 selectionDragDelta={state.selectionDragDelta}
                 selectionRotationPreview={state.selectionRotationPreview}
                 lineThickness={state.lineThickness}
+                drawingGuidance={drawingGuidance}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}

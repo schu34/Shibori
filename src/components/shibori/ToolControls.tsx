@@ -16,6 +16,7 @@ const toolsWithSizeControl = new Set<DrawingTool>([
     DrawingTool.Rectangle,
     DrawingTool.Square,
     DrawingTool.Circle,
+    DrawingTool.Bezier,
 ]);
 
 export const ToolControls: React.FC = () => {

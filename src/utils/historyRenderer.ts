@@ -45,6 +45,9 @@ export function renderDrawableHistoryItem(
     case DrawingTool.Circle:
       renderCircle(ctx, item, options);
       break;
+    case DrawingTool.Bezier:
+      renderBezier(ctx, item, options);
+      break;
   }
 
   ctx.restore();
@@ -198,6 +201,29 @@ function renderCircle(
     return;
   }
 
+  ctx.stroke();
+}
+
+function renderBezier(
+  ctx: CanvasRenderingContext2D,
+  item: DrawableHistoryItem,
+  options: HistoryRenderOptions
+): void {
+  if (item.points.length !== 4) return;
+  ctx.beginPath();
+  ctx.moveTo(item.points[0].x, item.points[0].y);
+  ctx.bezierCurveTo(
+    item.points[1].x,
+    item.points[1].y,
+    item.points[2].x,
+    item.points[2].y,
+    item.points[3].x,
+    item.points[3].y
+  );
+  ctx.strokeStyle = getColor(item, options);
+  ctx.lineWidth = getLineThickness(item, options);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   ctx.stroke();
 }
 

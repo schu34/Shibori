@@ -47,5 +47,7 @@ export function useCanvas() {
     downloadUnfoldedCanvas,
     ...eventHandlers,
     deleteSelection: drawingOps.deleteSelection,
+    cancelDrawing: drawingOps.cancelDrawing,
+    drawingGuidance: drawingOps.drawingGuidance,
   };
 }

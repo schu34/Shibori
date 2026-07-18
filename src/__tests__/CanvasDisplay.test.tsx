@@ -21,6 +21,10 @@ jest.mock('../hooks/useCanvas', () => ({
         handlePointerCancel: jest.fn(),
         handleLostPointerCapture: jest.fn(),
         handleKeyDown: jest.fn(),
+        cancelDrawing: jest.fn(),
+        deleteSelection: jest.fn(),
+        drawingGuidance: null,
+        downloadUnfoldedCanvas: jest.fn(),
         // Add missing properties to satisfy TypeScript
         clearCanvases: jest.fn(),
         updateFoldedCanvasDimensions: jest.fn(),

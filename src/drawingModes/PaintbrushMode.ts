@@ -1,4 +1,4 @@
-import { DrawingMode, Point, DrawingModeContext, UndoableHistoryItem } from '../types/DrawingMode';
+import { DrawingMode, DrawingModeResult, Point, DrawingModeContext } from '../types/DrawingMode';
 import { getStroke } from 'perfect-freehand';
 import { DrawingTool } from '../types';
 import { CanvasService } from '../services/CanvasService';
@@ -95,20 +95,23 @@ export class PaintbrushMode implements DrawingMode {
         return true;
     }
 
-    end(_point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
+    end(_point: Point | null, context: DrawingModeContext): DrawingModeResult {
         const { getState } = context;
-        if (!this.active) return null;
+        if (!this.active) return { status: 'discard' };
         const { lineThickness, config } = getState();
         const points = this.points;
         this.active = false;
         this.points = [];
         this.originalFoldedCanvasState = null;
         return {
-            action: DrawingTool.Paintbrush,
-            points,
-            style: {
-                lineThickness,
-                color: config.lineColor,
+            status: 'commit',
+            item: {
+                action: DrawingTool.Paintbrush,
+                points,
+                style: {
+                    lineThickness,
+                    color: config.lineColor,
+                },
             },
         };
     }

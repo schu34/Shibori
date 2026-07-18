@@ -446,6 +446,7 @@ function isValidHistoryItem(value: unknown, requireV2Style: boolean): value is U
         ])) return false;
         const minimumPoints = action === DrawingTool.Paintbrush ? 1 : 2;
         if (value.points.length < minimumPoints) return false;
+        if (action === DrawingTool.Bezier && value.points.length !== 4) return false;
         if (requireV2Style && !isValidId(value.id)) return false;
         if (value.id !== undefined && !isValidId(value.id)) return false;
         if (requireV2Style && !isValidDrawingStyle(value.style, isShapeAction(action), true)) return false;

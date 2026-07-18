@@ -1,9 +1,9 @@
 import {
   DrawingMode,
   DrawingModeContext,
+  DrawingModeResult,
   DrawableDrawingTool,
   Point,
-  UndoableHistoryItem,
 } from "../types/DrawingMode";
 import { ShapeFillMode } from "../types";
 import { CanvasService } from "../services/CanvasService";
@@ -52,14 +52,14 @@ export abstract class DragShapeMode implements DrawingMode {
     return true;
   }
 
-  end(point: Point | null, context: DrawingModeContext): UndoableHistoryItem | null {
+  end(point: Point | null, context: DrawingModeContext): DrawingModeResult {
     const { getState } = context;
     const { lineThickness, config } = getState();
 
-    if (!this.active || !this.startPoint) return null;
+    if (!this.active || !this.startPoint) return { status: "discard" };
 
     const endPoint = point ?? this.lastPoint;
-    if (!endPoint) return null;
+    if (!endPoint) return { status: "discard" };
 
     this.drawPreview(context, this.startPoint, endPoint, 1);
 
@@ -67,13 +67,16 @@ export abstract class DragShapeMode implements DrawingMode {
     this.clearStoredCanvasState();
 
     return {
-      action: this.tool,
-      points: [startPoint, endPoint],
-      shapeFillMode: this.getFillMode(context),
-      style: {
-        lineThickness,
-        color: config.lineColor,
+      status: "commit",
+      item: {
+        action: this.tool,
+        points: [startPoint, endPoint],
         shapeFillMode: this.getFillMode(context),
+        style: {
+          lineThickness,
+          color: config.lineColor,
+          shapeFillMode: this.getFillMode(context),
+        },
       },
     };
   }

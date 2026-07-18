@@ -1,11 +1,37 @@
 import { test, expect } from '@playwright/test';
 import { 
   analyzeCanvasPixels, 
+  drawBezierOnCanvas,
   drawOnCanvas, 
   selectDrawingTool 
 } from './utils/canvasHelpers';
 
 test.describe('Shareable Links', () => {
+  test('restores a bezier curve before the first canvas transaction', async ({ page, browser }) => {
+    await page.goto('/');
+    const foldedCanvas = page.getByLabel('Folded drawing canvas');
+    await selectDrawingTool(page, 'bezier');
+    await drawBezierOnCanvas(page, foldedCanvas);
+
+    const originalFolded = await analyzeCanvasPixels(page, 0);
+    const originalUnfolded = await analyzeCanvasPixels(page, 1);
+    await page.getByRole('button', { name: 'Generate Share Link' }).click();
+    const shareUrl = await page.locator('.url-input').inputValue();
+
+    const context = await browser.newContext();
+    const sharedPage = await context.newPage();
+    await sharedPage.goto(shareUrl);
+    await expect(sharedPage.locator('input[value="bezier"]')).toBeChecked();
+    await expect.poll(async () => (await analyzeCanvasPixels(sharedPage, 0)).pixelCounts.white)
+      .toBeGreaterThan(20);
+
+    const restoredFolded = await analyzeCanvasPixels(sharedPage, 0);
+    const restoredUnfolded = await analyzeCanvasPixels(sharedPage, 1);
+    expect(restoredFolded.pixelCounts.white).toBeCloseTo(originalFolded.pixelCounts.white, -1);
+    expect(restoredUnfolded.pixelCounts.white).toBeCloseTo(originalUnfolded.pixelCounts.white, -1);
+    await context.close();
+  });
+
   test('can create and load shareable drawing links', async ({ page, browser }) => {
     await page.goto('/');
 

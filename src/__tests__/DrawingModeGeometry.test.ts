@@ -11,6 +11,7 @@ describe('drawing mode geometry', () => {
     DrawingTool.Rectangle,
     DrawingTool.Square,
     DrawingTool.Circle,
+    DrawingTool.Bezier,
   ] satisfies DrawableDrawingTool[])('%s exposes geometry', (tool) => {
     expect(DrawingModeFactory.getGeometry(tool)).toEqual({
       hitTest: expect.any(Function),
@@ -143,5 +144,34 @@ describe('drawing mode geometry', () => {
     expect(geometry.hitTest(filled, { x: 110, y: 100 }, options)).toBe(true);
     expect(geometry.hitTest(outline, { x: 110, y: 100 }, options)).toBe(false);
     expect(geometry.hitTest(outline, { x: 150, y: 100 }, options)).toBe(true);
+  });
+
+  test('bezier geometry hit tests the curve, computes tight bounds, and translates all points', () => {
+    const item: UndoableHistoryItem = {
+      id: 'bezier',
+      action: DrawingTool.Bezier,
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 100 },
+        { x: 100, y: 100 },
+        { x: 100, y: 0 },
+      ],
+    };
+    const geometry = DrawingModeFactory.getGeometry(DrawingTool.Bezier);
+
+    expect(geometry.hitTest(item, { x: 50, y: 75 }, options)).toBe(true);
+    expect(geometry.hitTest(item, { x: 50, y: 20 }, options)).toBe(false);
+    expect(geometry.getBounds(item, { lineThickness: 0 })).toEqual({
+      minX: 0,
+      minY: 0,
+      maxX: 100,
+      maxY: 75,
+    });
+    expect(geometry.translate(item, { x: 10, y: -5 }).points).toEqual([
+      { x: 10, y: -5 },
+      { x: 10, y: 95 },
+      { x: 110, y: 95 },
+      { x: 110, y: -5 },
+    ]);
   });
 });

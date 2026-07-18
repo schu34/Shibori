@@ -193,7 +193,7 @@ export async function drawOnCanvas(
  */
 export async function selectDrawingTool(
   page: Page,
-  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle' | 'selectMove'
+  tool: 'paintbrush' | 'line' | 'rectangle' | 'square' | 'circle' | 'bezier' | 'selectMove'
 ): Promise<void> {
   const toolInput = page.locator(`input[value="${tool}"]`);
   await toolInput.check();
@@ -203,6 +203,41 @@ export async function selectDrawingTool(
   if (!isSelected) {
     throw new Error(`Failed to select ${tool} tool`);
   }
+}
+
+export async function drawBezierOnCanvas(
+  page: Page,
+  canvas: Locator,
+  options: {
+    startAnchor?: { x: number; y: number };
+    firstHandle?: { x: number; y: number };
+    endAnchor?: { x: number; y: number };
+    endHandle?: { x: number; y: number };
+  } = {}
+): Promise<void> {
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center' }));
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('Canvas not found');
+  const center = { x: box.x + (box.width / 2), y: box.y + (box.height / 2) };
+  const startAnchor = options.startAnchor ?? { x: -90, y: 20 };
+  const firstHandle = options.firstHandle ?? { x: -60, y: -70 };
+  const endAnchor = options.endAnchor ?? { x: 90, y: 20 };
+  const endHandle = options.endHandle ?? { x: 60, y: 90 };
+
+  await dragPointer(page, center, startAnchor, firstHandle);
+  await dragPointer(page, center, endAnchor, endHandle);
+}
+
+async function dragPointer(
+  page: Page,
+  center: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+): Promise<void> {
+  await page.mouse.move(center.x + start.x, center.y + start.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + end.x, center.y + end.y, { steps: 8 });
+  await page.mouse.up();
 }
 
 export async function selectShapeFillMode(

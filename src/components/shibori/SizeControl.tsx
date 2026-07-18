@@ -19,6 +19,7 @@ export const SizeControl: React.FC<SizeControlProps> = ({ tool, value }) => {
     const getControlConfig = () => {
         switch (tool) {
             case DrawingTool.Line:
+            case DrawingTool.Bezier:
                 return {
                     label: 'Line Thickness:',
                     min: 1,

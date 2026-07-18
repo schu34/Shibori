@@ -11,6 +11,7 @@ describe('DrawingModeFactory', () => {
     [DrawingTool.Rectangle, 'RectangleMode'],
     [DrawingTool.Square, 'SquareMode'],
     [DrawingTool.Circle, 'CircleMode'],
+    [DrawingTool.Bezier, 'BezierMode'],
   ] satisfies Array<[DrawableDrawingTool, string]>)('creates %s with %s', (tool, expectedModeName) => {
     expect(DrawingModeFactory.getTool(tool).constructor.name).toBe(expectedModeName);
   });

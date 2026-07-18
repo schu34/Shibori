@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "react-redux";
 import { DrawingModeFactory } from "../drawingModes/DrawingModeFactory";
 import { RootState } from "../store";
@@ -9,6 +9,7 @@ import {
   DrawableDrawingTool,
   DrawingMode,
   DrawingModeContext,
+  DrawingGuidance,
   Point,
   UndoableHistoryItem,
 } from "../types/DrawingMode";
@@ -31,12 +32,12 @@ import {
 import { logger } from "../utils/logger";
 import { CanvasRefs } from "./useCanvasRefs";
 import { CanvasRuntime } from "./useCanvasRuntime";
-import { useAppDispatch } from "./useReduxHooks";
+import { useAppDispatch, useAppSelector } from "./useReduxHooks";
 
 const ROTATION_HANDLE_HIT_TOLERANCE = 34;
 
 type GestureSession =
-  | { kind: "draw"; tool: DrawableDrawingTool; mode: DrawingMode; context: DrawingModeContext }
+  | { kind: "draw"; tool: DrawableDrawingTool; mode: DrawingMode; context: DrawingModeContext; phase: "active-pointer" | "awaiting-next-gesture" }
   | { kind: "move"; itemId: string; startPoint: Point; fromItem: DrawableHistoryItem }
   | { kind: "rotate"; itemId: string; center: Point; startAngle: number; fromItem: DrawableHistoryItem };
 
@@ -48,6 +49,7 @@ export interface DrawingOperations {
   nudgeSelection: (delta: Point) => void;
   deleteSelection: () => void;
   clearSelection: () => void;
+  drawingGuidance: DrawingGuidance | null;
 }
 
 /** Owns one local drawing, move, or rotate session at a time. */
@@ -57,7 +59,14 @@ export function useCanvasDrawing(
 ): DrawingOperations {
   const dispatch = useAppDispatch();
   const sessionRef = useRef<GestureSession | null>(null);
+  const [drawingGuidance, setDrawingGuidance] = useState<DrawingGuidance | null>(null);
   const store = useStore<RootState>();
+  const currentTool = useAppSelector((state) => state.shibori.currentTool);
+  const structuralKey = useAppSelector((state) => {
+    const { canvasDimensions, folds } = state.shibori;
+    return `${canvasDimensions.width}:${canvasDimensions.height}:${folds.vertical}:${folds.horizontal}:${folds.diagonal.enabled}:${folds.diagonal.count}:${folds.diagonal.direction}`;
+  });
+  const previousStructuralKeyRef = useRef(structuralKey);
   const getState = useCallback(() => store.getState().shibori, [store]);
   const {
     foldedCanvasRef,
@@ -74,6 +83,7 @@ export function useCanvasDrawing(
       foldedCtx,
       foldedCanvas: foldedCanvasRef.current ?? undefined,
       getFoldedCanvasDimensions,
+      setDrawingGuidance,
     };
   }, [foldedCanvasRef, foldedCtxRef, getFoldedCanvasDimensions, getState]);
 
@@ -84,6 +94,7 @@ export function useCanvasDrawing(
 
     if (session.kind === "draw") {
       session.mode.cancel(session.context);
+      setDrawingGuidance(null);
       scheduleUnfoldedUpdate();
       return;
     }
@@ -95,6 +106,22 @@ export function useCanvasDrawing(
       payload: null,
     });
   }, [dispatch, scheduleUnfoldedUpdate]);
+
+  useEffect(() => {
+    const session = sessionRef.current;
+    if (session?.kind === "draw" &&
+        session.phase === "awaiting-next-gesture" &&
+        session.tool !== currentTool) {
+      cancelDrawing();
+    }
+  }, [cancelDrawing, currentTool]);
+
+  useEffect(() => {
+    if (previousStructuralKeyRef.current !== structuralKey) {
+      previousStructuralKeyRef.current = structuralKey;
+      cancelDrawing();
+    }
+  }, [cancelDrawing, structuralKey]);
 
   const nudgeSelection = useCallback((delta: Point) => {
     const currentState = getState();
@@ -131,7 +158,14 @@ export function useCanvasDrawing(
   }, [cancelDrawing, dispatch]);
 
   const startDrawing = useCallback((x: number, y: number) => {
-    if (sessionRef.current) return;
+    const existingSession = sessionRef.current;
+    if (existingSession) {
+      if (existingSession.kind === "draw" && existingSession.phase === "awaiting-next-gesture") {
+        existingSession.phase = "active-pointer";
+        existingSession.mode.start({ x, y }, existingSession.context);
+      }
+      return;
+    }
     const state = getState();
     const point = { x, y };
 
@@ -177,7 +211,7 @@ export function useCanvasDrawing(
     if (!context) return;
     const tool = state.currentTool;
     const mode = DrawingModeFactory.getTool(tool);
-    sessionRef.current = { kind: "draw", tool, mode, context };
+    sessionRef.current = { kind: "draw", tool, mode, context, phase: "active-pointer" };
     logger.canvas.operation("startDrawing", { x, y, tool });
     mode.start(point, context);
   }, [createModeContext, dispatch, getState]);
@@ -185,6 +219,8 @@ export function useCanvasDrawing(
   const continueDrawing = useCallback((x: number, y: number) => {
     const session = sessionRef.current;
     if (!session) return;
+
+    if (session.kind === "draw" && session.phase !== "active-pointer") return;
 
     if (session.kind === "rotate") {
       const angle = Math.atan2(y - session.center.y, x - session.center.x) - session.startAngle;
@@ -207,9 +243,8 @@ export function useCanvasDrawing(
   const endDrawing = useCallback((point: Point | null) => {
     const session = sessionRef.current;
     if (!session) return;
-    sessionRef.current = null;
-
     if (session.kind === "rotate") {
+      sessionRef.current = null;
       const previewAngle = getState().selectionRotationPreview?.angle ?? 0;
       const angle = point
         ? Math.atan2(point.y - session.center.y, point.x - session.center.x) - session.startAngle
@@ -223,6 +258,7 @@ export function useCanvasDrawing(
     }
 
     if (session.kind === "move") {
+      sessionRef.current = null;
       const delta = point
         ? { x: point.x - session.startPoint.x, y: point.y - session.startPoint.y }
         : getState().selectionDragDelta ?? { x: 0, y: 0 };
@@ -248,11 +284,25 @@ export function useCanvasDrawing(
 
     logger.canvas.operation("endDrawing", { point, tool: session.tool });
     const result = session.mode.end(point, session.context);
-    if (result) {
-      dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: result });
-      logger.history.add(result);
+    if (result.status === "continue") {
+      if (getState().currentTool !== session.tool) {
+        sessionRef.current = null;
+        session.mode.cancel(session.context);
+        setDrawingGuidance(null);
+        scheduleUnfoldedUpdate();
+        return;
+      }
+      session.phase = "awaiting-next-gesture";
+      return;
     }
-  }, [dispatch, getState]);
+
+    sessionRef.current = null;
+    setDrawingGuidance(null);
+    if (result.status === "commit") {
+      dispatch({ type: ActionType.ADD_HISTORY_ITEM, payload: result.item });
+      logger.history.add(result.item);
+    }
+  }, [dispatch, getState, scheduleUnfoldedUpdate]);
 
   return {
     startDrawing,
@@ -262,6 +312,7 @@ export function useCanvasDrawing(
     nudgeSelection,
     deleteSelection,
     clearSelection,
+    drawingGuidance,
   };
 }
 

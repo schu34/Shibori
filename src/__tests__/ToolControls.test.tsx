@@ -60,6 +60,7 @@ describe('ToolControls Component', () => {
         expect(screen.getByText('Rectangle')).toBeInTheDocument();
         expect(screen.getByText('Square')).toBeInTheDocument();
         expect(screen.getByText('Circle')).toBeInTheDocument();
+        expect(screen.getByText('Bézier Curve')).toBeInTheDocument();
         expect(screen.getByText('Select/Move')).toBeInTheDocument();
     });
 
@@ -154,6 +155,18 @@ describe('ToolControls Component', () => {
             type: 'SET_SHAPE_FILL_MODE',
             payload: ShapeFillMode.Outline
         });
+    });
+
+    test('bezier shows line thickness without shape fill controls', () => {
+        jest.spyOn(reduxHooks, 'useAppSelector').mockImplementation(() => ({
+            ...mockState,
+            currentTool: DrawingTool.Bezier
+        }));
+
+        renderWithRedux(<ToolControls />);
+
+        expect(screen.getByText('Line Thickness:')).toBeInTheDocument();
+        expect(screen.queryByText('Shape Fill:')).not.toBeInTheDocument();
     });
 
 }); 
