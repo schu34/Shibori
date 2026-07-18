@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { DrawingTool } from '../../types';
 import { ActionType } from '../../store/shiboriCanvasState';
 import { useAppDispatch } from '../../hooks/useReduxHooks';
+import { WorkspaceIcon, WorkspaceIconName } from './WorkspaceIcon';
 
 interface ToolSelectorProps {
     currentTool: DrawingTool;
@@ -14,91 +15,37 @@ export const ToolSelector: React.FC<ToolSelectorProps> = ({ currentTool }) => {
         dispatch({ type: ActionType.SET_CURRENT_TOOL, payload: tool });
     }, [dispatch]);
 
+    const tools: Array<{ tool: DrawingTool; label: string; icon: WorkspaceIconName }> = [
+        { tool: DrawingTool.SelectMove, label: 'Select/Move', icon: 'select' },
+        { tool: DrawingTool.DirectSelect, label: 'Direct Selection', icon: 'directSelect' },
+        { tool: DrawingTool.Line, label: 'Line Tool', icon: 'line' },
+        { tool: DrawingTool.Paintbrush, label: 'Paintbrush', icon: 'paintbrush' },
+        { tool: DrawingTool.Rectangle, label: 'Rectangle', icon: 'rectangle' },
+        { tool: DrawingTool.Square, label: 'Square', icon: 'square' },
+        { tool: DrawingTool.Circle, label: 'Circle', icon: 'circle' },
+        { tool: DrawingTool.Bezier, label: 'Bézier Curve', icon: 'bezier' },
+    ];
+
     return (
-        <div className="tool-controls-group">
-            <h3>Drawing Tool:</h3>
-            <div className="radio-group">
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.SelectMove}
-                        checked={currentTool === DrawingTool.SelectMove}
-                        onChange={() => handleToolChange(DrawingTool.SelectMove)}
-                    />
-                    Select/Move
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.DirectSelect}
-                        checked={currentTool === DrawingTool.DirectSelect}
-                        onChange={() => handleToolChange(DrawingTool.DirectSelect)}
-                    />
-                    Direct Selection
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.Line}
-                        checked={currentTool === DrawingTool.Line}
-                        onChange={() => handleToolChange(DrawingTool.Line)}
-                    />
-                    Line Tool
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.Paintbrush}
-                        checked={currentTool === DrawingTool.Paintbrush}
-                        onChange={() => handleToolChange(DrawingTool.Paintbrush)}
-                    />
-                    Paintbrush
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.Rectangle}
-                        checked={currentTool === DrawingTool.Rectangle}
-                        onChange={() => handleToolChange(DrawingTool.Rectangle)}
-                    />
-                    Rectangle
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.Square}
-                        checked={currentTool === DrawingTool.Square}
-                        onChange={() => handleToolChange(DrawingTool.Square)}
-                    />
-                    Square
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.Circle}
-                        checked={currentTool === DrawingTool.Circle}
-                        onChange={() => handleToolChange(DrawingTool.Circle)}
-                    />
-                    Circle
-                </label>
-                <label>
-                    <input
-                        type="radio"
-                        name="drawingTool"
-                        value={DrawingTool.Bezier}
-                        checked={currentTool === DrawingTool.Bezier}
-                        onChange={() => handleToolChange(DrawingTool.Bezier)}
-                    />
-                    Bézier Curve
-                </label>
+        <fieldset className="tool-selector" aria-label="Drawing tools">
+            <legend className="visually-hidden">Drawing Tool:</legend>
+            <div className="tool-rail-items">
+                {tools.map(({ tool, label, icon }) => (
+                    <label className="tool-button" data-tooltip={label} key={tool}>
+                        <input
+                            type="radio"
+                            name="drawingTool"
+                            value={tool}
+                            checked={currentTool === tool}
+                            onChange={() => handleToolChange(tool)}
+                        />
+                        <span className="tool-button-face">
+                            <WorkspaceIcon name={icon} />
+                            <span className="visually-hidden">{label}</span>
+                        </span>
+                    </label>
+                ))}
             </div>
-        </div>
+        </fieldset>
     );
-}; 
+};

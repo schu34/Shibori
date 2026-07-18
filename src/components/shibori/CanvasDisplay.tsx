@@ -6,12 +6,28 @@ import { HistoryAction } from '../../types';
 import { CanvasRenderer } from './CanvasRenderer';
 import { logger } from '../../utils/logger';
 
+type CanvasView = 'folded' | 'unfolded';
+
+interface CanvasDisplayProps {
+    activeCanvas?: CanvasView;
+    isInspectorOpen?: boolean;
+    onActiveCanvasChange?: (canvas: CanvasView) => void;
+    onOpenShare?: () => void;
+    onToggleInspector?: () => void;
+}
+
 /**
  * Main canvas display component:
  * - CanvasRenderer: Handles the visual rendering of canvases
  * - useCanvas: Owns the state-driven canvas runtime and interactions
  */
-export const CanvasDisplay: React.FC = () => {
+export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({
+    activeCanvas = 'folded',
+    isInspectorOpen = true,
+    onActiveCanvasChange = () => undefined,
+    onOpenShare = () => undefined,
+    onToggleInspector = () => undefined,
+}) => {
     const state = useAppSelector((state) => state.shibori);
     const dispatch = useAppDispatch();
     const [showFoldGuides, setShowFoldGuides] = useState(true);
@@ -82,6 +98,11 @@ export const CanvasDisplay: React.FC = () => {
                 onDownload={downloadUnfoldedCanvas}
                 showFoldGuides={showFoldGuides}
                 onToggleFoldGuides={() => setShowFoldGuides((visible) => !visible)}
+                activeCanvas={activeCanvas}
+                isInspectorOpen={isInspectorOpen}
+                onActiveCanvasChange={onActiveCanvasChange}
+                onOpenShare={onOpenShare}
+                onToggleInspector={onToggleInspector}
             />
         </>
     );

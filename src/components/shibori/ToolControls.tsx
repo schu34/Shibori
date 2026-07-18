@@ -1,5 +1,4 @@
 import React from 'react';
-import { ToolSelector } from './ToolSelector';
 import { SizeControl } from './SizeControl';
 import { ShapeFillControl } from './ShapeFillControl';
 import { useAppSelector } from '../../hooks/useReduxHooks';
@@ -25,9 +24,6 @@ export const ToolControls: React.FC = () => {
 
     return (
         <div className="tool-controls-layout">
-            <ToolSelector
-                currentTool={state.currentTool}
-            />
             {toolsWithSizeControl.has(state.currentTool) && (
                 <SizeControl
                     tool={state.currentTool}
@@ -37,6 +33,9 @@ export const ToolControls: React.FC = () => {
             {shapeTools.has(state.currentTool) && (
                 <ShapeFillControl fillMode={state.shapeFillMode} />
             )}
+            {!toolsWithSizeControl.has(state.currentTool) && (
+                <p className="tool-options-empty">This tool has no additional options.</p>
+            )}
         </div>
     );
-}; 
+};

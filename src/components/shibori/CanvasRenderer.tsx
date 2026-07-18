@@ -14,6 +14,7 @@ import { getFoldedCanvasDimensions } from '../../utils/foldedCanvasDimensions';
 import { FoldGuideOverlay } from './FoldGuideOverlay';
 import { BezierGuideOverlay } from './BezierGuideOverlay';
 import { PathEditOverlay } from './PathEditOverlay';
+import { WorkspaceIcon } from './WorkspaceIcon';
 
 interface CanvasRendererProps {
     foldedCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -45,6 +46,11 @@ interface CanvasRendererProps {
     onFinishDrawing: () => void;
     onCancelDrawing: () => void;
     onConvertPathSelection: () => void;
+    activeCanvas: 'folded' | 'unfolded';
+    isInspectorOpen: boolean;
+    onActiveCanvasChange: (canvas: 'folded' | 'unfolded') => void;
+    onOpenShare: () => void;
+    onToggleInspector: () => void;
 }
 
 export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
@@ -77,6 +83,11 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     onFinishDrawing,
     onCancelDrawing,
     onConvertPathSelection,
+    activeCanvas,
+    isInspectorOpen,
+    onActiveCanvasChange,
+    onOpenShare,
+    onToggleInspector,
 }) => {
     logger.canvas.operation('CanvasRenderer rendering', {
         canvasDimensions,
@@ -119,14 +130,57 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         }
         : undefined;
     const foldedGuideStyle = getCanvasOverlayStyle(canvasDimensions, foldedCanvasDimensions);
+    const canvasFrameStyle = {
+        aspectRatio: `${canvasDimensions.width} / ${canvasDimensions.height}`,
+        '--canvas-aspect': canvasDimensions.width / canvasDimensions.height,
+    } as React.CSSProperties;
 
     return (
-        <div className="canvas-container">
-            <div className="canvas-wrapper">
+        <>
+            <div className="workspace-toolbar" role="toolbar" aria-label="Canvas actions">
+                <ToolbarButton label="Undo" icon="undo" onClick={onUndo} />
+                <ToolbarButton label="Clear" title="Clear canvas" icon="clear" onClick={onClear} />
+                <ToolbarButton
+                    label={showFoldGuides ? 'Hide fold guides' : 'Show fold guides'}
+                    icon="guides"
+                    onClick={onToggleFoldGuides}
+                    pressed={showFoldGuides}
+                />
+                <ToolbarButton label="Download" title="Download as PNG image" icon="download" onClick={onDownload} />
+                <ToolbarButton label="Share pattern" icon="share" onClick={onOpenShare} />
+                <ToolbarButton
+                    label={isInspectorOpen ? 'Hide properties' : 'Show properties'}
+                    icon="settings"
+                    onClick={onToggleInspector}
+                    pressed={isInspectorOpen}
+                />
+            </div>
+
+            <div className="mobile-canvas-tabs" role="tablist" aria-label="Canvas view">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCanvas === 'folded'}
+                    onClick={() => onActiveCanvasChange('folded')}
+                >
+                    Folded
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCanvas === 'unfolded'}
+                    onClick={() => onActiveCanvasChange('unfolded')}
+                >
+                    Unfolded
+                </button>
+            </div>
+
+            <div className="canvas-container">
+            <section className={`canvas-wrapper canvas-panel-folded${activeCanvas === 'folded' ? ' is-mobile-active' : ''}`}>
                 <h3>Folded Version</h3>
                 <div
                     className="folded-canvas-frame"
-                    style={{ aspectRatio: `${canvasDimensions.width} / ${canvasDimensions.height}` }}
+                    style={canvasFrameStyle}
                 >
                     <canvas
                         ref={foldedCanvasRef}
@@ -209,46 +263,12 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         </div>
                     )}
                 </div>
-            </div>
-            <div className="canvas-wrapper">
-                <div className="canvas-header">
-                    <h3>Unfolded Version</h3>
-                    <div className="canvas-actions">
-                        <button
-                            className="download-button"
-                            onClick={onClear}
-                            title="Clear canvas"
-                        >
-                            Clear
-                        </button>
-                        <button
-                            className="download-button"
-                            onClick={onUndo}
-                            title="Undo"
-                        >
-                            Undo
-                        </button>
-                        <button
-                            className="download-button"
-                            onClick={onDownload}
-                            title="Download as PNG image"
-                        >
-                            Download
-                        </button>
-                        <button
-                            className="download-button"
-                            type="button"
-                            onClick={onToggleFoldGuides}
-                            aria-pressed={showFoldGuides}
-                            aria-label={showFoldGuides ? 'Hide fold guides' : 'Show fold guides'}
-                        >
-                            {showFoldGuides ? 'Hide guides' : 'Show guides'}
-                        </button>
-                    </div>
-                </div>
+            </section>
+            <section className={`canvas-wrapper canvas-panel-unfolded${activeCanvas === 'unfolded' ? ' is-mobile-active' : ''}`}>
+                <h3>Unfolded Version</h3>
                 <div
                     className="unfolded-canvas-frame"
-                    style={{ aspectRatio: `${canvasDimensions.width} / ${canvasDimensions.height}` }}
+                    style={canvasFrameStyle}
                 >
                     <canvas
                         ref={unfoldedCanvasRef}
@@ -263,10 +283,33 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
                         />
                     )}
                 </div>
+            </section>
             </div>
-        </div>
+        </>
     );
 };
+
+interface ToolbarButtonProps {
+    label: string;
+    title?: string;
+    icon: 'undo' | 'clear' | 'guides' | 'download' | 'share' | 'settings';
+    onClick: () => void;
+    pressed?: boolean;
+}
+
+const ToolbarButton: React.FC<ToolbarButtonProps> = ({ label, title, icon, onClick, pressed }) => (
+    <button
+        type="button"
+        className="icon-button workspace-action"
+        onClick={onClick}
+        aria-label={label}
+        aria-pressed={pressed}
+        title={title ?? label}
+        data-tooltip={label}
+    >
+        <WorkspaceIcon name={icon} />
+    </button>
+);
 
 function getCanvasOverlayStyle(
     frameDimensions: { width: number; height: number },

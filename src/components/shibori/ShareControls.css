@@ -1,9 +1,9 @@
 .share-controls {
     margin: 0;
-    padding: 15px;
-    border: 1px solid #b9cde8;
-    border-radius: 8px;
-    background-color: #ffffff;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
     position: relative;
     z-index: 1;
     box-sizing: border-box;
@@ -12,15 +12,20 @@
 }
 
 .share-controls h3 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    color: #172033;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    font-size: 12px;
+    color: #18212f;
     pointer-events: auto;
 }
 
 .share-message {
-    color: #5e6f84;
-    font-size: 13px;
+    color: #667085;
+    font-size: 12px;
     line-height: 1.4;
     margin: 10px 0;
     position: relative;
@@ -61,10 +66,11 @@
 }
 
 .generate-link-btn {
-    background-color: #3a7bdb;
+    width: 100%;
+    background-color: #356fd6;
     color: white;
     border: none;
-    padding: 8px 16px;
+    padding: 8px 12px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
@@ -73,7 +79,7 @@
 }
 
 .generate-link-btn:hover:not(:disabled) {
-    background-color: #2c60b3;
+    background-color: #285ab5;
 }
 
 .generate-link-btn:disabled {
