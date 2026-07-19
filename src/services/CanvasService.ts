@@ -84,15 +84,23 @@ export class CanvasService {
 
     const width = canvas.width;
     const height = canvas.height;
+    // Canvas clips antialias their diagonal edge. Extend the render-only clip
+    // far enough to retain one fully covered unfolded-cell pixel after
+    // downsampling, so the source and reflection meet without a background seam.
+    const overlap = 2 * Math.pow(2, folds.vertical);
 
     if (folds.diagonal.direction === 'topRightToBottomLeft') {
-      ctx.moveTo(width, 0);
-      ctx.lineTo(width, height);
-      ctx.lineTo(0, height);
-    } else {
-      ctx.moveTo(0, 0);
+      ctx.moveTo(width - overlap, 0);
       ctx.lineTo(width, 0);
       ctx.lineTo(width, height);
+      ctx.lineTo(0, height);
+      ctx.lineTo(0, height - overlap);
+    } else {
+      ctx.moveTo(0, overlap);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(width, 0);
+      ctx.lineTo(width, height);
+      ctx.lineTo(width - overlap, height);
     }
 
     ctx.closePath();
